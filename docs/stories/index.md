@@ -2,7 +2,7 @@
 
 | ID | Title | Type | Priority | Status | Auto ✓ | QA ✓ | Arch ✓ | Spec ✓ | Auto Rec ✓ | QA Rec ✓ |
 |----|-------|------|----------|--------|--------|------|--------|--------|------------|----------|
-| [STORY-001](STORY-001-project-initiation/description.md) | Project Initiation | chore | P0 | In Progress | | | | | | |
+| [STORY-001](STORY-001-project-initiation/description.md) | Project Initiation | chore | P0 | Accepted | | | | | | |
 | [STORY-002](STORY-002-settings/description.md) | Settings | feature | P0 | Planned | | | | | | |
 | [STORY-003](STORY-003-project-management/description.md) | Project Management | feature | P0 | Planned | | | | | | |
 | [STORY-004](STORY-004-story-management/description.md) | Story Management | feature | P0 | Planned | | | | | | |

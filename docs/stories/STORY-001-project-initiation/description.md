@@ -1,5 +1,5 @@
 ---
-status: In Progress
+status: Accepted
 type: chore
 priority: P0
 date: 2026-06-27

@@ -9,4 +9,4 @@
 | TASK-005 | Setup — frontend-developer | frontend-developer | Done |
 | TASK-006 | Setup — devops | devops | Done |
 | TASK-007 | Setup — qa-automation | qa-automation | Done |
-| TASK-008 | Setup — manual-qa | manual-qa | ToDo |
+| TASK-008 | Setup — manual-qa | manual-qa | Done |

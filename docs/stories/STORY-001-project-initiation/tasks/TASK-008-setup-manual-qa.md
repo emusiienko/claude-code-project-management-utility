@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: manual-qa
 story: STORY-001
 ---
@@ -22,10 +22,9 @@ TASK-003
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
-**Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+**Date**: 2026-06-29
+**What was done**: manual-qa Setup deliverable produced — `docs/qa-strategy.md`. Marked Done on the user's instruction during the architect session as part of accepting STORY-001.
+**Deviations from plan**: Status set by the architect on the user's behalf (no manual-qa session run); the user accepted the setup outputs directly.
+**Technical decisions made**: —
+**Code locations**: docs/qa-strategy.md
+**Technical debt noted**: —
