@@ -1,0 +1,311 @@
+# Architecture — AI Agent Coordination Utility
+
+> Status: v1.0 (Project Setup) — established 2026-06-29
+> A single-developer, locally-hosted utility that stores the operational state of a multi-agent
+> development pipeline outside of git. Exposed to AI agents via an MCP server and to the human
+> orchestrator via a web UI, both over a shared REST/service core.
+
+---
+
+## Tech Stack
+
+### Backend (single codebase, two access surfaces)
+
+| Dependency | Version | Rationale |
+|---|---------|---|
+| Python | 3.12    | Modern, stable; strong typing support; first-class async. |
+| FastAPI | ^0.138  | REST API with built-in validation, OpenAPI generation, async support. |
+| Uvicorn | ^0.49   | ASGI server for FastAPI. |
+| Pydantic | ^2.13   | Request/response schemas, dictionary validation, settings parsing. |
+| SQLAlchemy | ^2.0    | DB-agnostic ORM — same models run on SQLite and PostgreSQL (see ADR-002). |
+| Alembic | ^1.18   | Schema migrations, written portably for both dialects. |
+| `mcp` (Model Context Protocol SDK) | ^1.0    | Official Python MCP server, HTTP streamable transport, path-mounted on the shared backend app/port (see ADR-003, ADR-007). |
+| psycopg (binary) | ^3.1    | PostgreSQL driver — used only when `DATABASE_URL` targets Postgres. |
+| (stdlib `sqlite3`) | —       | SQLite driver — default, zero external service. |
+
+### Frontend
+
+> Internal structure and exact library pinning are owned by **frontend-developer** in
+> `docs/frontend-coding-conventions.md`. The list below records the agreed high-level stack only.
+
+| Dependency      | Rationale |
+|-----------------|---|
+| React 19 + Vite | SPA justified by rich interactivity (Kanban drag-and-drop, modal deep-linking, optimistic updates). See ADR-006. |
+| React Router    | Client-side routing (< 300 ms navigation requirement). |
+| TanStack Query  | Server-state cache, optimistic updates, request dedup. |
+| Tailwind CSS    | Utility-first styling — fewer custom CSS surfaces. |
+| dnd-kit         | Accessible drag-and-drop for the Kanban board. |
+| react-markdown  | Render Markdown content (story/task content, comments). |
+
+### Infrastructure
+
+| Dependency                         | Rationale |
+|------------------------------------|---|
+| Docker + Docker Compose            | Whole stack runs on a single developer machine; ports mapped to localhost only. |
+| nginx (frontend container)         | Serves the static React build and is the single web entry. |
+| PostgreSQL 18 (optional container) | Activated via a Compose profile only when `DATABASE_URL` targets Postgres. |
+
+---
+
+## Repository Layout (monorepo)
+
+Two top-level application folders; documentation and orchestration files at the root.
+
+```
+/  (repo root)
+  backend/            # Python application (REST + MCP, shared service core)
+  frontend/           # React SPA
+  docs/               # SDLC documentation (this file lives here)
+  docker-compose.yml  # owned by devops
+  deploy.sh           # single entry point — owned by devops
+  CLAUDE.md           # project navigation — owned by architect
+```
+
+See ADR-004 for the monorepo + app-based decision.
+
+---
+
+## System Modules
+
+### Backend — app-based modular monolith
+
+Each domain is a **top-level package** ("app") holding its own vertical slice: a **controller**
+(the module that manages the REST router), the **MCP tools**, a domain service, ORM models, and
+Pydantic schemas. `core` sits at the same level and holds only cross-cutting concerns. The controller
+and the MCP tools are **thin layers** over each app's service — the service layer is the single home
+of business logic and the only layer that touches the data layer.
+
+- `backend/app/core/` — app factory, configuration, DB engine/session, centralized error handling, filesystem storage helper, dictionary-resolution helper, common base classes
+- `backend/app/projects/` — Project CRUD
+- `backend/app/stories/` — Story CRUD + on-demand task aggregation
+- `backend/app/tasks/` — Task CRUD + detail composition + on-demand dependency computation
+- `backend/app/task_links/` — typed directed links between tasks (same project only)
+- `backend/app/attachments/` — document/image/external-ref attachments + version history; filesystem-backed
+- `backend/app/comments/` — comments on stories/tasks/milestones
+- `backend/app/sessions/` — session records + incomplete-session query
+- `backend/app/milestones/` — milestones + project association (M:N) + story assignment
+- `backend/app/settings/` — system + project dictionaries; effective-dictionary resolution
+- `backend/app/api/` — resolving and uniting separate routers, managing API versions, starting from V1, a lightweight component
+- `backend/app/mcp/` — resolving mcp protocol
+- `backend/migrations/` — Alembic migration scripts
+
+### Frontend — screen-based decomposition
+
+> Internal organization owned by frontend-developer; recorded here at folder-boundary level only.
+
+- `frontend/src/screens/` — one folder per route/screen (projects+milestones, stories list, story detail, task detail modal, milestone detail, sessions, system settings, project settings)
+- `frontend/src/shared/` — reusable UI components, hooks, utilities
+- `frontend/src/core/` — app config, routing, providers, error boundaries
+- `frontend/src/api/` — REST client, contract types, query/mutation hooks
+
+---
+
+## Module Relations
+
+- `controller (REST router) → app service`: each controller calls only its app's service; never the data layer directly.
+- `MCP tools → app service`: MCP tools call the same services the controllers use — one logic path, two surfaces.
+- `app service → core`: services use `core` for DB sessions, dictionary resolution, storage, and error types.
+- `app service → data layer`: services own all queries; the data layer (ORM models) is private to the backend.
+Parent / container / reference existence:
+- `stories service → projects data`: a story requires an existing parent project; the project scopes dictionary resolution.
+- `tasks service → stories data`: a task requires an existing parent story; the owning project is resolved transitively (`task → story → project`).
+- `task_links service → tasks data`: a link requires both source and target tasks to exist, be in the same project, and differ (no self-link); uniqueness on (source, target, link_type).
+- `attachments service → stories/tasks/milestones data`: the container (`container_type`) must exist before an attachment is created.
+- `comments service → stories/tasks/milestones data`: the container (`container_type`) must exist before a comment is created.
+- `sessions service → stories/tasks data`: optional `linked_story_id` / `linked_task_id` are validated to exist on create/update (SET NULL when the referenced story/task is deleted).
+
+Dictionary validation:
+- `stories / tasks / task_links / attachments services → settings service`: before any dictionary-bound write, the owning project's effective dictionary is resolved and the value validated — `story_statuses` (story), `task_types` + `task_statuses` + `participant_roles` (task), `link_types` (task_link), `attachment_types` (attachment). Comments have no dictionary-bound fields.
+
+Aggregation / composition (a service reads another app's data to assemble a derived/composed response):
+- `stories service → tasks data`: story aggregation (`GET /stories/:id/aggregate`) derives per-status counts from tasks (on demand).
+- `tasks service → task_links data`: task detail/dependency (`GET /tasks/:id/detail`, `/dependencies`) reads inbound/outbound links.
+- `tasks service → attachments data`: task detail (`GET /tasks/:id/detail`) composes the task's active attachments.
+- `tasks service → comments data`: task detail (`GET /tasks/:id/detail`) composes the task's comments (created_at ASC).
+- `stories service → attachments data` & `stories service → comments data`: story detail (`GET /stories/:id/detail`) composes the story's active attachments and comments (side collections only; tasks are not included — they are board-driven via the tasks list + aggregate).
+- `milestones service → attachments data` & `milestones service → comments data`: milestone detail (`GET /milestones/:id/detail`) composes the milestone's active attachments and comments (assigned stories are not included — paginated via `GET /milestones/:id/stories`).
+- `milestones service → stories data`: milestone `story_count` and `GET /milestones/:id/stories` derive/compose assigned stories (also listed under Milestones).
+
+> Note: `projects` has no composition relation to `stories`. Listing a project's stories
+> (`GET /projects/:projectId/stories`) is the *stories* service filtered by `project_id` (captured as
+> `stories → projects`); the projects service derives nothing from stories. Project→Story containment
+> is expressed by the FK + `ON DELETE CASCADE` in the schema, not by a runtime service dependency.
+
+Milestones:
+- `milestones service → projects data`: validates that every associated project exists and enforces name uniqueness within each associated project (M:N via the milestone_project join).
+- `milestones service → stories data`: reads assigned stories (`story_count`, milestone story list) and blocks removing a project that still has stories assigned to the milestone.
+- `stories service → milestones data`: assigning `milestone_id` validates that the story's project is in the milestone's associated project set.
+
+Storage & client:
+- `attachments service → core.storage`: file read/write/snapshot on the attachments volume.
+- `frontend api layer → REST API`: the SPA consumes the REST contract; it never talks to MCP.
+
+No circular dependencies: controllers and MCP tools depend on services, services depend on core and the data layer; core depends on nothing app-specific.
+
+---
+
+## Data Flow
+
+### Write path (REST or MCP), e.g. "create task"
+
+1. Request arrives at an entry layer — the REST controller (`POST /stories/:storyId/tasks`) or an MCP tool (`create_task`).
+2. The controller / tool parses input into the app's Pydantic schema (shape/length validation).
+3. It calls the app **service**.
+4. Service resolves the owning **project** transitively (`task.story_id → story.project_id`) and loads that project's **effective dictionaries** via the settings service.
+5. Service validates dictionary-bound fields (`type`, `status`, `assignee_role`, `creator_role`); on violation raises a domain error → 422.
+6. Service persists via the data layer inside a transaction; timestamps set by the layer.
+7. Service returns a domain object; the controller / tool serializes it to the standard envelope `{ "data": {...} }`.
+
+### Read path with composition, e.g. "task detail"
+
+1. `GET /tasks/:id/detail` → tasks service.
+2. Service loads the task, its links (enriched with linked task id/title/status), active attachments (metadata only), and comments (created_at ASC) in one service call.
+3. Adapter returns `{ "data": { ...task, links, attachments, comments } }`.
+
+### File path, e.g. "attachment file"
+
+1. Document/image content is written to the attachments volume by `core.storage`; the DB stores metadata + a server-internal `file_path` (never exposed).
+2. `GET /attachments/:id/file` streams the file with `Content-Type = mime_type`.
+3. Each document content update writes a new snapshot file and an `AttachmentVersion` row (history is read-only).
+
+---
+
+## Database Schema
+
+DB-agnostic via SQLAlchemy; identical schema on SQLite (default) and PostgreSQL. Portability notes
+are normative constraints for the backend implementor (see ADR-002).
+
+> **ORM layer scope:** the architecture fixes only *SQLAlchemy 2.0 + Alembic, DB-agnostic via `DATABASE_URL`*.
+> The precise persistence layer — plain SQLAlchemy ORM vs a higher-level wrapper such as SQLModel — is
+> a backend-developer decision recorded in `docs/backend-coding-conventions.md`, provided it preserves
+> DB-agnosticism and the portability constraints below (UUID, JSON `labels` filtering, case-insensitive
+> uniqueness, WAL). ORM models and Pydantic API schemas are kept as separate concerns.
+
+### Tables
+
+- **project** — `id` (UUID PK), `name` (unique, case-insensitive, 1–200), `description`, `created_at`, `updated_at`
+- **story** — `id`, `project_id` (FK→project, CASCADE), `title`, `content`, `status` (validated vs effective `story_statuses`), `labels` (JSON array), `milestone_id` (FK→milestone, SET NULL), `created_at`, `updated_at`
+- **task** — `id`, `story_id` (FK→story, CASCADE), `title`, `content`, `type`, `status`, `assignee_role`, `creator_role`, `labels` (JSON array), `created_at`, `updated_at`
+- **task_link** — `id`, `source_task_id` (FK→task, CASCADE), `target_task_id` (FK→task, CASCADE), `link_type`; unique (`source_task_id`, `target_task_id`, `link_type`); `target ≠ source`; both tasks same project
+- **attachment** — `id`, `container_type` (story|task|milestone), `container_id`, `type`, `kind` (document|image|external-ref), `mime_type` (cond.), `file_size_bytes` (cond.), `file_path` (internal, never exposed), `archived_at`, `external_url` (cond.), `external_status`, `created_at`, `updated_at`
+- **attachment_version** — `id`, `attachment_id` (FK→attachment document-kind, CASCADE), `file_path`, `file_size_bytes`, `author_role`, `created_at` (read-only history)
+- **comment** — `id`, `container_type` (story|task|milestone), `container_id`, `author_role`, `content`, `labels` (JSON array), `created_at`, `updated_at`
+- **session** — `id`, `topic`, `context`, `result_decisions`, `result_summary`, `status` (free-form), `participant_role`, `linked_story_id` (FK→story, SET NULL), `linked_task_id` (FK→task, SET NULL), `archived_at`, `created_at`, `updated_at`
+- **system_settings** — `key` (PK, one of six dictionary keys), `values` (JSON array, ≥1), `updated_at`
+- **project_settings** — composite PK (`project_id` FK→project CASCADE, `key`), `values` (JSON array, ≥1 — fully replaces system default), `updated_at`
+- **milestone** — `id`, `name` (unique within each associated project), `description`, `created_at`, `updated_at`
+- **milestone_project** — composite PK (`milestone_id` FK→milestone CASCADE, `project_id` FK→project CASCADE) — M:N join
+
+### Relations & cascade
+
+Project → Story → Task all CASCADE; Story/Task/Milestone → Attachment/Comment CASCADE; Attachment(document) → AttachmentVersion CASCADE; Task → TaskLink CASCADE (either side); Session → Story/Task SET NULL; Milestone ↔ Project join CASCADE; Story → Milestone SET NULL.
+
+### Indexes
+
+As specified in the backend requirements: story `(project_id, created_at DESC)` and `(project_id, status)` and `(milestone_id)`; task `(story_id, status)`, `(story_id, type)`, `(assignee_role)`, `(creator_role)`; task_link `(source_task_id, link_type)` and `(target_task_id, link_type)`; attachment `(container_type, container_id, type, archived_at)`; attachment_version `(attachment_id, created_at DESC)`; comment `(container_type, container_id, created_at ASC)`; session `(archived_at, result_decisions)`, `(linked_story_id)`, `(linked_task_id)`; milestone_project `(milestone_id)` and `(project_id)`.
+
+### Portability constraints (SQLite ⇄ PostgreSQL)
+
+- **UUID** — portable UUID type: native `uuid` on Postgres, `CHAR(36)` string on SQLite.
+- **labels (JSON array)** — JSON type mapping to `jsonb` (Postgres) / `JSON` text (SQLite). Filtering by `label_key`/`label_value` is dialect-aware inside the data layer (`json_each`/`json_extract` on SQLite; `jsonb` operators on Postgres). Adapters and services see one interface.
+- **Case-insensitive uniqueness** (project/milestone name) implemented dialect-aware (e.g. `LOWER()` functional uniqueness).
+- **Concurrency** — SQLite runs in WAL mode to allow concurrent reads under the ≥5-request concurrency requirement.
+- **Migrations** — Alembic scripts avoid dialect-only DDL; branch only where unavoidable.
+
+### Seed data
+
+`system_settings` is pre-seeded at install via an Alembic data migration with the six dictionaries:
+
+- `task_statuses`: `["todo", "in-progress", "done"]`
+- `task_types`: `["task", "bug", "testing-task"]`
+- `story_statuses`: `["planned", "in-progress", "pending-approval", "accepted"]`
+- `attachment_types`: `["plan", "document", "image", "implementation-report", "test-result", "external-ref"]`
+- `link_types`: `["depends-on", "context"]`
+- `participant_roles`: `["orchestrator", "architect", "backend-developer", "frontend-developer", "devops", "spec-writer", "qa-automation", "manual-qa"]`
+
+A brand-new project requires no configuration — absent `project_settings` rows fall through to system defaults.
+
+---
+
+## Authentication Flow
+
+**None — by deliberate design.** This is a single-developer personal tool. The access boundary is
+Docker port mapping to `localhost` only; no service is exposed to the network. There is no login,
+no session token, no roles, and no authorization checks. Human and agents are structurally equal
+participants. `participant_role` / `author_role` / `assignee_role` are descriptive metadata, never
+access-control mechanisms.
+
+---
+
+## State Management (client)
+
+- **Server state** lives in TanStack Query; mutations invalidate the relevant queries. The Kanban
+  drag-and-drop uses optimistic updates against `PUT /tasks/:id` and rolls back with an error toast
+  on failure.
+- **Local UI state** (e.g. story-detail right-panel open/closed) is persisted per story in browser
+  local storage.
+- The frontend holds **no business logic** — all validation and dictionary rules are server-side;
+  the UI only mirrors them for UX (e.g. populating dropdowns from `GET /projects/:id/settings/effective`).
+
+---
+
+## Error Handling Strategy
+
+Centralized in `core`. All domain errors map to the standard shape:
+
+```json
+{ "error": "Human-readable message.", "code": "ERROR_CODE", "details": [ { "field": "...", "message": "..." } ] }
+```
+
+| Code | HTTP | Log level |
+|---|---|---|
+| VALIDATION_ERROR | 400 | DEBUG |
+| NOT_FOUND | 404 | DEBUG |
+| CONFLICT | 409 | DEBUG |
+| UNPROCESSABLE | 422 | DEBUG (dictionary violations) |
+| INTERNAL_ERROR | 500 | ERROR (full stack logged server-side only; generic message to client) |
+
+The MCP adapter maps the same domain errors to MCP tool errors so agents receive equivalent,
+machine-readable failures. `details` is omitted when not applicable.
+
+---
+
+## Environment Configuration
+
+Configuration is read from environment variables (12-factor); secrets are not applicable (no auth,
+local-only). Variables grouped by concern:
+
+**Database**
+- `DATABASE_URL` — single switch between dialects. SQLite (default) e.g. `sqlite:///data/app.db`; PostgreSQL e.g. `postgresql+psycopg://user:pass@db:5432/app`.
+
+**Storage**
+- `ATTACHMENTS_DIR` — server-managed directory (Docker volume) for attachment files and version snapshots; outside the web root; paths never constructed from user input.
+
+**Service ports (localhost-mapped only)**
+- Backend `:8000` (single port serving **both** REST and the MCP server — MCP is path-mounted on the same app, e.g. `/mcp`, not a separate port; see ADR-007), Web UI `:3000` (defaults; final mapping owned by devops in `docker-compose.yml`).
+
+**CORS**
+- `CORS_ALLOWED_ORIGINS` — localhost origins for the Web UI (no reverse proxy in V1).
+
+**Limits**
+- Rate limit 1,000 req/min on all endpoints; attachment upload max 10 MB.
+
+**Dev vs prod** — same image; differences are env-only (`DATABASE_URL`, log verbosity). PostgreSQL
+is enabled through a Docker Compose profile activated only when `DATABASE_URL` targets Postgres;
+with SQLite there is no `db` container.
+
+---
+
+## Non-Functional Targets (from requirements)
+
+- Single-resource CRUD p95 < 200 ms; list (≤1,000) p95 < 500 ms; story aggregate (≤500 tasks) < 300 ms; task detail (≤100 attachments + 200 comments) < 500 ms; ≥5 concurrent requests without degradation.
+- Frontend initial load < 2 s; client navigation < 300 ms; upload progress shown for files > 1 MB.
+- WCAG 2.1 AA across all views; desktop-only, min viewport 1,024 px.
+
+---
+
+## Out of Scope (V1)
+
+Multi-user/auth/RBAC, markdown migration tooling, notifications/webhooks/event streams, process
+enforcement/workflow automation, and a first-class "test run" entity — all explicitly deferred per
+the validated idea. The utility stores facts; it does not drive process.

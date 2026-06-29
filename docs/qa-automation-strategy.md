@@ -1,0 +1,263 @@
+# QA Automation Strategy
+
+> Owned by **qa-automation**. Update only at the user's explicit request.
+> Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
+> Last updated: 2026-06-29 (rev 4)
+
+---
+
+## Scope
+
+Automated tests cover the **REST API layer** of the backend. The strategy for this project is:
+
+| Layer | Automated | Notes |
+|-------|-----------|-------|
+| REST API (integration) | Yes | Primary coverage — validate contract shapes, status codes, business rules |
+| Service / unit | No | Logic is thin and exercised entirely through the API layer |
+| Frontend unit | Yes | Hooks, utility functions, and component logic — not visual rendering |
+| Frontend E2E | No | Personal single-developer tool; manual QA covers visual/UI aspects |
+| MCP tools | No | MCP tools are thin wrappers over the same service layer as REST; REST coverage is sufficient |
+
+Rationale: all business logic lives in the service layer and is accessible via REST. The API contract is locked at v1.0. Testing the HTTP surface gives full backend coverage with no coupling to internal implementation details. Frontend unit tests cover non-trivial logic in hooks and utilities that is not exercised by the API layer.
+
+---
+
+## Backend Testing
+
+### Framework
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| `pytest` | ^8.0 | Test runner |
+| `pytest-asyncio` | ^0.23 | Async test support |
+| `httpx` | ^0.27 | Async HTTP client for hitting the live backend |
+| `pytest-env` | ^1.1 | Inject environment variables per test run |
+
+Tests are **integration tests** — they run against a real backend process with a real SQLite database (test-scoped, discarded after each run). No mocking of the service layer or database.
+
+### Test Structure
+
+```
+backend/
+  tests/
+    conftest.py            # app fixture, client fixture, shared helpers
+    test_projects.py       # STORY-003
+    test_stories.py        # STORY-004
+    test_tasks.py          # STORY-005
+    test_task_links.py     # STORY-006
+    test_attachments.py    # STORY-007
+    test_comments.py       # STORY-008
+    test_sessions.py       # STORY-009
+    test_settings.py       # STORY-002
+    test_milestones.py     # STORY-012
+```
+
+One test file per domain module. File names mirror the backend app package they test.
+
+### Test Script Locations
+
+```
+backend/
+  tests/
+    conftest.py            # app fixture, client fixture, shared helpers
+    test_projects.py       # STORY-003
+    test_stories.py        # STORY-004
+    test_tasks.py          # STORY-005
+    test_task_links.py     # STORY-006
+    test_attachments.py    # STORY-007
+    test_comments.py       # STORY-008
+    test_sessions.py       # STORY-009
+    test_settings.py       # STORY-002
+    test_milestones.py     # STORY-012
+```
+
+### Environment Configuration
+
+| Variable | Test value | Notes |
+|----------|-----------|-------|
+| `DATABASE_URL` | `sqlite:///./tests/test.db` | Isolated SQLite file, never the dev database |
+| `ATTACHMENTS_DIR` | `./tests/attachments_tmp` | Temp directory, cleaned up by fixture |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Not relevant during API tests |
+
+The run command injects `DATABASE_URL` directly. No `.env` file is required for tests.
+
+### App Fixture Design
+
+`backend/tests/conftest.py` will:
+
+1. Create a fresh SQLite database at `./tests/test.db` (delete if exists).
+2. Run Alembic migrations to `head` against it — this applies the seed data migration too.
+3. Start the FastAPI app in-process using `httpx.AsyncClient(app=app, base_url="http://test")`.
+4. Yield the client to each test.
+5. Drop and remove `test.db` after the session.
+
+The `ATTACHMENTS_DIR` fixture creates a temp directory and removes it at session teardown.
+
+Each test is responsible for creating the data it needs. Tests must not depend on execution order. Shared helper functions (e.g. `create_project(client)`) live in `conftest.py`.
+
+### Test Conventions
+
+- **One assert per logical check** — separate status code assert from body shape assert.
+- **Negative tests required** — for every happy path, at least one failure case (404 for unknown ID, 409 for conflict, 422 for invalid dictionary value, 400 for validation).
+- **No hardcoded UUIDs** — always use the IDs returned by creation calls.
+- **No test-order dependency** — each test creates and cleans up its own data, or relies on test-session fixtures.
+- **Assertion messages** — include the field name in assertion failure messages for faster diagnosis.
+- **File naming** — `test_<domain>.py`, test functions `test_<action>_<scenario>` (e.g. `test_create_project_duplicate_name_conflicts`).
+
+### Coverage Zones per Story
+
+| Story | Test file | Key zones |
+|-------|-----------|-----------|
+| STORY-002 (Settings) | `test_settings.py` | System dict GET; project override PUT; effective resolution; invalid key 404 |
+| STORY-003 (Projects) | `test_projects.py` | CRUD happy path; name conflict 409; case-insensitive uniqueness; pagination |
+| STORY-004 (Stories) | `test_stories.py` | CRUD; status dictionary validation 422; label filtering; aggregate endpoint |
+| STORY-005 (Tasks) | `test_tasks.py` | CRUD; type/status dict validation; detail composition (links+attachments+comments); dependency endpoint |
+| STORY-006 (Task Linking) | `test_task_links.py` | Create link; self-link 400; cross-project link 400; duplicate 409; delete |
+| STORY-007 (Attachments) | `test_attachments.py` | Upload doc/image; external-ref create; archive; version history; file download; 10 MB limit |
+| STORY-008 (Comments) | `test_comments.py` | CRUD on story/task/milestone; label filtering; author_role optional |
+| STORY-009 (Sessions) | `test_sessions.py` | CRUD; linked_story/task validation; archive; incomplete-session query |
+| STORY-010 (MCP) | skip | MCP tools are REST-equivalent; REST coverage is sufficient; MCP smoke only if requested |
+| STORY-012 (Milestones) | `test_milestones.py` | CRUD; M:N project association; name-per-project uniqueness; story assignment; story_count |
+
+### Run Commands
+
+#### Full suite
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" pytest tests/ -v
+```
+
+#### Story-scoped run (example)
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" pytest tests/test_projects.py -v
+```
+
+#### With coverage
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" pytest tests/ -v --cov=app --cov-report=term-missing
+```
+
+The test database file (`backend/tests/test.db`) is written by the fixture and must not be committed. It is deleted and recreated on every test session start.
+
+### CI Integration
+
+Tests are run in the same Docker environment as the application. The expected CI command:
+
+```bash
+docker compose run --rm backend pytest tests/ -v
+```
+
+Required env var: `DATABASE_URL=sqlite:///./tests/test.db` (injected by CI config or Compose service definition for the test run).
+
+No separate CI infrastructure is required in V1 — tests run on the developer machine alongside the app.
+
+### Bug Assignment Policy
+
+When a backend test fails and the root cause is unclear, assign as follows:
+
+| Failure domain | Assignee |
+|----------------|----------|
+| HTTP status code wrong, wrong response shape, missing field | `backend-developer` |
+| Incorrect business rule / dictionary validation not enforced | `backend-developer` |
+| Infrastructure (DB connection, migration failure, startup crash) | `devops` |
+| Test script itself (wrong assertion, stale fixture) | `qa-automation` (self) |
+| Ambiguous / spans multiple layers | `TBD` — escalate to user |
+
+---
+
+## Frontend Testing
+
+### Framework
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| `vitest` | ^1.x | Test runner — native Vite integration, ESM-first, fast watch mode |
+| `@testing-library/react` | ^16.x | Component rendering and user interaction queries |
+| `@testing-library/user-event` | ^14.x | Realistic user event simulation |
+| `@testing-library/jest-dom` | ^6.x | Custom matchers (`toBeInTheDocument`, `toHaveValue`, etc.) |
+| `jsdom` | via vitest environment | Browser DOM simulation |
+
+Frontend tests run entirely in-process with Vitest — no browser, no network calls, no backend required.
+
+### What to Test
+
+**Test these:**
+- Custom hooks — all state transitions, side effects, return values
+- Utility / helper functions — pure transformations, formatters, validators
+- Component logic — conditional rendering based on props/state, event handler callbacks, form validation logic
+
+**Do NOT test:**
+- Visual rendering, CSS classes, layout, or pixel-level appearance — manual QA covers this
+- Snapshot tests — brittle, provide low signal; prohibited
+- Third-party library internals (React, React Router, etc.)
+- Simple pass-through components with no logic
+
+### Test Structure
+
+Co-locate test files alongside the source files they cover:
+
+```
+frontend/
+  src/
+    hooks/
+      useProjects.ts
+      useProjects.test.ts        # hook unit test
+    utils/
+      formatDate.ts
+      formatDate.test.ts         # util unit test
+    components/
+      ProjectCard/
+        ProjectCard.tsx
+        ProjectCard.test.tsx     # component logic test
+```
+
+One test file per component/hook/utility module. Test file name mirrors the source file with a `.test.ts` / `.test.tsx` suffix.
+
+### Test Conventions
+
+- **One assertion per logical check** — mirror the backend convention.
+- **No snapshot tests** — explicitly prohibited.
+- **No implementation detail testing** — test behavior (what the user/caller observes), not internals (state variable names, private methods).
+- **Mock only external boundaries** — mock `fetch` / API client calls; never mock React hooks or internal module logic.
+- **Test function naming** — `describe('<HookOrComponent>', () => { it('<does something>', ...) })`.
+- **Setup** — import `@testing-library/jest-dom` matchers in `vitest.setup.ts`; reference it via `setupFiles` in `vite.config.ts` / `vitest.config.ts`.
+
+### Run Commands
+
+```bash
+# Full frontend unit suite
+cd frontend
+npx vitest run
+
+# Watch mode (development)
+cd frontend
+npx vitest
+
+# With coverage
+cd frontend
+npx vitest run --coverage
+```
+
+### Bug Assignment Policy
+
+Frontend unit test failures are assigned as follows:
+
+| Failure domain | Assignee |
+|----------------|----------|
+| Hook logic returns wrong value / wrong state transition | `frontend-developer` |
+| Utility function produces wrong output | `frontend-developer` |
+| Component renders wrong branch / fires wrong callback | `frontend-developer` |
+| Test script itself (wrong query, stale mock) | `qa-automation` (self) |
+| Ambiguous | `TBD` — escalate to user |
+
+---
+
+## Out of Scope
+
+- End-to-end browser tests (Playwright / Selenium) — deferred; personal tool with manual QA covers visual/UI
+- Visual rendering / appearance tests — manual QA responsibility; snapshot tests explicitly prohibited
+- Load / performance tests — non-functional targets are validated manually during implementation
+- MCP protocol tests — REST layer coverage is equivalent; MCP smoke can be added on request
+- Contract mutation testing — API contract is locked; no consumer-driven contract testing needed
