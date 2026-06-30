@@ -2,7 +2,7 @@
 
 > Owned by **qa-automation**. Update only at the user's explicit request.
 > Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
-> Last updated: 2026-06-29 (rev 4)
+> Last updated: 2026-06-30 (rev 5)
 
 ---
 
@@ -23,6 +23,41 @@ Rationale: all business logic lives in the service layer and is accessible via R
 ---
 
 ## Backend Testing
+
+### Python Environment
+
+The backend uses a virtual environment located at `backend/.venv`.
+
+**Always activate it (or use its binaries directly) before running tests or installing packages:**
+
+```bash
+# Activate
+source backend/.venv/bin/activate
+
+# Or use directly without activating
+backend/.venv/bin/python -m pytest ...
+backend/.venv/bin/pip install ...
+```
+
+**Install / sync all dependencies (first-time setup or after `pyproject.toml` changes):**
+
+```bash
+# From project root:
+backend/.venv/bin/pip install -e "backend/[dev]"
+# or from inside backend/:
+.venv/bin/pip install -e ".[dev]"
+```
+
+> **Note**: the editable install (`-e`) may fail with `BackendUnavailable: Cannot import 'setuptools.backends.legacy'` depending on the pip version. In that case, install deps directly (without `-e`):
+> ```bash
+> # Parse deps from pyproject.toml and install
+> cd backend && .venv/bin/pip install fastapi "uvicorn[standard]" pydantic pydantic-settings sqlalchemy alembic mcp dependency-injector "psycopg[binary]" pytest pytest-asyncio httpx black isort
+> ```
+> The `app` package is made importable at test time via `PYTHONPATH=.` (see Run Commands below).
+
+Never install packages into the system Python or Anaconda base environment for this project.
+
+---
 
 ### Framework
 
@@ -121,22 +156,24 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 
 ### Run Commands
 
+All commands use the `.venv` Python environment inside `backend/`. `PYTHONPATH=.` makes the `app` package importable without an editable install.
+
 #### Full suite
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" pytest tests/ -v
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v
 ```
 
 #### Story-scoped run (example)
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" pytest tests/test_projects.py -v
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/test_settings.py -v
 ```
 
 #### With coverage
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" pytest tests/ -v --cov=app --cov-report=term-missing
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v --cov=app --cov-report=term-missing
 ```
 
 The test database file (`backend/tests/test.db`) is written by the fixture and must not be committed. It is deleted and recreated on every test session start.

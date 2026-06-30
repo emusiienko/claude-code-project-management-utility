@@ -1,0 +1,25 @@
+# Keep the build context small and never bake local state into the image.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local data — SQLite db files and attachment scratch must come from volumes,
+# never from the build context.
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Env files — configuration is injected at runtime, never baked in.
+.env
+.env.*
+
+# Tooling / editor
+.idea/
+.vscode/
+.DS_Store

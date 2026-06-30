@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-agent-coordination-backend"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.138,<1.0",
+    "uvicorn[standard]>=0.49,<1.0",
+    "pydantic>=2.13,<3.0",
+    # >=2.2 required: config.py uses the NoDecode annotation (added in 2.2) so
+    # CORS_ALLOWED_ORIGINS can accept a space-separated string. On <2.2 NoDecode
+    # is absent and the list field is force-parsed as JSON, raising
+    # JSONDecodeError on a plain "http://localhost:3000" value.
+    "pydantic-settings>=2.2,<3.0",
+    "sqlalchemy>=2.0,<3.0",
+    "alembic>=1.18,<2.0",
+    "mcp>=1.0,<2.0",
+    "dependency-injector>=4.41,<5.0",
+    "psycopg[binary]>=3.1,<4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.0",
+    "isort>=5.13",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "migrations*"]

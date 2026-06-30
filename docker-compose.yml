@@ -1,0 +1,123 @@
+# Local Docker Compose stack for the AI Agent Coordination Utility.
+#
+# Single-machine, localhost-only. Every published port binds to 127.0.0.1 ONLY
+# (never 0.0.0.0) — this port mapping IS the access boundary (there is no auth,
+# by design; see docs/architecture.md § Authentication and docs/devops-strategy.md).
+#
+# Database selection is driven entirely by DATABASE_URL in .env:
+#   - DEFAULT: SQLite (sqlite:///data/app.db) — no `db` container, no profile.
+#   - OPT-IN:  PostgreSQL — set DATABASE_URL to the postgresql+psycopg URL AND
+#              run with the `postgres` profile so the `db` container starts.
+#
+# Bring the stack up via ./deploy.sh (the single entry point), which selects the
+# profile based on DATABASE_URL. A bare `docker compose up` also works for the
+# SQLite default; for Postgres use `docker compose --profile postgres up`.
+
+services:
+  # ---------------------------------------------------------------------------
+  # backend — one Uvicorn process serving BOTH the REST API and the MCP server
+  # (path-mounted at /mcp) on a single port (:8000). See ADR-003 / ADR-007.
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: aiacu-backend:local
+    env_file:
+      - .env
+    environment:
+      # Defaults applied only when the variable is absent from .env. SQLite is
+      # the default dialect; switch to Postgres by editing .env (and using the
+      # postgres profile). The path resolves to /app/backend/data/app.db, which
+      # is the sqlite_data volume mount below.
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/app.db}
+      ATTACHMENTS_DIR: ${ATTACHMENTS_DIR:-/data/attachments}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    ports:
+      # REST + MCP share this port. localhost-only.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # SQLite database file survives `down` (only removed by `down -v`).
+      # Harmless when DATABASE_URL targets Postgres — the dir is just unused.
+      - sqlite_data:/app/backend/data
+      # Attachment files + version snapshots, outside any web root.
+      - attachments:/data/attachments
+    healthcheck:
+      # The app exposes its OpenAPI schema under the /v1 prefix; a 200 here means
+      # FastAPI has fully started and migrations (run in the entrypoint) completed.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/v1/openapi.json"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+        # `required: false` lets backend start even when the db service is not
+        # part of the active profile (i.e. the SQLite default). When the
+        # postgres profile is active, the healthy condition is enforced.
+        required: false
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # web — nginx serving the static React (Vite) build. Single web entry.
+  # The browser calls the backend directly at VITE_API_BASE_URL.
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the bundle at build time. The browser (not the container)
+        # reaches the backend at this origin, so localhost:8000 is correct for
+        # the local stack.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    image: aiacu-web:local
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # db — PostgreSQL 18. OPT-IN only: started solely under the `postgres` profile.
+  # With the SQLite default this container never starts.
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:18
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    ports:
+      # localhost-only; exposed for local inspection (psql) — not off-host.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # postgres:18+ changed the recommended layout: mount a single volume at
+      # /var/lib/postgresql (NOT /var/lib/postgresql/data). The image then places
+      # the data in a versioned subdirectory it manages itself. Mounting the old
+      # /data path on an 18 image triggers the "unused mount/volume" warning.
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  # SQLite database file (default dialect). Survives `down`; removed by `down -v`.
+  sqlite_data:
+  # PostgreSQL data dir (only populated under the postgres profile).
+  pg_data:
+  # Attachment files + version snapshots.
+  attachments:

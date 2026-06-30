@@ -619,7 +619,7 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 ---
 
-### Settings
+### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
 
 #### GET /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -646,6 +646,13 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Request body:** partial settings object
 - **Response 200:** `{ "data": { effective settings after update } }`
 - **Response errors:** 400 (unknown key; empty values), 404
+
+#### DELETE /projects/:projectId/settings/:key *(not yet implemented — see Known Gaps)*
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Behavior:** removes the project-level override for the given key; effective value reverts to system default; other keys' overrides are unaffected; clearing a key with no override is a no-op
+- **Response 204:** no body
+- **Response errors:** 404 (project not found or key not a valid dictionary key)
+- **Status:** the backend service implements `clear_project_setting`; no REST route or MCP tool exposes it as of STORY-002; the frontend calls this endpoint and receives an error at runtime
 
 ---
 
@@ -773,6 +780,30 @@ Standard error shape:
 ```json
 { "error": "...", "code": "ERROR_CODE", "details": [ { "field": "...", "message": "..." } ] }
 ```
+
+---
+
+## Known Gaps <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+
+The following requirements are **partially implemented** as of STORY-002. They are retained as requirements but noted so future stories can close the gap.
+
+### Clear project-settings override (partial)
+
+**Requirement:** A project override for a specific key can be cleared, restoring the system default for that key without affecting other keys.
+
+**What is implemented:**
+- The backend `SettingsService` has a fully functional `clear_project_setting(project_id, key)` method that deletes the `(project_id, key)` row and returns the post-clear effective settings.
+- Clearing a key with no override is a no-op (already returns system default).
+- The frontend `ProjectSettings` screen includes a "Clear override" button that calls `DELETE /v1/projects/:projectId/settings/:key`.
+
+**What is missing:**
+- No REST route exposes `clear_project_setting` — the Settings controller has zero `DELETE` routes.
+- No MCP tool exposes `clear_project_setting`.
+- The v1.0 LOCKED contract does not include `DELETE /projects/:projectId/settings/:key`. The `PUT` endpoint cannot clear (empty list is rejected with "Dictionary values cannot be empty.").
+
+**Net effect:** the UI "Clear override" button fails at runtime with a 404/405. There is no contract-blessed path for agents or the UI to clear an override.
+
+**Resolution path:** contract revision to add `DELETE /projects/:projectId/settings/:key → 204 | 404`, a backend REST route, and an MCP tool — wiring the existing service method. See `docs/architecture.md` § Known Divergences.
 
 ---
 

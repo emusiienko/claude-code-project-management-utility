@@ -1,0 +1,21 @@
+/* Tailwind CSS directives — processed by PostCSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base layer overrides */
+@layer base {
+  html {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+
+  /* Remove default focus outline — replaced by Tailwind focus-visible utilities */
+  *:focus {
+    outline: none;
+  }
+
+  /* Restore focus ring for keyboard navigation (WCAG 2.1 AA) */
+  *:focus-visible {
+    @apply ring-2 ring-brand-500 ring-offset-2;
+  }
+}

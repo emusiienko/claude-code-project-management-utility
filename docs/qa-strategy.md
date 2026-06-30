@@ -14,7 +14,7 @@ Manual QA covers the **visual and UI aspects** of the frontend application. Auto
 | Visual layout and responsiveness | Yes | Primary coverage — layout, spacing, component appearance at all breakpoints |
 | Component interaction design | Yes | Hover/focus/active/disabled states, transitions, drag-and-drop UX |
 | Visual consistency across screens | Yes | Fonts, colors, spacing tokens, Tailwind design system adherence |
-| Dark mode appearance | Yes | Full visual pass for every screen in dark mode |
+| Dark mode appearance | No | Not implemented in this project — excluded from all test cases |
 | Accessibility (visual) | Yes | Focus rings, touch targets, color contrast, semantic landmark visibility |
 | API contract correctness | No | Covered by qa-automation (pytest integration tests) |
 | Business logic / validation rules | No | Covered by qa-automation |
@@ -88,7 +88,7 @@ Derived from `docs/architecture.md` (frontend screen-based decomposition) and st
 ## Test Case Tags
 
 - `@smoke` — critical path checks; run after every deploy; covers one visual pass per primary screen at desktop viewport
-- `@regression` — full visual suite; run before a release; includes all resolutions and dark mode
+- `@regression` — full visual suite; run before a release; includes all resolutions
 
 Smoke ⊂ regression: every `@smoke` TC is also tagged `@regression`.
 
@@ -109,7 +109,6 @@ Apply to every visual TC at every resolution column:
 - [ ] Modals, dropdowns, and tooltips are positioned correctly within the viewport
 - [ ] Element states render correctly: hover, focus, active, disabled, error (at least one interactive element per screen)
 - [ ] Long content (long strings, many list items) does not break layout
-- [ ] Dark mode: no element retains a light background or light text that clashes with the dark theme
 
 ---
 
@@ -131,3 +130,4 @@ Apply to every visual TC at every resolution column:
 - API response validation — qa-automation owns pytest integration tests
 - Performance benchmarks — validated by architecture non-functional targets during implementation
 - MCP tooling visual surfaces — MCP has no UI; out of scope
+- Dark mode — not implemented in this project; do not include dark mode steps or checklist items in any test case

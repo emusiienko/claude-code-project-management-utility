@@ -18,8 +18,11 @@ not apply here are explicitly marked **Not applicable (V1)** rather than padded 
 > - **Branch model**: `main` + short-lived feature branches (`feat/` `fix/` `chore/`), matching the
 >   conventions docs. No `develop` branch — unnecessary for a solo project.
 > - **Deploy**: `deploy.sh` is a thin wrapper over `docker compose` (build → migrate → up), with the
->   SQLite/PostgreSQL switch handled by `DATABASE_URL` + a Compose profile. PostgreSQL is the
->   **default**; SQLite is an opt-in alternative.
+>   SQLite/PostgreSQL switch handled by `DATABASE_URL` + a Compose profile. **SQLite is the default**
+>   (matching the shipped backend config `app.core.config` and `docs/architecture.md`); PostgreSQL is
+>   the opt-in alternative, activated by the `postgres` profile. *(Corrected in TASK-006: the setup-time
+>   draft assumed Postgres default, but the implemented config defaults to SQLite — code is the source
+>   of truth.)*
 
 ---
 
@@ -27,9 +30,9 @@ not apply here are explicitly marked **Not applicable (V1)** rather than padded 
 
 **In scope (V1)**
 - Local Docker Compose stack: `backend` (single service serving **both** REST and MCP on the same
-  port :8000 via path-based routing), `web` (nginx + React build :3000), `db` (PostgreSQL 18, default).
+  port :8000 via path-based routing), `web` (nginx + React build :3000), `db` (PostgreSQL 18, opt-in).
 - A single deployment/run entry point: `deploy.sh`.
-- DB-agnostic operation: PostgreSQL (**default**) or SQLite (opt-in, no container).
+- DB-agnostic operation: SQLite (**default**, no container) or PostgreSQL (opt-in, `postgres` profile).
 - Alembic migrations run as part of bringing the stack up.
 - Local quality gates via **pre-commit hooks** (lint, format, type-check) — no test execution, owned by QA roles.
 - `.gitignore`, `.env.example`, and repository hygiene.
@@ -48,7 +51,7 @@ If V2 ever exposes this tool beyond `localhost`, this document must be revisited
 ## Environments
 
 There is exactly **one** environment: the developer's local machine. "dev" and "prod" are the *same*
-stack; the only difference is the `DATABASE_URL` (PostgreSQL default vs SQLite opt-in) and log
+stack; the only difference is the `DATABASE_URL` (SQLite default vs PostgreSQL opt-in) and log
 verbosity, per the architecture's "same image, env-only differences" rule.
 
 | Environment | Purpose | Runs on | Brought up by |
@@ -85,12 +88,12 @@ The whole system is one Docker Compose project. All ports are mapped to `127.0.0
 |---|---|---|---|
 | `backend` | Built from `backend/` | `8000` | Single FastAPI/Uvicorn process serving **both** the REST surface and the MCP server. MCP HTTP streamable transport is mounted on a path of the same app (e.g. `/mcp`), not a separate port — the `api-contract.md` defines no distinct MCP port (ADR-003). |
 | `web` | Built from `frontend/` (multi-stage: Vite build → nginx) | `3000` | Serves the static SPA; single web entry. |
-| `db` | `postgres:18` | `5432` | **Default** database. Started by default; absent only when `DATABASE_URL` is switched to SQLite (the `postgres` profile is active by default) (ADR-002). |
+| `db` | `postgres:18` | `5432` | **Opt-in** database. Started **only** under the `postgres` Compose profile, activated when `DATABASE_URL` targets Postgres; absent on the SQLite default (ADR-002). |
 
 Volumes (named, managed by Compose):
 - `attachments` → mounted at `ATTACHMENTS_DIR` in `backend`; holds attachment files + version snapshots (ADR-005). Outside any web root.
-- `pg_data` → PostgreSQL data dir; active by default.
-- `sqlite_data` → holds `app.db` only when `DATABASE_URL` is switched to SQLite (so the database survives `down`).
+- `sqlite_data` → holds `app.db` on the SQLite default (mounted at `/app/backend/data`, so the database survives `down`).
+- `pg_data` → PostgreSQL data dir; populated only under the `postgres` profile.
 
 REST and MCP run in the **same container, same image, same process** — MCP is a sub-application
 mounted on a path of the REST app, sharing the service layer in-process (ADR-003). There is no
@@ -101,18 +104,20 @@ one build, one process, one port to reason about.
 
 ## Database & Migrations
 
-- **Default:** PostgreSQL 18 in the `db` container. `DATABASE_URL=postgresql+psycopg://…` is the
-  default in `.env.example` and `deploy.sh`; the `postgres` Compose profile is active by default so
-  the `db` container starts automatically.
-- **SQLite (opt-in alternative):** enabled by switching `DATABASE_URL` to a SQLite path and
-  deactivating the `postgres` profile; the file lives on the `sqlite_data` volume in **WAL mode**
-  (required to meet the ≥5 concurrent-request target — ADR-002), with no `db` container.
-- **Migrations:** `alembic upgrade head` runs automatically inside `deploy.sh` *after* the database
-  is reachable and *before* the `backend` service starts serving. The same Alembic scripts run on
-  both dialects (dialect-aware where unavoidable — ADR-002). The `system_settings` seed ships as an
-  Alembic data migration, so a fresh install needs no manual configuration.
-- **Startup ordering (PostgreSQL, default):** `deploy.sh` waits for the `db` healthcheck before
-  running migrations; on SQLite there is no wait.
+- **Default:** SQLite. `DATABASE_URL=sqlite:///data/app.db` is the default in `.env.example`, in the
+  shipped backend config (`app.core.config`), and in `deploy.sh`. The file lives on the `sqlite_data`
+  volume in **WAL mode** (required to meet the ≥5 concurrent-request target — ADR-002), with no `db`
+  container.
+- **PostgreSQL (opt-in alternative):** enabled by switching `DATABASE_URL` to a
+  `postgresql+psycopg://…` URL; `deploy.sh` then activates the `postgres` Compose profile so the
+  `db` container starts. PostgreSQL 18 runs in the `db` container.
+- **Migrations:** `alembic upgrade head` runs automatically — both inside the backend container's
+  entrypoint (so a bare `docker compose up` is correct) and explicitly in `deploy.sh` *after* the
+  database is reachable and *before* the `backend` service starts serving. The same Alembic scripts
+  run on both dialects (dialect-aware where unavoidable — ADR-002). The `system_settings` seed ships
+  as an Alembic data migration, so a fresh install needs no manual configuration.
+- **Startup ordering (PostgreSQL opt-in):** `deploy.sh` starts `db` and waits for its healthcheck
+  before running migrations; on the SQLite default there is no `db` container and no wait.
 
 ---
 
@@ -124,13 +129,14 @@ one build, one process, one port to reason about.
 - `.env.example` is committed and lists every variable with safe placeholder values.
 - `.env` is **git-ignored** and holds the developer's local values.
 - Variables (from the architecture):
-  - `DATABASE_URL` — dialect switch (PostgreSQL **default** | SQLite opt-in).
+  - `DATABASE_URL` — dialect switch (SQLite **default** | PostgreSQL opt-in).
   - `ATTACHMENTS_DIR` — attachments volume mount path.
   - `CORS_ALLOWED_ORIGINS` — localhost origins for the Web UI.
   - Service ports (`8000` backend — REST + MCP on the same port, `3000` Web) — defaults; final mapping owned here in `docker-compose.yml`.
-- The **only** sensitive-looking value is the local PostgreSQL password (`POSTGRES_PASSWORD`), used by
-  default. It is used only between containers on the host, lives only in the git-ignored `.env`, and
-  is never transmitted off the machine. A cloud secret manager would be over-engineering here.
+- The **only** sensitive-looking value is the local PostgreSQL password (`POSTGRES_PASSWORD`), used
+  only when the Postgres profile is active. It is used only between containers on the host, lives only
+  in the git-ignored `.env`, and is never transmitted off the machine. A cloud secret manager would be
+  over-engineering here.
 
 ---
 
@@ -186,9 +192,9 @@ point hides the Compose details and the DB-dialect branching.
 ```
 
 Behaviour:
-- Reads `DATABASE_URL` from `.env`. **Default** targets PostgreSQL: the script activates the
-  `postgres` Compose profile and waits for the `db` healthcheck. If `DATABASE_URL` is switched to
-  SQLite, the script skips the profile and runs with no `db` container.
+- Reads `DATABASE_URL` from `.env`. **Default** targets SQLite: the script runs with no `db`
+  container. If `DATABASE_URL` is switched to PostgreSQL, the script activates the `postgres` Compose
+  profile, starts `db`, and waits for its healthcheck before migrating.
 - Always runs `alembic upgrade head` before the `backend` service (REST + MCP, same process) starts serving.
 - The user runs `deploy.sh`; the devops agent never runs it autonomously.
 
@@ -241,7 +247,8 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
 
 1. **Quality gates** — confirmed: local **pre-commit hooks**, no CI service.
 2. **Branch model** — assumed: `main` + feature branches, no `develop`.
-3. **`deploy.sh` as a Compose wrapper** — assumed: yes, with **PostgreSQL default** / SQLite opt-in switch.
+3. **`deploy.sh` as a Compose wrapper** — confirmed: yes, with **SQLite default** / PostgreSQL opt-in
+   switch (aligned to the shipped backend config in TASK-006).
 4. **Single backend container** — confirmed: REST + MCP share one image and one process on port :8000
    (MCP mounted on a path; no separate MCP port, per `api-contract.md`).
 

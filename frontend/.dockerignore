@@ -1,0 +1,13 @@
+# Keep the build context small; never copy installed deps or build output.
+node_modules/
+dist/
+build/
+
+# Env files — VITE_API_BASE_URL is passed as a build-arg, not from a file.
+.env
+.env.*
+
+# Tooling / editor
+.idea/
+.vscode/
+.DS_Store

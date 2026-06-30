@@ -20,9 +20,18 @@ build/
 # Env & secrets
 .env
 .env.*
+# ...but the committed templates must stay tracked.
+!.env.example
+!frontend/.env.example
 
 # Local data (SQLite db files, attachment volume mounts)
 *.db
 *.sqlite
 *.sqlite3
 data/
+
+# Build output
+frontend/dist/
+
+# Playwright MCP session data
+.playwright-mcp/

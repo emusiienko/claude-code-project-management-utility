@@ -2,7 +2,7 @@
 
 > Owned by **backend-developer**. Update only at the user's explicit request.
 > Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · MCP SDK
-> Last updated: 2026-06-29 (rev 3)
+> Last updated: 2026-06-30 (rev 4)
 
 ---
 
@@ -212,6 +212,55 @@
   - Use placeholder values or safe defaults — never real secrets (`.env.example` is committed to git)
   - Group variables by concern with a comment header (e.g. `# Database`, `# Storage`, `# Auth`)
   - When adding or removing a variable in `core/config.py`, update `.env.example` in the same commit
+
+---
+
+## Local Development Environment
+
+- The project ships a virtual environment at `backend/.venv`
+- Always activate it (or invoke it directly) when running Python commands locally:
+  `backend/.venv/bin/python`, `backend/.venv/bin/pytest`, `backend/.venv/bin/alembic`, etc.
+- Never install packages into the system Python or any Conda/Anaconda environment
+- All `pip install` commands must target `backend/.venv` — use `backend/.venv/bin/pip install`
+
+### Running Tests
+
+Tests are integration tests that hit a real in-process SQLite database. `PYTHONPATH=.` makes the
+`app` package importable without an editable install. Always run from the `backend/` directory.
+
+**Full suite:**
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v
+```
+
+**Single test file (story-scoped):**
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/test_projects.py -v
+```
+
+**Single test by name:**
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v -k test_create_project_duplicate_name_conflicts
+```
+
+**With coverage:**
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v --cov=app --cov-report=term-missing
+```
+
+Required environment variables:
+
+| Variable | Test value | Notes |
+|----------|-----------|-------|
+| `DATABASE_URL` | `sqlite:///./tests/test.db` | Isolated SQLite file; never the dev database |
+| `ATTACHMENTS_DIR` | `./tests/attachments_tmp` | Injected by the test fixture automatically |
+
+`ATTACHMENTS_DIR` is set by the `conftest.py` fixture — no manual export needed. `DATABASE_URL`
+must always be set explicitly on the command line as shown above; do not rely on `.env` for tests.
 
 ---
 

@@ -98,6 +98,16 @@ of business logic and the only layer that touches the data layer.
 - `frontend/src/core/` — app config, routing, providers, error boundaries
 - `frontend/src/api/` — REST client, contract types, query/mutation hooks
 
+<!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+**Navigation model (established in STORY-002):** the layout shell exposes exactly **three** top-level
+navigation entries — **Projects** (home, `/`), **Sessions** (`/sessions`), and **Settings**
+(`/settings`). The remaining domains (Stories, Tasks, Task Links, Attachments, Comments, Milestones,
+Cross-project) are **sub-views reached through their parent context**, not top-level nav items. Routes
+for those domains still exist as lazy-loaded placeholder screens (so the route table is complete from
+day one), but they are not surfaced in the navigation bar. STORY-003+ replace a placeholder with the
+real screen; they do not add top-level nav entries beyond the three above without a requirements
+change.
+
 ---
 
 ## Module Relations
@@ -192,7 +202,7 @@ are normative constraints for the backend implementor (see ADR-002).
 - **comment** — `id`, `container_type` (story|task|milestone), `container_id`, `author_role`, `content`, `labels` (JSON array), `created_at`, `updated_at`
 - **session** — `id`, `topic`, `context`, `result_decisions`, `result_summary`, `status` (free-form), `participant_role`, `linked_story_id` (FK→story, SET NULL), `linked_task_id` (FK→task, SET NULL), `archived_at`, `created_at`, `updated_at`
 - **system_settings** — `key` (PK, one of six dictionary keys), `values` (JSON array, ≥1), `updated_at`
-- **project_settings** — composite PK (`project_id` FK→project CASCADE, `key`), `values` (JSON array, ≥1 — fully replaces system default), `updated_at`
+- **project_settings** — composite PK (`project_id` FK→project CASCADE, `key`), `values` (JSON array, ≥1 — fully replaces system default; replace-never-merge per ADR-008), `updated_at`
 - **milestone** — `id`, `name` (unique within each associated project), `description`, `created_at`, `updated_at`
 - **milestone_project** — composite PK (`milestone_id` FK→milestone CASCADE, `project_id` FK→project CASCADE) — M:N join
 
@@ -214,7 +224,8 @@ As specified in the backend requirements: story `(project_id, created_at DESC)` 
 
 ### Seed data
 
-`system_settings` is pre-seeded at install via an Alembic data migration with the six dictionaries:
+`system_settings` is pre-seeded at install via a dedicated Alembic data migration, separate from the
+schema migration (see ADR-009), with the six dictionaries:
 
 - `task_statuses`: `["todo", "in-progress", "done"]`
 - `task_types`: `["task", "bug", "testing-task"]`
@@ -303,6 +314,26 @@ with SQLite there is no `db` container.
 - WCAG 2.1 AA across all views; desktop-only, min viewport 1,024 px.
 
 ---
+
+## Known Divergences (reconcile log)
+
+<!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+
+- **Clear-override has no end-to-end surface.** The Settings acceptance criterion "a project override
+  for a specific key can be cleared, restoring the system default" is **not satisfied end to end** as
+  built. The backend *service* implements `clear_project_setting` (delete the `(project, key)` override
+  row), but **no REST route or MCP tool exposes it** — the LOCKED v1.0 contract defines clearing only
+  conceptually "within `PUT /projects/:id/settings` semantics", yet `PUT` can only *set* a non-empty
+  override (an empty list is rejected with "Dictionary values cannot be empty."), so `PUT` cannot clear.
+  Meanwhile the **frontend** calls `DELETE /v1/projects/:projectId/settings/:key`, which **does not
+  exist** on the backend (there are zero `DELETE` routes in the Settings controller). Net effect: the
+  UI "Clear override" action fails, and there is no contract-blessed way to clear an override.
+  - **Resolution path (out of architect reconcile scope — needs a follow-up):** this requires a
+    contract revision off LOCKED v1.0 to add an explicit clear operation (recommended: `DELETE
+    /projects/:projectId/settings/:key` → `204 | 404`, mirroring the existing service method and the
+    frontend's current call), plus a backend REST route + MCP tool to expose `clear_project_setting`.
+    Tracked here so STORY-003+ and the next contract revision pick it up; not fixed during this
+    documentation reconcile.
 
 ## Out of Scope (V1)
 

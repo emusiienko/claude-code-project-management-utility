@@ -22,23 +22,26 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 
 ---
 
-## Navigation & Routing
+## Navigation & Routing <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
 
 | Route | View | Description |
 |-------|------|-------------|
-| `/` | Projects & Milestones | All projects (top section) + all milestones (bottom section) |
-| `/projects/:id` | Stories list | Stories within a project |
-| `/projects/:id/stories/:storyId` | Story detail | Story metadata + task list + story-level attachments + story-level comments |
-| `/projects/:id/stories/:storyId/tasks/:taskId` | Task detail modal | Full-screen modal over the Story Detail View; URL updates on open for deep-linking |
-| `/milestones/:id` | Milestone detail | Milestone metadata + assigned stories + milestone attachments + milestone comments |
-| `/sessions` | Sessions list | All sessions |
-| `/settings` | System settings | System-level dictionary management |
-| `/projects/:id/settings` | Project settings | Per-project dictionary overrides |
+| `/` | Projects | Default redirect to `/projects` |
+| `/projects` | Projects | All projects list |
+| `/projects/:id` | Stories list | Stories within a project *(placeholder as of STORY-002)* |
+| `/projects/:id/stories/:storyId` | Story detail | Story metadata + task list + story-level attachments + story-level comments *(placeholder)* |
+| `/projects/:id/stories/:storyId/tasks/:taskId` | Task detail modal | Full-screen modal over the Story Detail View; URL updates on open for deep-linking *(placeholder)* |
+| `/milestones/:id` | Milestone detail | Milestone metadata + assigned stories + milestone attachments + milestone comments *(placeholder)* |
+| `/sessions` | Sessions list | All sessions *(placeholder)* |
+| `/settings` | Settings | System Defaults + Project Overrides (tab-switched) — **implemented in STORY-002** |
+| `/cross-project` | Cross-project view | Cross-project stories and tasks *(placeholder)* |
+
+> **As-built (STORY-002):** the layout shell exposes exactly **three** top-level navigation entries: **Projects** (`/projects`), **Sessions** (`/sessions`), and **Settings** (`/settings`). All other domains are sub-views reached through parent context or placeholder screens — they are not top-level nav items. The route `/projects/:id/settings` does not exist; Project Overrides is a tab within `/settings`.
 
 Navigation rules:
-- The top-level navigation bar is always visible and includes: Projects, Sessions, System Settings
-- Breadcrumbs are shown on all views below the top level (e.g. Projects → My Project → Story Title → Task Title)
-- Navigating to a resource that no longer exists (deleted) shows a "Not found" page with a link back to the parent level
+- The top-level navigation bar is always visible and includes: Projects, Sessions, Settings
+- Breadcrumbs are shown on all views below the top level (e.g. Projects → My Project → Story Title → Task Title) *(breadcrumbs not yet implemented; targeted in STORY-003+)*
+- Navigating to a resource that no longer exists (deleted) shows a "Not found" page with a link back to the parent level *(targeted in STORY-003+)*
 
 ---
 
@@ -196,23 +199,28 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 
 ---
 
-### System Settings View (`/settings`)
+### System Settings View (`/settings` — System Defaults tab) <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
 
-- Six accordion sections, one per dictionary key: `task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `link_types`, `participant_roles`
-- Each section shows the current values as editable tag/chip input (add tag, remove tag)
-- **Save** button per section (calls `PUT /system/settings` with that key)
-- Warning shown if removing a value that is currently in use (informational, not blocking)
+- Six dictionary editors in a 2-column responsive grid (not accordion), one per key: `task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `link_types`, `participant_roles`
+- Each editor shows the current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
+- **Save / Cancel** controls per editor — Save disabled when the value list is empty
+- Per-key independent save state and error state (saving one key does not affect others)
+- **Save** calls `PUT /v1/system/settings` with only the changed key (partial body)
+- Server errors (400: unknown key, empty values) surfaced inline below the relevant editor
 
 ---
 
-### Project Settings View (`/projects/:id/settings`)
+### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
 
-- Same six-section layout as System Settings
-- Each section shows: "Using system default: [values]" when no project override is set
-- **Override** button per section → activates edit mode for that key; shows current system default pre-filled
-- **Clear override** button (visible when override is set) → reverts to system default for that key
-- **Save** button per section (calls `PUT /projects/:id/settings`)
-- **Effective settings** read-only summary always visible at top (calls `GET /projects/:id/settings/effective`)
+> **Implementation note (STORY-002):** the Settings view was implemented as two tabs (`System Defaults` / `Project Overrides`) under the existing `/settings` route — not as a separate `/projects/:id/settings` route. Project selection is handled by a project selector in the Project Overrides tab. This is an intentional deviation from the original routing spec; the route `/projects/:id/settings` does not exist. See `docs/architecture.md` § Known Divergences.
+
+- Two-tab layout at `/settings`: **System Defaults** tab and **Project Overrides** tab
+- **System Defaults tab:** six dictionary editors (one per key) in a 2-column grid; each has independent save/error state; calls `PUT /v1/system/settings` with the changed key only
+- **Project Overrides tab:** project selector (left panel) + effective settings panel (right panel); overridden keys show an "Override" badge
+- **Override / Edit button** per key → activates inline editor for that key
+- **Clear override** button (visible when override is set) → intended to revert to system default; calls `DELETE /v1/projects/:projectId/settings/:key` — **this endpoint does not exist on the backend as of STORY-002; the action fails at runtime** (see Known Gaps in backend requirements)
+- **Save** button per key → calls `PUT /v1/projects/:id/settings` with only the changed key
+- Effective values always visible via `GET /v1/projects/:id/settings/effective`
 
 ---
 

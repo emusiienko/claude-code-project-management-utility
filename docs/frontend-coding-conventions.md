@@ -131,6 +131,7 @@
 - Design tokens (colors, spacing, radii) come from `tailwind.config.ts` — never hardcode hex values or pixel values
 - Class ordering: layout → sizing → spacing → typography → color → interactivity — follow Prettier Tailwind plugin order
 - Variants for hover/focus/active/disabled states are preferred over separate state-driven class conditionals
+- **No dark mode** — dark mode is out of scope for this project. Do not use `dark:` Tailwind variants, do not add a theme toggle, and do not define CSS variables for a dark theme
 
 ---
 
