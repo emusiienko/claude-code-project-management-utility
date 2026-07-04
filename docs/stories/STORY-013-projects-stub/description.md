@@ -1,5 +1,5 @@
 ---
-status: Pending Approval
+status: Accepted
 type: fix
 priority: P0
 date: 2026-06-30

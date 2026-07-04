@@ -28,3 +28,39 @@ Database: SQLite is the default. To use PostgreSQL, set `DATABASE_URL=postgresql
 | MCP server | http://localhost:8000/mcp |
 | Web UI | http://localhost:3000 |
 | PostgreSQL (opt-in only) | localhost:5432 |
+
+---
+
+## Local backend development
+
+Dependencies are managed with [uv](https://docs.astral.sh/uv/). The virtual environment lives at `backend/.venv`.
+
+### Setup
+
+```bash
+cd backend
+uv sync --dev        # creates .venv and installs all deps (runtime + dev)
+```
+
+### Dependency management
+
+```bash
+uv sync --dev        # re-sync after git pull
+uv add <pkg>         # add a runtime dependency (updates pyproject.toml + uv.lock)
+uv add --dev <pkg>   # add a dev-only dependency
+uv lock              # regenerate uv.lock after manually editing pyproject.toml
+```
+
+### Run tests
+
+```bash
+cd backend
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. uv run pytest tests/ -v
+```
+
+### Run migrations (local SQLite)
+
+```bash
+cd backend
+DATABASE_URL="sqlite:///./data/app.db" uv run alembic upgrade head
+```

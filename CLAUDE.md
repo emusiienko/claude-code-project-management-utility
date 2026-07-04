@@ -37,37 +37,39 @@ via an MCP server and to the human orchestrator via a web UI.
 
 ## Code Map
 
-- `backend/main.py` — application entry point; mounts FastAPI REST app + MCP server on the same port (:8000)
-- `backend/app/core/config.py` — typed `Settings` via pydantic-settings; single reader of all environment variables
-- `backend/app/core/constants.py` — six dictionary key name constants (`DICT_KEY_*`) and `ALL_DICT_KEYS` frozenset
-- `backend/app/core/errors.py` — domain error classes, error code constants, centralized `domain_error_handler`
-- `backend/app/core/dict_resolver.py` — `EffectiveDictionary` Protocol + `validate_dict_key()` helper
+- `backend/app/main.py` — application entry point; wires DI container, registers middleware + exception handlers, mounts REST router + MCP server on the same port (:8000)
+- `backend/app/config.py` — typed `Settings` via pydantic-settings; single reader of all environment variables
+- `backend/app/exc_handlers.py` — FastAPI exception handlers: `domain_error_handler`, `request_validation_error_handler`; `_build_error_body` helper
+- `backend/app/core/errors.py` — `ErrorCode` enum; `DomainError` class hierarchy (one subclass per HTTP status)
 - `backend/app/core/database/` — `Base`, `UUIDType`, `build_engine()` (SQLite WAL), session factory, `BaseRepository[T]`
 - `backend/app/core/storage/` — `FilesystemStorage` with write/read/snapshot for attachment files
-- `backend/app/container/` — `AppContainer` DI composition root; `db_session` Factory + all Settings providers; `SqlProjectChecker` for cross-domain project existence check; `container` singleton exported for wiring
+- `backend/app/container/` — `AppContainer` DI composition root; `db_session` Factory + all Settings providers; `SqlProjectChecker` for cross-domain project existence check; `container` singleton exported for wiring; `mcp_dependencies.py` — MCP async context managers (`@asynccontextmanager` + `@inject`) for each domain service, used via `fastmcp.dependencies.Depends()`
 - `backend/app/api/` — FastAPI app factory shell; CORS + error handler registered; domain routers added in TASK-004+
 - `backend/app/mcp/` — `FastMCP` server (HTTP Streamable transport, path-mounted at `/mcp`); Settings tools registered; future domains add tools via `register_*_tools(mcp_server)`
-- `backend/app/settings/` — `SystemSettings` + `ProjectSettings` ORM models; `SystemSettingsRepository` + `ProjectSettingsRepository`; `SettingsService` (all business rules + `EffectiveDictionary` impl); `schema.py` (Pydantic request/response schemas); `dependencies.py` (`_get_db` + `get_settings_service` FastAPI Depends); `controller.py` (5 route handlers under `/v1`); `mcp_tools.py` (5 MCP tools mirroring the REST surface)
+- `backend/app/settings/` — `constants.py` (six `DICT_KEY_*` constants, `ALL_DICT_KEYS`, `validate_dict_key()`); `SystemSettings` + `ProjectSettings` ORM models; `SystemSettingsRepository` + `ProjectSettingsRepository`; `SettingsService` (all business rules; implements `EffectiveDictionary` Protocol); `EffectiveDictionary` + `ProjectChecker` Protocols in `service.py`; `schema.py` (Pydantic request/response schemas); `dependencies.py` (`_get_db` + `get_settings_service` FastAPI Depends); `controller.py` (5 route handlers under `/v1`); `mcp_tools.py` (5 MCP tools mirroring the REST surface)
 - `backend/app/projects/` — `Project` ORM model (`model.py`); `ProjectRepository` extending `BaseRepository[Project]` with `list_paginated`, `get_by_name_lower`, `get_name_conflict` (`repository.py`); stub `controller.py` (GET /v1/projects returns empty list, STORY-013); full service/schema/controller/mcp_tools added in STORY-003
 - `backend/migrations/` — Alembic env.py (reads DATABASE_URL from settings); `0001_project` (project table + Test Project seed); `0002_settings` (system_settings + project_settings with inline FK to project + six default dictionaries seed)
-- `frontend/src/core/` — app root (App.tsx, Layout.tsx, router.tsx), global CSS, QueryClient singleton
-- `frontend/src/api/client.ts` — typed fetch wrapper; `ApiRequestError` class; multipart upload support
+- `frontend/src/app/` — application composition root: App.tsx (providers), Layout.tsx (nav shell + Outlet), router.tsx (route table), queryClient.ts (TQ singleton), index.css (global styles)
+- `frontend/src/core/client.ts` — typed fetch wrapper; `ApiRequestError` class; `apiClient` with get/post/put/patch/delete/upload methods
 - `frontend/src/api/types.ts` — all API contract TypeScript interfaces (derived from docs/api-contract.md v1.0)
-- `frontend/src/api/queryKeys.ts` — centralized TanStack Query key factory for all domains
-- `frontend/src/api/settings.ts` — TanStack Query hooks for all six Settings endpoints (system + project overrides)
-- `frontend/src/api/projects.ts` — project list hook (`useProjectList`); full CRUD mutations added in STORY-003
-- `frontend/src/shared/ui/PageLoader.tsx` — full-page accessible loading spinner (aria-busy)
-- `frontend/src/shared/ui/PlaceholderScreen.tsx` — generic "coming soon" screen used by all not-yet-implemented routes
-- `frontend/src/screens/projects/` — Projects placeholder screen (STORY-003 fills this in)
-- `frontend/src/screens/stories/` — Stories placeholder screen (STORY-004)
-- `frontend/src/screens/tasks/` — Tasks placeholder screen (STORY-005)
-- `frontend/src/screens/task-links/` — Task Links placeholder screen (STORY-006)
-- `frontend/src/screens/attachments/` — Attachments placeholder screen (STORY-007)
-- `frontend/src/screens/comments/` — Comments placeholder screen (STORY-008)
-- `frontend/src/screens/sessions/` — Sessions placeholder screen (STORY-009)
-- `frontend/src/screens/milestones/` — Milestones placeholder screen (STORY-012)
-- `frontend/src/screens/cross-project/` — Cross-project view placeholder screen (STORY-011)
-- `frontend/src/screens/settings/` — System & Project settings screens: tab switcher (index.tsx), SystemSettings.tsx, ProjectSettings.tsx, DictionaryEditor.tsx
+- `frontend/src/api/paths.ts` — centralized `API_PATHS` constant; all URL strings live here
+- `frontend/src/api/api_config.ts` — `PAGINATION` page-size limits and `DATA_FRESHNESS` stale times per domain
+- `frontend/src/config/cacheConfig.ts` — `CACHE_KEYS` registry: all TanStack Query cache keys for every domain
+- `frontend/src/api/endpoints/settings.ts` — plain async functions for all six Settings API endpoints
+- `frontend/src/api/endpoints/projects.ts` — plain async function for GET /v1/projects; full CRUD added in STORY-003
+- `frontend/src/shared/components/PageLoader.tsx` — full-page accessible loading spinner (aria-busy)
+- `frontend/src/shared/components/PlaceholderScreen.tsx` — generic "coming soon" screen used by all not-yet-implemented features
+- `frontend/src/shared/hooks/useProjectList.ts` — cross-feature TanStack Query hook for the project list
+- `frontend/src/features/projects/` — Projects placeholder page (STORY-003 fills this in)
+- `frontend/src/features/stories/` — Stories placeholder page (STORY-004)
+- `frontend/src/features/tasks/` — Tasks placeholder page (STORY-005)
+- `frontend/src/features/task-links/` — Task Links placeholder page (STORY-006)
+- `frontend/src/features/attachments/` — Attachments placeholder page (STORY-007)
+- `frontend/src/features/comments/` — Comments placeholder page (STORY-008)
+- `frontend/src/features/sessions/` — Sessions placeholder page (STORY-009)
+- `frontend/src/features/milestones/` — Milestones placeholder page (STORY-012)
+- `frontend/src/features/cross-project/` — Cross-project view placeholder page (STORY-011)
+- `frontend/src/features/settings/` — Settings feature: SettingsPage.tsx (tab switcher), components/ (SystemSettings, ProjectSettings, DictionaryEditor), hooks/ (useSystemSettings, useProjectSettings)
 
 ## Infrastructure
 
@@ -96,6 +98,8 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 **Volumes** (survive `down`; wiped only by `docker compose down -v`): `sqlite_data` (SQLite file), `pg_data` (Postgres data), `attachments` (attachment files + version snapshots).
 
 **IaC files**: `docker-compose.yml`, `deploy.sh`, `backend/Dockerfile` (+ `docker-entrypoint.sh`), `frontend/Dockerfile` (+ `nginx.conf`), `.env.example`.
+
+**Backend image dependencies**: installed with **uv** (`uv sync --frozen` against the committed `backend/uv.lock`), matching the local dev toolchain for reproducible locked builds. `alembic` and `uvicorn` resolve from the uv-managed venv via `PATH` — the entrypoint and CMD are unchanged. Do not reintroduce `pip install` in the backend image.
 
 ## Gotchas
 - **No auth, by design.** Docker localhost port mapping is the only access boundary. Never add login/roles/RBAC. `*_role` fields are descriptive metadata, not access control.

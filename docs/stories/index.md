@@ -2,7 +2,6 @@
 
 | ID | Title | Type | Priority | Status | Auto ✓ | QA ✓ | Arch ✓ | Spec ✓ | Auto Rec ✓ | QA Rec ✓ |
 |----|-------|------|----------|--------|--------|------|--------|--------|------------|----------|
-| [STORY-001](STORY-001-project-initiation/description.md) | Project Initiation | chore | P0 | Accepted | | | | | | |
 | [STORY-003](STORY-003-project-management/description.md) | Project Management | feature | P0 | In Progress | | | | | | |
 | [STORY-004](STORY-004-story-management/description.md) | Story Management | feature | P0 | Planned | | | | | | |
 | [STORY-005](STORY-005-task-management/description.md) | Task Management | feature | P0 | Planned | | | | | | |
@@ -13,4 +12,3 @@
 | [STORY-010](STORY-010-agent-access-mcp/description.md) | Agent Access via MCP | feature | P0 | Planned | | | | | | |
 | [STORY-011](STORY-011-cross-project-view/description.md) | Cross-project View | feature | P2 | Planned | | | | | | |
 | [STORY-012](STORY-012-milestones/description.md) | Milestones | feature | P1 | Planned | | | | | | |
-| [STORY-013](STORY-013-projects-stub/description.md) | Projects List Stub | fix | P0 | Pending Approval | | | | | | |
