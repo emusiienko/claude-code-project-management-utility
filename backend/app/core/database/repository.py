@@ -10,14 +10,14 @@ ModelT = TypeVar("ModelT", bound=Base)
 
 
 class BaseRepository(Generic[ModelT]):
-    # Generic base for all domain repositories.
-    # Provides get-by-id, list with pagination, and existence check.
-    # Domain repositories extend this and add domain-specific query methods.
-
     model_class: type[ModelT]
 
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    def get_all(self) -> list[ModelT]:
+        stmt = select(self.model_class)
+        return list(self._session.scalars(stmt).all())
 
     def get_by_id(self, entity_id: uuid.UUID) -> ModelT | None:
         stmt = select(self.model_class).where(

@@ -8,7 +8,7 @@ from sqlalchemy import engine_from_config, pool
 # Ensure the backend package is importable when running alembic from any CWD.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core.config import settings
+from app.config import settings
 from app.core.database.base import Base
 
 # Import all models here so their metadata is registered on Base before
@@ -18,7 +18,12 @@ from app.projects.model import Project  # noqa: F401
 from app.settings.model import ProjectSettings, SystemSettings  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+# Allow an externally configured URL (e.g. for integration tests) to take
+# precedence over the application default. alembic.ini ships with a blank
+# placeholder, so an empty string means "not configured externally".
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

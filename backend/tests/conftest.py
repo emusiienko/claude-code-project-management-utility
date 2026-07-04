@@ -104,49 +104,23 @@ def db_session(session_factory) -> Generator[Session, None, None]:
 async def client(session_factory) -> AsyncGenerator[AsyncClient, None]:
     """Async HTTPX client pointed at the FastAPI app with the test DB injected.
 
-    The FastAPI dependency `get_settings_service` (in app.settings.dependencies)
-    is overridden to use a test-scoped session from our test sessionmaker instead
-    of the real production container.
+    We override session_factory (not db_session) so that db_session remains the
+    original ContextLocalResource. DependencyResolver calls shutdown() on the original
+    provider directly — which IS initialized — so the commit runs correctly.
+    Overriding db_session itself breaks teardown because DependencyResolver calls
+    shutdown() on the original (un-initialized) provider and the override is never shut
+    down.
     """
-    # Import here to avoid module-level side effects during collection.
-    from app.api.factory import create_app
-    from app.container.project_checker import SqlProjectChecker
-    from app.settings.dependencies import get_settings_service
-    from app.settings.repository import (
-        ProjectSettingsRepository,
-        SystemSettingsRepository,
-    )
-    from app.settings.service import SettingsService
+    from dependency_injector import providers as di_providers
 
-    app = create_app()
+    from app.container import container
+    from app.main import application
 
-    def override_get_settings_service():
-        db = session_factory()
-        try:
-            system_repo = SystemSettingsRepository(session=db)
-            project_repo = ProjectSettingsRepository(session=db)
-            project_checker = SqlProjectChecker(session=db)
-            service = SettingsService(
-                system_repo=system_repo,
-                project_repo=project_repo,
-                project_checker=project_checker,
-            )
-            yield service
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_settings_service] = override_get_settings_service
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        yield ac
-
-    app.dependency_overrides.clear()
+    with container.session_factory.override(di_providers.Object(session_factory)):
+        async with AsyncClient(
+            transport=ASGITransport(app=application), base_url="http://test"
+        ) as ac:
+            yield ac
 
 
 # ---------------------------------------------------------------------------

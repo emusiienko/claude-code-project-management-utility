@@ -13,18 +13,13 @@ def build_session_factory(engine: Engine) -> sessionmaker[Session]:
     )
 
 
-def create_session(session_factory: sessionmaker[Session]) -> Session:
-    # Called by the DI container to produce a new Session per request.
-    # Use this as a Factory provider target so the container can inject
-    # concrete Session instances into repositories and services.
-    return session_factory()
-
-
-def get_db(session_factory: sessionmaker[Session]) -> Generator[Session, None, None]:
-    # FastAPI dependency: yields a DB session and ensures it is closed.
-    # Transactions must be managed explicitly by the caller (service layer).
+def init_db_session(session_factory: sessionmaker[Session]) -> Generator[Session, None, None]:
     db = session_factory()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

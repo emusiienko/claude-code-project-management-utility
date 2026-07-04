@@ -1,15 +1,13 @@
 from dependency_injector import containers, providers
 
-from app.container.project_checker import SqlProjectChecker
-from app.core.config import settings
-from app.core.database import build_engine, build_session_factory, create_session
+from app.config import settings
+from app.core.database import build_engine, build_session_factory, init_db_session
 from app.core.storage import FilesystemStorage
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
 from app.settings.service import SettingsService
 
 
 class AppContainer(containers.DeclarativeContainer):
-    # Single global DI composition root.
     # All providers are defined here; app packages never own their own providers.
 
     # --------------------------------------------------------------------------
@@ -32,17 +30,16 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
-    # DB session — Factory (request-scoped)
-    # A new Session is created per request via create_session(session_factory).
+    # DB session — ContextLocalResource (request-scoped)
     # --------------------------------------------------------------------------
 
-    db_session = providers.Factory(
-        create_session,
+    db_session = providers.ContextLocalResource(
+        init_db_session,
         session_factory=session_factory,
     )
 
     # --------------------------------------------------------------------------
-    # Settings domain — Factories (request-scoped)
+    # Settings domain — Factories (resolved per injection)
     # --------------------------------------------------------------------------
 
     system_settings_repository = providers.Factory(
@@ -55,14 +52,8 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    project_checker = providers.Factory(
-        SqlProjectChecker,
-        session=db_session,
-    )
-
     settings_service = providers.Factory(
         SettingsService,
         system_repo=system_settings_repository,
         project_repo=project_settings_repository,
-        project_checker=project_checker,
     )

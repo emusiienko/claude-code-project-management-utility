@@ -1,19 +1,22 @@
-import logging
-from typing import Any
+from enum import Enum
 
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
+from fastapi import status
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Error codes (single source of truth — never duplicated as inline strings)
 # ---------------------------------------------------------------------------
-CODE_VALIDATION_ERROR = "VALIDATION_ERROR"
-CODE_NOT_FOUND = "NOT_FOUND"
-CODE_CONFLICT = "CONFLICT"
-CODE_UNPROCESSABLE = "UNPROCESSABLE"
-CODE_INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+class ErrorCode(str, Enum):
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    NOT_FOUND = "NOT_FOUND"
+    CONFLICT = "CONFLICT"
+    UNPROCESSABLE = "UNPROCESSABLE"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +25,7 @@ CODE_INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
 class DomainError(Exception):
-    code: str = CODE_INTERNAL_ERROR
+    code: str = ErrorCode.INTERNAL_ERROR
     http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def __init__(
@@ -34,64 +37,30 @@ class DomainError(Exception):
         self.message = message
         self.details = details
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}[{self.code}]: {self.message}"
+
 
 class ValidationError(DomainError):
-    code = CODE_VALIDATION_ERROR
+    code = ErrorCode.VALIDATION_ERROR
     http_status = status.HTTP_400_BAD_REQUEST
 
 
 class NotFoundError(DomainError):
-    code = CODE_NOT_FOUND
+    code = ErrorCode.NOT_FOUND
     http_status = status.HTTP_404_NOT_FOUND
 
 
 class ConflictError(DomainError):
-    code = CODE_CONFLICT
+    code = ErrorCode.CONFLICT
     http_status = status.HTTP_409_CONFLICT
 
 
 class UnprocessableError(DomainError):
-    code = CODE_UNPROCESSABLE
+    code = ErrorCode.UNPROCESSABLE
     http_status = status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class InternalError(DomainError):
-    code = CODE_INTERNAL_ERROR
+    code = ErrorCode.INTERNAL_ERROR
     http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-
-
-# ---------------------------------------------------------------------------
-# Error response helpers
-# ---------------------------------------------------------------------------
-
-
-def _build_error_body(
-    error_message: str,
-    code: str,
-    details: list[dict[str, str]] | None = None,
-) -> dict[str, Any]:
-    body: dict[str, Any] = {"error": error_message, "code": code}
-    if details:
-        body["details"] = details
-    return body
-
-
-# ---------------------------------------------------------------------------
-# FastAPI exception handlers
-# ---------------------------------------------------------------------------
-
-
-async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
-    if exc.code == CODE_INTERNAL_ERROR:
-        logger.error("Internal error: %s", exc.message, exc_info=exc)
-        # Never expose internal details to the client for 500 errors.
-        return JSONResponse(
-            status_code=exc.http_status,
-            content=_build_error_body("An unexpected error occurred.", CODE_INTERNAL_ERROR),
-        )
-
-    logger.debug("Domain error [%s]: %s", exc.code, exc.message)
-    return JSONResponse(
-        status_code=exc.http_status,
-        content=_build_error_body(exc.message, exc.code, exc.details),
-    )

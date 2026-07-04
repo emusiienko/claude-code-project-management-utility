@@ -35,12 +35,25 @@ interface ApiError {
 // Common pagination query params on every list endpoint
 interface Pagination { page?: number; /* default 1 */ limit?: number; /* default 20, max 100 */ }
 
+// Error code ↔ status mapping:
+//   422 VALIDATION_ERROR — request-schema (Pydantic) validation; carries details[] field errors
+//   422 UNPROCESSABLE     — dictionary / business-rule violation (allowed-value, association, etc.)
+//   400 VALIDATION_ERROR — non-schema bad request (immutable-field edit, unparseable JSON, upload
+//                          business rules, invalid-state operations)
+
 // Free-form label
 interface Label { key: string; value: string; }   // key required & non-empty
 ```
 
-HTTP status conventions: `201` create, `200` read/update, `204` delete (no body), `400` validation,
-`404` not found, `409` conflict, `422` dictionary violation, `500` internal.
+HTTP status conventions: `201` create, `200` read/update, `204` delete (no body),
+`422` request-schema (Pydantic) validation AND dictionary violation — malformed/invalid request
+body or query params, or a value outside an effective dictionary,
+`400` other bad request (business-rule validation, immutable-field edits, unparseable JSON),
+`404` not found, `409` conflict, `500` internal.
+
+> Note: request-body/query-param schema validation (Pydantic) returns **422**. `400` is reserved for
+> bad-request errors that are not schema violations — business-logic validation, edits to immutable
+> fields, and JSON that cannot be parsed at all.
 
 ---
 
@@ -171,12 +184,12 @@ type SettingsOverrides = Partial<Record<DictionaryKey, string[]>>; // project-le
 ## Projects
 
 ```typescript
-// POST /projects                       -> 201 Envelope<Project>   | 400, 409, 500
+// POST /projects                       -> 201 Envelope<Project>   | 422, 409, 500
 interface CreateProjectBody { name: string; description?: string; }
 
 // GET  /projects?page&limit             -> 200 ListEnvelope<Project>
 // GET  /projects/:id                    -> 200 Envelope<Project>   | 404
-// PUT  /projects/:id                    -> 200 Envelope<Project>   | 400, 404, 409
+// PUT  /projects/:id                    -> 200 Envelope<Project>   | 422, 404, 409
 interface UpdateProjectBody { name?: string; description?: string; }
 // DELETE /projects/:id                  -> 204                     | 404
 //   Cascade: stories -> tasks -> attachments/versions/comments/links/project_settings.
@@ -190,7 +203,7 @@ interface UpdateProjectBody { name?: string; description?: string; }
 ## Stories
 
 ```typescript
-// POST /projects/:projectId/stories     -> 201 Envelope<Story>   | 400, 404, 422
+// POST /projects/:projectId/stories     -> 201 Envelope<Story>   | 404, 422
 interface CreateStoryBody {
   title: string; content?: string; status?: string;
   labels?: Label[]; milestone_id?: string | null;
@@ -199,7 +212,7 @@ interface CreateStoryBody {
 // GET  /projects/:projectId/stories?page&limit&status&label_key&label_value
 //                                        -> 200 ListEnvelope<Story> | 404
 // GET  /stories/:id                      -> 200 Envelope<Story>     | 404
-// PUT  /stories/:id                      -> 200 Envelope<Story>     | 400, 404, 422
+// PUT  /stories/:id                      -> 200 Envelope<Story>     | 404, 422
 interface UpdateStoryBody {
   title?: string; content?: string; status?: string;
   labels?: Label[];           // fully replaces when provided
@@ -233,7 +246,7 @@ interface StoryDetail extends Story {
 ## Tasks
 
 ```typescript
-// POST /stories/:storyId/tasks           -> 201 Envelope<Task>   | 400, 404, 422
+// POST /stories/:storyId/tasks           -> 201 Envelope<Task>   | 404, 422
 interface CreateTaskBody {
   title: string; content?: string;
   type: string; status: string;          // required, dictionary-validated
@@ -244,7 +257,7 @@ interface CreateTaskBody {
 // GET  /stories/:storyId/tasks?page&limit&status&type&assignee_role&creator_role
 //                                        -> 200 ListEnvelope<Task> | 404
 // GET  /tasks/:id                        -> 200 Envelope<Task>     | 404
-// PUT  /tasks/:id                        -> 200 Envelope<Task>     | 400, 404, 422
+// PUT  /tasks/:id                        -> 200 Envelope<Task>     | 404, 422
 interface UpdateTaskBody {               // story_id immutable
   title?: string; content?: string; type?: string; status?: string;
   assignee_role?: string; creator_role?: string; labels?: Label[];
@@ -273,7 +286,7 @@ interface TaskDependencies {
 ## Task Links
 
 ```typescript
-// POST /tasks/:taskId/links              -> 201 Envelope<TaskLink> | 400, 404, 409, 422
+// POST /tasks/:taskId/links              -> 201 Envelope<TaskLink> | 404, 409, 422
 interface CreateTaskLinkBody { target_task_id: string; link_type: string; }
 //   422: link_type not in dict; source == target ("A task cannot link to itself.")
 //   409: duplicate (source, target, link_type) ("This link already exists.")
@@ -310,7 +323,8 @@ interface CreateExternalRefAttachmentJson {
 }
 // multipart/form-data, kind = document | image
 //   fields: type, kind, mime_type, author_role + file (binary)
-//   400: content/file missing; external_url invalid; file > 10 MB; unsupported MIME type
+//   422: request-schema validation — content/file missing for the kind; external_url invalid
+//   400: upload business rules Pydantic cannot express — file > 10 MB; unsupported MIME type
 
 // GET  /stories/:storyId/attachments
 // GET  /tasks/:taskId/attachments
@@ -346,7 +360,7 @@ Containers: stories, tasks, milestones. Not attachable to attachments.
 ```typescript
 // POST /stories/:storyId/comments
 // POST /tasks/:taskId/comments
-// POST /milestones/:id/comments          -> 201 Envelope<Comment> | 400, 404
+// POST /milestones/:id/comments          -> 201 Envelope<Comment> | 422, 404
 interface CreateCommentBody { content: string; author_role?: string; labels?: Label[]; }
 
 // GET  /stories/:storyId/comments
@@ -354,7 +368,7 @@ interface CreateCommentBody { content: string; author_role?: string; labels?: La
 // GET  /milestones/:id/comments
 //   ?page&limit&label_key&label_value     -> 200 ListEnvelope<Comment> (created_at ASC) | 404
 // GET  /comments/:id                      -> 200 Envelope<Comment> | 404
-// PUT  /comments/:id                      -> 200 Envelope<Comment> | 400, 404
+// PUT  /comments/:id                      -> 200 Envelope<Comment> | 422, 404
 interface UpdateCommentBody { content?: string; labels?: Label[]; } // labels fully replaces
 // DELETE /comments/:id                    -> 204 | 404
 ```
@@ -367,7 +381,7 @@ Sessions do not belong to a project. A session with both `result_decisions` and 
 null is **incomplete**.
 
 ```typescript
-// POST /sessions                          -> 201 Envelope<Session> | 400, 404 (linked ids)
+// POST /sessions                          -> 201 Envelope<Session> | 422, 404 (linked ids)
 interface CreateSessionBody {
   topic: string; context?: string; status?: string; participant_role?: string;
   linked_story_id?: string; linked_task_id?: string;
@@ -375,8 +389,9 @@ interface CreateSessionBody {
 // GET  /sessions?page&limit&incomplete&status&include_archived
 //                                         -> 200 ListEnvelope<Session>
 // GET  /sessions/:id                      -> 200 Envelope<Session> | 404
-// PUT  /sessions/:id                      -> 200 Envelope<Session> | 400, 404
-interface UpdateSessionBody {            // topic NOT updatable -> 400 if provided
+// PUT  /sessions/:id                      -> 200 Envelope<Session> | 400, 422, 404
+//   422: request-schema validation on updatable fields.
+interface UpdateSessionBody {            // topic NOT updatable (business rule) -> 400 if provided
   status?: string; context?: string;
   result_decisions?: string; result_summary?: string;
   participant_role?: string; linked_story_id?: string | null; linked_task_id?: string | null;
@@ -390,12 +405,12 @@ interface UpdateSessionBody {            // topic NOT updatable -> 400 if provid
 
 ```typescript
 // GET  /system/settings                   -> 200 Envelope<Settings>
-// PUT  /system/settings                    -> 200 Envelope<Settings> | 400 (unknown key; empty values)
+// PUT  /system/settings                    -> 200 Envelope<Settings> | 422 (unknown key; empty values)
 //   Body: Partial<Settings> — only provided keys updated.
 
 // GET  /projects/:projectId/settings       -> 200 Envelope<SettingsOverrides> ({} if none) | 404
 // GET  /projects/:projectId/settings/effective -> 200 Envelope<Settings> | 404
-// PUT  /projects/:projectId/settings        -> 200 Envelope<Settings> (effective after update) | 400, 404
+// PUT  /projects/:projectId/settings        -> 200 Envelope<Settings> (effective after update) | 422, 404
 //   Body: Partial<Settings>. A project override fully REPLACES (not merges) the system default for that key.
 ```
 
@@ -407,11 +422,11 @@ Effective resolution: for each key, use `project_settings.values` if a row exist
 ## Milestones
 
 ```typescript
-// POST /milestones                         -> 201 Envelope<Milestone> | 400, 404, 409
+// POST /milestones                         -> 201 Envelope<Milestone> | 422, 404, 409
 interface CreateMilestoneBody { name: string; project_ids: string[]; description?: string; } // ≥1 project
 // GET  /milestones?page&limit&project_id    -> 200 ListEnvelope<Milestone> (incl. project_ids, story_count)
 // GET  /milestones/:id                      -> 200 Envelope<Milestone> | 404
-// PUT  /milestones/:id                      -> 200 Envelope<Milestone> | 400, 404, 409, 422
+// PUT  /milestones/:id                      -> 200 Envelope<Milestone> | 404, 409, 422
 interface UpdateMilestoneBody {            // project_ids replaces the full set
   name?: string; description?: string; project_ids?: string[];
 }

@@ -1,5 +1,7 @@
 {
   "pythonVersion": "3.12",
+  "venvPath": ".",
+  "venv": ".venv",
   "extraPaths": ["."],
   "include": ["app", "migrations", "main.py"],
   "exclude": ["**/__pycache__"],

@@ -6,7 +6,7 @@ router = APIRouter(tags=["projects"])
 # TODO(STORY-003): replace this stub with the full projects controller once the
 # Projects domain service and repository are implemented.
 @router.get(
-    "/projects",
+    "/",
     status_code=status.HTTP_200_OK,
     response_model=dict,
 )

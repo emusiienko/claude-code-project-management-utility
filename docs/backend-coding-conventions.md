@@ -1,8 +1,8 @@
 # Backend Coding Conventions
 
 > Owned by **backend-developer**. Update only at the user's explicit request.
-> Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · MCP SDK
-> Last updated: 2026-06-30 (rev 4)
+> Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · fastmcp
+> Last updated: 2026-07-02 (rev 8)
 
 ---
 
@@ -20,6 +20,10 @@
 
 - Do not explain WHAT the code does — well-named identifiers do that
 - Only add a comment when the WHY is non-obvious: a hidden constraint, a workaround, a subtle invariant
+- A comment at the top of a function is allowed only when the name **and** the implementation
+  together are still not enough to understand its purpose; if added, it must be brief and cover
+  only the non-obvious parts — not a full description of what the function does
+- No class-level summary comments when the class name is self-explanatory
 - No commented-out code in commits
 - No TODO without a linked story ID (e.g. `# TODO(STORY-005): handle rate limit retry`)
 
@@ -33,6 +37,22 @@
 - MCP tools follow the same order: `mcp tool → service → data layer`
 - `core/` depends on nothing app-specific; app packages may depend only on `core/` and each other's
   data layer (for aggregation/composition reads), never on another app's service
+- `core/` contains only domain-agnostic utilities shared across multiple domains (e.g. DB engine,
+  error classes, storage). Constants, enums, Protocols, and helpers that belong to a specific domain
+  live in that domain's package — never in `core/`
+- The FastAPI `application` object is created in `app/main.py`. No factory function or factory
+  module exists. `app/main.py` is the single place for: FastAPI instantiation, middleware,
+  exception handler registration, router inclusion, and MCP server mounting
+- **Layer interfaces**: Pydantic schemas (`schema.py`) define the contract between the HTTP/MCP
+  layer and the service layer. Controllers and MCP tools pass Pydantic request objects directly to
+  the service; the service accepts them as typed input and may return Pydantic response objects
+  defined in `schema.py`. Pydantic objects do not cross into the repository layer — repositories
+  receive plain Python values and return ORM model instances
+- Before writing any method in a subclass, read the parent class in full — never re-implement
+  what the base already provides
+- Before writing any new class in a domain package (repository, storage, service), check `core/`
+  first — if a base class exists that covers the common contract, extend it rather than starting
+  from scratch
 
 ---
 
@@ -47,25 +67,28 @@
   - `schema.py` — Pydantic request/response schemas
   - `repository.py` — domain-specific repository that extends `core/database/repository.py`
   - `mcp_tools.py` — MCP tool definitions (thin wrappers over the service)
-- `core/` structure:
+- Top-level `app/` files (not inside a subdomain):
   - `config.py` — typed settings via `pydantic-settings`; the only file that reads `os.environ`
+  - `main.py` — FastAPI application entry point (see Code Organisation for what lives here)
+  - `exc_handlers.py` — FastAPI-specific exception handlers and the `_build_error_body` helper;
+    no business logic, only HTTP translation
+- `core/` structure:
   - `database/` — package: SQLAlchemy engine + session factory + `get_db` dependency in `__init__.py`;
     `repository.py` contains the base repository class all domain repositories extend
   - `storage/` — package: filesystem read/write/snapshot for attachment files; `__init__.py` exposes
     the public API; implementation details remain internal to the package
-  - `errors.py` — domain error classes and the centralized error handler
-  - `dict_resolver.py` — effective-dictionary resolution helper
+  - `errors.py` — `ErrorCode` enum + `DomainError` class hierarchy; no FastAPI imports except
+    `fastapi.status` for HTTP status code constants on error subclasses
 - `container/` top-level package — the **single, global DI composition root**:
   - imports from all app packages and `core/`
   - defines all `dependency_injector` providers (`Factory`, `Singleton`)
   - exposes one or more container classes that `api/` and `mcp/` import at startup
   - no other package defines or owns providers; app packages have no `dependencies.py`
-- `api/` top-level package — imports controllers from all apps and composes the FastAPI application;
-  owns API versioning (e.g. `/v1` prefix); wires the `container/` container at startup;
-  `main.py` imports from `api/`, not directly from app packages
-- `mcp/` top-level package — imports `mcp_tools.py` from all apps and composes the MCP server;
-  wires the `container/` container at startup; the MCP entrypoint imports from `mcp/`, not directly
-  from app packages
+- `api/` top-level package — routing composition only: `routes.py` defines `ApiVersion`/`AppPath`
+  enums; `router.py` assembles domain routers into version routers and exposes `app_router`;
+  `app/main.py` imports `app_router` and attaches it to the application
+- `mcp/` top-level package — owns all `FastMCP` server instances; `app/main.py` mounts each
+  instance at its versioned path; domain `mcp_tools.py` files import from here to register tools
 
 ---
 
@@ -155,14 +178,98 @@
 
 ---
 
+## Routing
+
+### `app/api/` package structure
+
+| File | Purpose |
+|---|---|
+| `__init__.py` | Empty — package marker only |
+| `routes.py` | `ApiVersion` and `AppPath` enums; single source of truth for all URL path segments |
+| `router.py` | Composition only: assembles domain routers into version routers, then into `app_router` |
+
+### Enum notes (`routes.py`)
+
+`ApiVersion` and `AppPath` are `str, Enum` subclasses with `__str__` overridden to return
+`self.value` — required on Python 3.12 for correct f-string interpolation.
+
+### `router.py` — composition pattern
+
+```python
+v1_router = APIRouter(prefix=f"/{ApiVersion.V1}")
+v1_router.include_router(domain_router, prefix=f"/{AppPath.DOMAIN}")
+
+app_router = APIRouter()
+app_router.include_router(v1_router)
+```
+
+Domain routers carry no domain-level prefix internally — the prefix is added here at composition.
+`app_router` is the single object imported by `main.py`.
+
+### Adding a new API version
+
+1. Add a value to `ApiVersion` in `routes.py`
+2. Assemble a new `vN_router` in `router.py` with `prefix=f"/{ApiVersion.VN}"`
+3. Include it into `app_router`
+
+### Adding a new domain
+
+1. Add a value to `AppPath` in `routes.py`
+2. Import the domain router in `router.py`
+3. Include it in the appropriate version router with `prefix=f"/{AppPath.NEW_DOMAIN}"`
+4. The domain `controller.py` defines routes without a domain-level prefix
+
+---
+
 ## MCP Tools Layer
 
-- Each app that needs MCP access exposes its tools in `mcp_tools.py`
-- MCP tools are thin wrappers: parse MCP input → call the app service → return MCP result
+### Module structure and dependencies
+
+- `app/mcp/server.py` owns all `FastMCP` server instances (`mcp_server_v1`, `mcp_server_v2`, …)
+  and nothing else — it has no imports from domain packages
+- Each domain package exposes its tools in `mcp_tools.py`; that file imports the server instance
+  it targets and registers tools via `@mcp_server_vN.tool()` at module level
+- `main.py` mounts each server instance at its versioned path (`/mcp/v1`, `/mcp/v2`, …) and
+  wires the container; `container.wire()` imports all domain modules, which triggers tool
+  registration as a side effect — no explicit `register_*()` calls anywhere
+- Dependency direction is strictly one-way: domain `mcp_tools.py` → `mcp/server.py`; the reverse
+  never holds
+
+### Versioning
+
+- A new MCP version is a new `FastMCP` instance in `mcp/server.py` mounted at a new path
+- Tools shared between versions are decorated with both `@mcp_server_v1.tool()` and
+  `@mcp_server_v2.tool()` on the same function — stacking works because each decorator is a
+  pure registration side-effect that returns the original function unchanged
+- Tools exclusive to a version carry only that version's decorator
+- Deprecated tools are removed from the newer server instance, not from the function
+
+### Package
+
+The project uses the **`fastmcp`** package (`pip: fastmcp`, not `mcp.server.fastmcp` from the
+Anthropic SDK). `fastmcp` provides `fastmcp.dependencies.Depends()` and `fastmcp.exceptions.ToolError`
+which are not available in the SDK's bundled FastMCP.
+
+### Session management
+
+- MCP tools run in a FastMCP (`uncalled_for`) context — not a FastAPI request context
+- `@inject + Closing[Provide[...]]` applied directly on an MCP tool raises `InvalidSignature`:
+  FastMCP's schema introspection treats `Provide`/`Closing` markers as non-serializable types
+  and exposes them as tool arguments visible to agents
+- The solution is a **bridge function** in `container/mcp_dependencies.py`: a per-domain
+  `provide_X_service()` async context manager that combines `@asynccontextmanager + @inject`
+  and owns the `Closing[Provide[...]]` parameter internally; `fastmcp.dependencies.Depends()`
+  receives the bridge so the injected parameter is hidden from the tool schema
+- Full pattern and rules: **Dependency Injection → MCP injection**
+
+### Behavior and error handling
+
+- MCP tools are thin wrappers: parse input → call the service → return result; no business logic
 - MCP tools must produce behavior identical to their REST counterparts — the service is the single
   logic path
-- Domain errors raised by the service are caught in the tool and re-raised as MCP `ToolError` with
-  the same `code` and `message` — never expose raw Python exceptions to agents
+- Domain errors are caught and re-raised as `fastmcp.exceptions.ToolError` with
+  `f"[{exc.code}] {exc.message}"` — raw Python exceptions are never exposed to agents
+- The MCP server is mounted with `http_app(transport="streamable-http")` in `main.py`
 
 ---
 
@@ -181,21 +288,121 @@
 
 ## Dependency Injection
 
-- **`dependency_injector`** is the global DI mechanism. All providers are defined in the dedicated
-  top-level `container/` package — the single composition root for the entire application
-- `container/` imports from all app packages and `core/`; no app package owns its own providers
-  or contains a `dependencies.py` file
-- Never instantiate services or repositories inside a function — declare them as container providers
-  and inject via `@inject` + `Provide[Container.service]`, or wrap with FastAPI `Depends()`
-- Services accept the DB session as a provider injected via the container; the container itself
-  receives the session factory from `core/database/`
-- Define `Protocol` interfaces for all injectable dependencies; concrete implementations are
-  registered in containers as `Factory` or `Singleton` providers as appropriate:
-  - Request-scoped objects (services, repositories): `Factory` provider
-  - Application-scoped objects (session factory, config, storage): `Singleton` provider
-- Wiring happens once in `api/__init__.py` (for the HTTP app) and `mcp/__init__.py` (for the MCP
-  server); they import the container from `container/` and call `container.wire()`; app packages
-  themselves never call `container.wire()`
+- **`dependency_injector`** is the global DI mechanism. All providers are defined inside the
+  `container/` package — the single composition root for the entire application. The package may
+  be split into sub-containers (e.g. one per domain), but all must live under `container/`
+- Domain packages never own providers and never contain a `dependencies.py` file
+- Never instantiate services or repositories outside the container
+- The `container/` package contains only two things: provider definitions (`container.py`) and
+  bridge helpers that simplify DI usage in a specific transport layer (e.g. `mcp_dependencies.py`
+  for MCP context managers). Business logic, domain queries, and cross-domain utilities must not
+  live here — they belong in the relevant domain package
+
+### Provider types
+
+| Scope | Provider | Example |
+|---|---|---|
+| Application-scoped (created once) | `providers.Singleton` | engine, session factory, storage |
+| Request/context-scoped with lifecycle | `providers.ContextLocalResource` | DB session |
+| Application-scoped with lifecycle | `providers.Resource` | connection pool, external client |
+| Stateless, created per resolution | `providers.Factory` | repositories, services |
+
+- Any dependency with an **init / free lifecycle** (open/close, connect/disconnect, begin/commit)
+  **must** use `providers.Resource` or `providers.ContextLocalResource` — never `Singleton` or
+  `Factory` for resources that require teardown
+- The DB session is always a `providers.ContextLocalResource` so all repositories resolved in
+  the same request context share one session (context-local singleton)
+
+### Naming
+
+- Init functions for `Resource` / `ContextLocalResource` providers are named `init_{slug}`
+  (e.g. `init_db_session`, `init_http_client`) — never `get_*` or `_get_*`
+
+### FastAPI injection
+
+- Use `@inject` + `Depends(Provide[Container.provider])` in every route handler
+- Route handlers that use `Closing[Provide[...]]` **must be `async def`** — the teardown
+  (commit/close) only runs when `DependencyResolver.__aexit__` is active; sync handlers in a
+  thread pool use `DependencyResolver.__exit__` which does not trigger provider shutdown
+- For resources with a lifecycle (e.g. DB session), add `Depends(Closing[Provide[Container.db_session]])`
+  to the handler so the resource is properly torn down after the response:
+  ```python
+  @router.get("/endpoint")
+  @inject
+  async def endpoint(
+      _db: Session = Depends(Closing[Provide[Container.db_session]]),
+      service: MyService = Depends(Provide[Container.my_service]),
+  ) -> dict:
+      ...
+  ```
+- The `_db` parameter is unused in the handler body — it is declared solely to trigger the
+  `ContextLocalResource` init and register its teardown with FastAPI
+- Wiring happens once: `api/` and `mcp/` call `container.wire()` at startup; domain packages
+  never call `container.wire()`
+
+### MCP injection
+
+MCP tools cannot carry `@inject + Closing[Provide[...]]` directly: FastMCP's schema
+introspection treats the markers as tool arguments. The pattern that makes DI work in MCP
+is a bridge function that stacks `@asynccontextmanager` and `@inject`:
+
+- `@inject` (inner decorator) detects an async generator and wraps it with
+  `_get_async_gen_patched`, keeping `DependencyResolver` alive for the full generator
+  lifetime — the resolver opens the session, begins the transaction, and commits on exit
+- `@asynccontextmanager` (outer decorator) converts the async generator into an
+  `AbstractAsyncContextManager` that `fastmcp`'s `uncalled_for` engine can enter/exit
+  via `AsyncExitStack`
+
+All per-domain bridge functions live in `container/mcp_dependencies.py`:
+
+```python
+@asynccontextmanager
+@inject
+async def provide_settings_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: SettingsService = Provide[AppContainer.settings_service],
+):
+    # DependencyResolver.__aenter__ initializes ContextLocalResource (session opened,
+    # transaction begun); __aexit__ calls shutdown() (commit + close).
+    # @asynccontextmanager converts async gen → AbstractAsyncContextManager for uncalled_for.
+    yield service
+```
+
+The bridge is consumed via `fastmcp.dependencies.Depends()` in tool signatures — the
+`service` parameter is hidden from the tool's JSON schema and not visible to agents:
+
+```python
+@mcp_server_v1.tool()
+async def get_system_settings(
+    service: SettingsService = Depends(provide_settings_service),
+) -> dict[str, Any]:
+    ...
+```
+
+Constraints for `container/mcp_dependencies.py`:
+
+- `Provide[AppContainer.X]` — always the class-level attribute, never the container instance
+  (`container.X`); `providers_map` is keyed by class-level providers
+- `Closing[Provide[AppContainer.db_session]]` — two-level nesting is required; using
+  `Closing[provider_directly]` (without the inner `Provide`) causes
+  `AttributeError: 'provider' has no attribute 'modifier'`
+- `container.wire()` in `main.py` must include `"app.container"` so that `@inject` in
+  `mcp_dependencies.py` receives provider bindings
+- One typed bridge function per domain — not a generic factory; the explicit `service` type
+  annotation preserves Pyright type checking in each `mcp_tools.py`
+
+### Testing with the container
+
+- In tests, override `container.session_factory` (not `container.db_session`) so that
+  `db_session` remains the original `ContextLocalResource`. `DependencyResolver` calls
+  `shutdown()` on the original provider — which IS initialized — so the commit runs:
+  ```python
+  with container.session_factory.override(providers.Object(test_session_factory)):
+      ...
+  ```
+- Never override `db_session` directly: `DependencyResolver` captures the original provider at
+  wiring time and calls `shutdown()` on it; if the original was never initialized (only the
+  override was), shutdown is a no-op and the session generator is abandoned without commit
 
 ---
 
@@ -217,39 +424,49 @@
 
 ## Local Development Environment
 
-- The project ships a virtual environment at `backend/.venv`
-- Always activate it (or invoke it directly) when running Python commands locally:
-  `backend/.venv/bin/python`, `backend/.venv/bin/pytest`, `backend/.venv/bin/alembic`, etc.
-- Never install packages into the system Python or any Conda/Anaconda environment
-- All `pip install` commands must target `backend/.venv` — use `backend/.venv/bin/pip install`
+- **uv** is the project's package manager and virtual environment tool.
+- The virtual environment lives at `backend/.venv`; `uv sync` creates it on first run.
+- All packages are installed exclusively into `backend/.venv` — never into the system Python.
+- `uv add` is the canonical way to add dependencies; it updates both `pyproject.toml` and
+  `uv.lock` atomically. Direct `pip install` is not used.
+
+### Dependency commands
+
+| Command | Purpose |
+|---|---|
+| `uv sync --dev` | First-time setup and re-sync after `git pull` |
+| `uv lock` | Regenerate `uv.lock` after manually editing `pyproject.toml` |
+| `uv add <pkg>` | Add a runtime dependency |
+| `uv add --dev <pkg>` | Add a dev-only dependency |
+| `uv run <cmd>` | Run a command inside the venv without activating it |
 
 ### Running Tests
 
 Tests are integration tests that hit a real in-process SQLite database. `PYTHONPATH=.` makes the
-`app` package importable without an editable install. Always run from the `backend/` directory.
+`app` package importable without an editable install. Tests are run from the `backend/` directory.
 
 **Full suite:**
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. uv run pytest tests/ -v
 ```
 
 **Single test file (story-scoped):**
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/test_projects.py -v
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. uv run pytest tests/test_projects.py -v
 ```
 
 **Single test by name:**
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v -k test_create_project_duplicate_name_conflicts
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. uv run pytest tests/ -v -k test_create_project_duplicate_name_conflicts
 ```
 
 **With coverage:**
 ```bash
 cd backend
-DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. .venv/bin/pytest tests/ -v --cov=app --cov-report=term-missing
+DATABASE_URL="sqlite:///./tests/test.db" PYTHONPATH=. uv run pytest tests/ -v --cov=app --cov-report=term-missing
 ```
 
 Required environment variables:
@@ -260,7 +477,7 @@ Required environment variables:
 | `ATTACHMENTS_DIR` | `./tests/attachments_tmp` | Injected by the test fixture automatically |
 
 `ATTACHMENTS_DIR` is set by the `conftest.py` fixture — no manual export needed. `DATABASE_URL`
-must always be set explicitly on the command line as shown above; do not rely on `.env` for tests.
+is set explicitly on the command line; `.env` is not used for tests.
 
 ---
 
@@ -279,10 +496,10 @@ must always be set explicitly on the command line as shown above; do not rely on
 
 - Every piece of logic, constant, key list, or configuration value has exactly one authoritative
   source; all callers import from there
-- Dictionary key names (e.g. `"task_statuses"`, `"link_types"`) are defined as constants in
-  `core/dict_resolver.py` or a dedicated `core/constants.py` — never written as inline strings
-  in services or schemas
-- Error codes (e.g. `"NOT_FOUND"`, `"CONFLICT"`) are defined as string constants or an `Enum` in
+- Domain-specific constants, enums, and key lists are defined in the owning domain package
+  (e.g. `settings/schema.py`) — never written as inline strings and never placed in `core/`
+  unless they are genuinely shared across multiple unrelated domains
+- Error codes (e.g. `"NOT_FOUND"`, `"CONFLICT"`) are defined in the `ErrorCode` enum in
   `core/errors.py`; never duplicated across modules
 
 ---

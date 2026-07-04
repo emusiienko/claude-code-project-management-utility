@@ -44,6 +44,7 @@
 | Docker + Docker Compose            | Whole stack runs on a single developer machine; ports mapped to localhost only. |
 | nginx (frontend container)         | Serves the static React build and is the single web entry. |
 | PostgreSQL 18 (optional container) | Activated via a Compose profile only when `DATABASE_URL` targets Postgres. |
+| uv (backend image dependency install) | <!-- updated: 2026-07-02 --> The backend image installs Python dependencies with `uv sync --frozen` against the committed `backend/uv.lock`, matching the local dev toolchain and giving reproducible, locked builds. Runtime commands (`alembic`, `uvicorn`) run from the uv-managed venv (on `PATH`). See STORY-014. |
 
 ---
 
@@ -76,7 +77,7 @@ and the MCP tools are **thin layers** over each app's service — the service la
 of business logic and the only layer that touches the data layer.
 
 - `backend/app/core/` — app factory, configuration, DB engine/session, centralized error handling, filesystem storage helper, dictionary-resolution helper, common base classes
-- `backend/app/projects/` — Project CRUD
+- `backend/app/projects/` — Project CRUD <!-- updated: 2026-07-02 (STORY-013 reconcile): currently a temporary stub — `GET /projects` returns an empty `ListEnvelope<Project>` (echoing `page`/`limit`), with no service/repository/DB. Unblocks the Settings screen's project selector; replaced wholesale by STORY-003. -->
 - `backend/app/stories/` — Story CRUD + on-demand task aggregation
 - `backend/app/tasks/` — Task CRUD + detail composition + on-demand dependency computation
 - `backend/app/task_links/` — typed directed links between tasks (same project only)

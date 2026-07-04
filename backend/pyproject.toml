@@ -20,9 +20,10 @@ dependencies = [
     "mcp>=1.0,<2.0",
     "dependency-injector>=4.41,<5.0",
     "psycopg[binary]>=3.1,<4.0",
+    "fastmcp>=3.4.2",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "black>=24.0",
     "isort>=5.13",

@@ -1,14 +1,33 @@
 from pydantic import BaseModel, model_validator
 
-from app.core.constants import (
-    ALL_DICT_KEYS,
-    DICT_KEY_ATTACHMENT_TYPES,
-    DICT_KEY_LINK_TYPES,
-    DICT_KEY_PARTICIPANT_ROLES,
-    DICT_KEY_STORY_STATUSES,
-    DICT_KEY_TASK_STATUSES,
-    DICT_KEY_TASK_TYPES,
+# ---------------------------------------------------------------------------
+# Dictionary key constants — single source of truth for all valid keys.
+# Imported by service.py (business logic) and used here for schema validation.
+# ---------------------------------------------------------------------------
+
+DICT_KEY_TASK_STATUSES = "task_statuses"
+DICT_KEY_TASK_TYPES = "task_types"
+DICT_KEY_STORY_STATUSES = "story_statuses"
+DICT_KEY_ATTACHMENT_TYPES = "attachment_types"
+DICT_KEY_LINK_TYPES = "link_types"
+DICT_KEY_PARTICIPANT_ROLES = "participant_roles"
+
+ALL_DICT_KEYS: frozenset[str] = frozenset(
+    {
+        DICT_KEY_TASK_STATUSES,
+        DICT_KEY_TASK_TYPES,
+        DICT_KEY_STORY_STATUSES,
+        DICT_KEY_ATTACHMENT_TYPES,
+        DICT_KEY_LINK_TYPES,
+        DICT_KEY_PARTICIPANT_ROLES,
+    }
 )
+
+
+def validate_dict_key(key: str) -> None:
+    if key not in ALL_DICT_KEYS:
+        raise ValueError(f"Unknown dictionary key: '{key}'. Allowed: {sorted(ALL_DICT_KEYS)}")
+
 
 # ---------------------------------------------------------------------------
 # Request schemas

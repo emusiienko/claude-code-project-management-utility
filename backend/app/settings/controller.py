@@ -1,6 +1,8 @@
+from dependency_injector.wiring import Closing, Provide, inject
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
-from app.settings.dependencies import get_settings_service
+from app.container.container import AppContainer
 from app.settings.schema import (
     SettingsOverridesResponse,
     SettingsResponse,
@@ -21,8 +23,10 @@ router = APIRouter(tags=["settings"])
     status_code=status.HTTP_200_OK,
     response_model=dict,
 )
-def get_system_settings(
-    service: SettingsService = Depends(get_settings_service),
+@inject
+async def get_system_settings(
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: SettingsService = Depends(Provide[AppContainer.settings_service]),
 ) -> dict:
     data = service.get_system_settings()
     return {"data": SettingsResponse.from_dict(data).model_dump()}
@@ -33,24 +37,14 @@ def get_system_settings(
     status_code=status.HTTP_200_OK,
     response_model=dict,
 )
-def update_system_settings(
+@inject
+async def update_system_settings(
     body: UpdateSettingsBody,
-    service: SettingsService = Depends(get_settings_service),
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: SettingsService = Depends(Provide[AppContainer.settings_service]),
 ) -> dict:
-    # Apply each provided key in sequence within the same session.
-    # ValidationError (400) is raised by the service for unknown keys or
-    # empty values and mapped to the standard error envelope by the centralized
-    # handler — no error handling here.
-    pairs = body.to_key_value_pairs()
-    if not pairs:
-        # No keys provided — return current settings without any write.
-        data = service.get_system_settings()
-        return {"data": SettingsResponse.from_dict(data).model_dump()}
-
-    result: dict[str, list[str]] = {}
-    for key, values in pairs:
-        result = service.update_system_setting(key, values)
-    return {"data": SettingsResponse.from_dict(result).model_dump()}
+    data = service.update_system_settings(body)
+    return {"data": SettingsResponse.from_dict(data).model_dump()}
 
 
 # ---------------------------------------------------------------------------
@@ -63,12 +57,12 @@ def update_system_settings(
     status_code=status.HTTP_200_OK,
     response_model=dict,
 )
-def get_project_settings(
+@inject
+async def get_project_settings(
     project_id: str,
-    service: SettingsService = Depends(get_settings_service),
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: SettingsService = Depends(Provide[AppContainer.settings_service]),
 ) -> dict:
-    # Returns only stored overrides; {} (empty object) when none exist.
-    # NotFoundError (404) is raised by the service if the project does not exist.
     data = service.get_project_settings(project_id)
     return {
         "data": SettingsOverridesResponse.from_dict(data).model_dump(exclude_none=True)
@@ -80,13 +74,12 @@ def get_project_settings(
     status_code=status.HTTP_200_OK,
     response_model=dict,
 )
-def get_effective_project_settings(
+@inject
+async def get_effective_project_settings(
     project_id: str,
-    service: SettingsService = Depends(get_settings_service),
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: SettingsService = Depends(Provide[AppContainer.settings_service]),
 ) -> dict:
-    # Returns the resolved Settings for all six keys:
-    # project override if a row exists, otherwise the system default.
-    # NotFoundError (404) is raised by the service if the project does not exist.
     data = service.get_effective_settings(project_id)
     return {"data": SettingsResponse.from_dict(data).model_dump()}
 
@@ -96,22 +89,12 @@ def get_effective_project_settings(
     status_code=status.HTTP_200_OK,
     response_model=dict,
 )
-def update_project_settings(
+@inject
+async def update_project_settings(
     project_id: str,
     body: UpdateSettingsBody,
-    service: SettingsService = Depends(get_settings_service),
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: SettingsService = Depends(Provide[AppContainer.settings_service]),
 ) -> dict:
-    # Applies each provided key as a full replace override for the project.
-    # Returns effective settings (all six keys resolved) after the update.
-    # ValidationError (400) for unknown keys or empty values.
-    # NotFoundError (404) if the project does not exist.
-    pairs = body.to_key_value_pairs()
-    if not pairs:
-        # No keys provided — assert project exists and return effective settings.
-        data = service.get_effective_settings(project_id)
-        return {"data": SettingsResponse.from_dict(data).model_dump()}
-
-    result: dict[str, list[str]] = {}
-    for key, values in pairs:
-        result = service.update_project_setting(project_id, key, values)
-    return {"data": SettingsResponse.from_dict(result).model_dump()}
+    data = service.update_project_settings(project_id, body)
+    return {"data": SettingsResponse.from_dict(data).model_dump()}

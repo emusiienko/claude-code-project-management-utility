@@ -313,7 +313,7 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
   ```
 - **Response 201:** `{ "data": { Project } }`
 - **Response errors:**
-  - 400: name missing or out of range
+  - 422: name missing or out of range (Pydantic field validation)
   - 409: name already taken → `{ "error": "A project with this name already exists.", "code": "CONFLICT" }`
   - 500: unexpected → log full stack; `{ "error": "An unexpected error occurred. Please try again.", "code": "INTERNAL_ERROR" }`
 
@@ -331,7 +331,7 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `name`, `description` — all optional; only provided fields updated
 - **Response 200:** `{ "data": { Project } }`
-- **Response errors:** 400, 404, 409
+- **Response errors:** 404, 409, 422 (field out of range — Pydantic)
 
 #### DELETE /projects/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -355,9 +355,8 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
   ```
 - **Response 201:** `{ "data": { Story } }`
 - **Response errors:**
-  - 400: title missing; label missing `key`
   - 404: project not found
-  - 422: `status` not in `story_statuses` dict → `{ "error": "Status value '{v}' is not allowed. Allowed: {list}.", "code": "UNPROCESSABLE" }`
+  - 422: title missing or out of range; label missing `key` (Pydantic field validation); `status` not in `story_statuses` dict → `{ "error": "Status value '{v}' is not allowed. Allowed: {list}.", "code": "UNPROCESSABLE" }`
 
 #### GET /projects/:projectId/stories
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -374,7 +373,7 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `title`, `content`, `status`, `labels` — all optional; `labels` fully replaces existing when provided
 - **Response 200:** `{ "data": { Story } }`
-- **Response errors:** 400, 404, 422
+- **Response errors:** 404, 422 (field out of range or label missing key — Pydantic; status not in dict — business)
 
 #### DELETE /stories/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -388,6 +387,21 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
   { "data": { "story_id": "uuid", "total_tasks": 5, "by_status": { "todo": 2, "in-progress": 1, "done": 2 } } }
   ```
   Computed on demand — never stored.
+- **Response errors:** 404
+
+#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile) -->
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 200:**
+  ```json
+  {
+    "data": {
+      "...all Story fields...",
+      "attachments": [ active Attachment objects ],
+      "comments": [ Comment objects ordered by created_at ASC ]
+    }
+  }
+  ```
+  Composite read — story entity plus its active attachments and comments. Large child collections (tasks) are excluded and served by their own paginated endpoint.
 - **Response errors:** 404
 
 ---
@@ -410,9 +424,8 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
   ```
 - **Response 201:** `{ "data": { Task } }`
 - **Response errors:**
-  - 400: missing required fields
   - 404: story not found
-  - 422: any dict field not in dictionary → `{ "error": "Value '{v}' is not allowed for field '{field}'. Allowed: {list}.", "code": "UNPROCESSABLE" }`
+  - 422: missing required fields or values out of range (Pydantic); any dict field not in dictionary → `{ "error": "Value '{v}' is not allowed for field '{field}'. Allowed: {list}.", "code": "UNPROCESSABLE" }`
 
 #### GET /stories/:storyId/tasks
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -444,7 +457,7 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `title`, `content`, `type`, `status`, `assignee_role`, `creator_role`, `labels` — all optional; `story_id` immutable
 - **Response 200:** `{ "data": { Task } }`
-- **Response errors:** 400, 404, 422
+- **Response errors:** 404, 422 (field out of range — Pydantic; dict value not in dictionary — business)
 
 #### DELETE /tasks/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -468,10 +481,9 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 - **Request body:** `{ "target_task_id": "uuid (required)", "link_type": "string (required, from link_types dict)" }`
 - **Response 201:** `{ "data": { TaskLink } }`
 - **Response errors:**
-  - 400: missing fields
   - 404: source or target not found
   - 409: duplicate link
-  - 422: link_type not in dict; source = target
+  - 422: missing fields (Pydantic); link_type not in dict; source = target
 
 #### GET /tasks/:taskId/links
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -498,9 +510,9 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **`kind = external-ref` via JSON:** `{ "type", "kind": "external-ref", "external_url": "string", "external_status" }`
 - **Response 201:** `{ "data": { Attachment } }`
 - **Response errors:**
-  - 400: content/file missing; external_url invalid; file > 10 MB; unsupported MIME type
+  - 400: file > 10 MB; unsupported MIME type; external_url is not a valid URI (non-Pydantic business checks)
   - 404: container not found
-  - 422: type not in dict
+  - 422: required fields missing (Pydantic); type not in dict
 
 #### GET /stories/:storyId/attachments
 #### GET /tasks/:taskId/attachments
@@ -561,7 +573,7 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `{ "content": "string (required, 1–50000 chars)", "author_role", "labels": [...] }`
 - **Response 201:** `{ "data": { Comment } }`
-- **Response errors:** 400 (content missing), 404 (container)
+- **Response errors:** 404 (container), 422 (content missing or out of range — Pydantic)
 
 #### GET /stories/:storyId/comments
 #### GET /tasks/:taskId/comments
@@ -579,7 +591,7 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `content`, `labels` — optional; `labels` fully replaces when provided
 - **Response 200:** `{ "data": { Comment } }`
-- **Response errors:** 400, 404
+- **Response errors:** 404, 422 (content out of range — Pydantic)
 
 #### DELETE /comments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -594,7 +606,7 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `{ "topic": "string (required, 1–500 chars)", "context", "status", "participant_role", "linked_story_id", "linked_task_id" }`
 - **Response 201:** `{ "data": { Session } }` — result fields null on creation
-- **Response errors:** 400 (topic missing), 404 (linked IDs)
+- **Response errors:** 404 (linked IDs), 422 (topic missing or out of range — Pydantic)
 
 #### GET /sessions
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -610,7 +622,7 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** `status`, `context`, `result_decisions`, `result_summary`, `participant_role`, `linked_story_id`, `linked_task_id` — all optional
 - **Response 200:** `{ "data": { Session } }`
-- **Response errors:** 400 (topic not updatable; linked IDs invalid), 404
+- **Response errors:** 400 (attempt to update immutable `topic` field), 404 (session or linked IDs not found), 422 (field value out of range — Pydantic)
 
 #### POST /sessions/:id/archive
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -663,9 +675,9 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Request body:** `{ "name": "string (required)", "project_ids": ["uuid (required, min 1)"], "description": "string (optional)" }`
 - **Response 201:** `{ "data": { Milestone } }`
 - **Response errors:**
-  - 400: missing name or empty project_ids
   - 404: any project_id not found
   - 409: name already exists within one of the associated projects
+  - 422: name missing or out of range; project_ids missing or empty (Pydantic field validation)
 
 #### GET /milestones
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -682,14 +694,29 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Request body:** `name`, `description`, `project_ids` — all optional; `project_ids` replaces the full set of associated projects
 - **Response 200:** `{ "data": { Milestone } }`
 - **Response errors:**
-  - 400: empty project_ids array
   - 404: milestone or any project_id not found
   - 409: name conflict within associated projects
-  - 422: removing a project that still has stories assigned to this milestone
+  - 422: empty project_ids array (Pydantic); removing a project that still has stories assigned to this milestone (business)
 
 #### DELETE /milestones/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 204**
+- **Response errors:** 404
+
+#### GET /milestones/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile) -->
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 200:**
+  ```json
+  {
+    "data": {
+      "...all Milestone fields...",
+      "project_ids": ["uuid"],
+      "attachments": [ active Attachment objects ],
+      "comments": [ Comment objects ordered by created_at ASC ]
+    }
+  }
+  ```
+  Composite read — milestone entity plus its active attachments and comments. The list of assigned stories is excluded and served by `GET /milestones/:id/stories`.
 - **Response errors:** 404
 
 #### GET /milestones/:id/stories
@@ -770,10 +797,10 @@ Milestones also support attachment and comment endpoints using the same patterns
 
 | Error Code | HTTP Status | User-Facing Message | Log Level | Notes |
 |------------|-------------|---------------------|-----------|-------|
-| VALIDATION_ERROR | 400 | "Validation failed: {details}" | DEBUG | Field-level errors |
+| VALIDATION_ERROR | 400 | "Validation failed: {details}" | DEBUG | Non-Pydantic bad-request errors: business-logic checks, unparseable JSON, immutable field update attempts |
 | NOT_FOUND | 404 | "{Resource} not found." | DEBUG | |
 | CONFLICT | 409 | Specific message per case | DEBUG | Name uniqueness, duplicate link |
-| UNPROCESSABLE | 422 | "Invalid value: {field} — {reason}" | DEBUG | Dictionary violations |
+| UNPROCESSABLE | 422 | "Invalid value: {field} — {reason}" | DEBUG | Pydantic field validation errors (missing required fields, values out of range); dictionary violations |
 | INTERNAL_ERROR | 500 | "An unexpected error occurred. Please try again." | ERROR | Stack logged server-side only |
 
 Standard error shape:
