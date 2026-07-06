@@ -3,6 +3,8 @@ from dependency_injector import containers, providers
 from app.config import settings
 from app.core.database import build_engine, build_session_factory, init_db_session
 from app.core.storage import FilesystemStorage
+from app.projects.repository import ProjectRepository
+from app.projects.service import ProjectService
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
 from app.settings.service import SettingsService
 
@@ -36,6 +38,20 @@ class AppContainer(containers.DeclarativeContainer):
     db_session = providers.ContextLocalResource(
         init_db_session,
         session_factory=session_factory,
+    )
+
+    # --------------------------------------------------------------------------
+    # Projects domain — Factories (resolved per injection)
+    # --------------------------------------------------------------------------
+
+    project_repository = providers.Factory(
+        ProjectRepository,
+        session=db_session,
+    )
+
+    project_service = providers.Factory(
+        ProjectService,
+        repo=project_repository,
     )
 
     # --------------------------------------------------------------------------

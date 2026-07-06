@@ -13,6 +13,8 @@
  */
 
 import { useState, useEffect, useRef, useId, type KeyboardEvent } from "react";
+import { Pencil, RotateCcw, X } from "lucide-react";
+import { IconButton } from "@/shared/components/IconButton";
 
 interface DictionaryEditorProps {
   /** Human-readable label, e.g. "Task Statuses". */
@@ -141,26 +143,22 @@ export function DictionaryEditor({
 
         <div className="flex items-center gap-2">
           {onClearOverride && (
-            <button
-              type="button"
-              onClick={onClearOverride}
+            <IconButton
+              Icon={RotateCcw}
+              label={`Clear override for ${label}`}
+              intent="neutral"
               disabled={isClearingOverride}
-              className="rounded px-2 py-1 text-xs text-text-secondary hover:bg-surface-muted hover:text-text disabled:opacity-50"
-              aria-label={`Clear override for ${label}`}
-            >
-              {isClearingOverride ? "Clearing…" : "Clear override"}
-            </button>
+              onClick={onClearOverride}
+            />
           )}
 
           {!isEditing && (
-            <button
-              type="button"
+            <IconButton
+              Icon={Pencil}
+              label={`Edit ${label}`}
+              intent="neutral"
               onClick={startEditing}
-              className="rounded px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50 hover:text-brand-700"
-              aria-label={`Edit ${label}`}
-            >
-              Edit
-            </button>
+            />
           )}
         </div>
       </div>
@@ -197,30 +195,15 @@ export function DictionaryEditor({
           >
             {workingValues.map((v, i) => (
               <li key={`${v}-${i}`} className="flex items-center">
-                <span className="flex items-center gap-1 rounded-sm bg-brand-100 px-2 py-0.5 text-xs text-brand-700">
+                <span className="flex items-center gap-0.5 rounded-sm bg-brand-100 py-0.5 pl-2 pr-0.5 text-xs text-brand-700">
                   {v}
-                  <button
-                    type="button"
+                  <IconButton
+                    Icon={X}
+                    label={`Remove ${v} from ${label}`}
+                    intent="neutral"
                     onClick={() => removeValue(i)}
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-brand-200"
-                    aria-label={`Remove ${v} from ${label}`}
-                  >
-                    {/* × icon */}
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
+                    className="h-5 w-5"
+                  />
                 </span>
               </li>
             ))}

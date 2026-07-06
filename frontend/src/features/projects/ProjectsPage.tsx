@@ -1,16 +1,164 @@
 /**
- * Projects screen — entry point for the /projects route.
+ * ProjectsPage — entry point for the / (root) route.
  *
- * Placeholder implemented in TASK-007. Full implementation in STORY-003.
+ * Orchestrates the project list, create/edit modal, and delete confirmation
+ * dialog. All server state lives in TanStack Query hooks; this component
+ * handles only page-level UI state (which modal is open, which project is
+ * selected for edit or delete).
  */
 
-import { PlaceholderScreen } from "@/shared/components/PlaceholderScreen";
+import { useState } from "react";
+import { ProjectList } from "./components/ProjectList";
+import { ProjectModal } from "./components/ProjectModal";
+import { DeleteProjectDialog } from "./components/DeleteProjectDialog";
+import {
+  useCreateProject,
+  useDeleteProject,
+  useProjectListFull,
+  useUpdateProject,
+} from "./hooks/useProjects";
+import type { Project } from "@/api/types";
+import type { ProjectFormValues } from "./components/ProjectForm";
+import { extractErrorMessage } from "./utils/errorMessages";
 
-export default function ProjectsScreen() {
+type ModalState =
+  | { type: "none" }
+  | { type: "create" }
+  | { type: "edit"; project: Project }
+  | { type: "delete"; project: Project };
+
+/**
+ * Project Management screen — lists projects and provides create/edit/delete actions.
+ */
+export default function ProjectsPage() {
+  const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const [mutationError, setMutationError] = useState<string | undefined>();
+
+  const { data: projects, isLoading, isError, error } = useProjectListFull();
+
+  const createMutation = useCreateProject();
+  const updateMutation = useUpdateProject();
+  const deleteMutation = useDeleteProject();
+
+  function openCreate() {
+    setMutationError(undefined);
+    setModal({ type: "create" });
+  }
+
+  function openEdit(project: Project) {
+    setMutationError(undefined);
+    setModal({ type: "edit", project });
+  }
+
+  function openDelete(project: Project) {
+    setMutationError(undefined);
+    setModal({ type: "delete", project });
+  }
+
+  function closeModal() {
+    setModal({ type: "none" });
+    setMutationError(undefined);
+  }
+
+  function handleCreateSubmit(values: ProjectFormValues) {
+    setMutationError(undefined);
+    createMutation.mutate(
+      { name: values.name, description: values.description || undefined },
+      {
+        onSuccess: () => closeModal(),
+        onError: (err) => setMutationError(extractErrorMessage(err)),
+      },
+    );
+  }
+
+  function handleEditSubmit(values: ProjectFormValues) {
+    if (modal.type !== "edit") return;
+    setMutationError(undefined);
+    updateMutation.mutate(
+      {
+        id: modal.project.id,
+        body: { name: values.name, description: values.description || undefined },
+      },
+      {
+        onSuccess: () => closeModal(),
+        onError: (err) => setMutationError(extractErrorMessage(err)),
+      },
+    );
+  }
+
+  function handleDeleteConfirm() {
+    if (modal.type !== "delete") return;
+    setMutationError(undefined);
+    deleteMutation.mutate(modal.project.id, {
+      onSuccess: () => closeModal(),
+      onError: (err) => setMutationError(extractErrorMessage(err)),
+    });
+  }
+
+  const isCreateSubmitting = createMutation.isPending;
+  const isEditSubmitting = updateMutation.isPending;
+  const isDeleteSubmitting = deleteMutation.isPending;
+
   return (
-    <PlaceholderScreen
-      title="Projects"
-      description="View and manage projects. Full implementation coming in STORY-003."
-    />
+    <div>
+      {/* Page heading */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-text">Projects</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Manage the projects that group your stories, tasks, and work artifacts.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreate}
+          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          New project
+        </button>
+      </div>
+
+      {/* Project list */}
+      <ProjectList
+        projects={projects}
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onEdit={openEdit}
+        onDelete={openDelete}
+      />
+
+      {/* Create modal */}
+      {modal.type === "create" && (
+        <ProjectModal
+          onSubmit={handleCreateSubmit}
+          onClose={closeModal}
+          isSubmitting={isCreateSubmitting}
+          errorMessage={mutationError}
+        />
+      )}
+
+      {/* Edit modal */}
+      {modal.type === "edit" && (
+        <ProjectModal
+          project={modal.project}
+          onSubmit={handleEditSubmit}
+          onClose={closeModal}
+          isSubmitting={isEditSubmitting}
+          errorMessage={mutationError}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {modal.type === "delete" && (
+        <DeleteProjectDialog
+          project={modal.project}
+          onConfirm={handleDeleteConfirm}
+          onClose={closeModal}
+          isDeleting={isDeleteSubmitting}
+          errorMessage={mutationError}
+        />
+      )}
+    </div>
   );
 }

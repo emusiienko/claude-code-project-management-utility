@@ -2,7 +2,7 @@
 
 > Owned by **qa-automation**. Update only at the user's explicit request.
 > Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
-> Last updated: 2026-06-30 (rev 5)
+> Last updated: 2026-07-06 (rev 6)
 
 ---
 
@@ -206,6 +206,13 @@ When a backend test fails and the root cause is unclear, assign as follows:
 
 ## Frontend Testing
 
+### Infrastructure
+
+The frontend test infrastructure is active and confirmed working (STORY-015):
+
+- `frontend/vitest.config.ts` — Vitest config with `environment: "jsdom"`, `globals: true`, `setupFiles: "./vitest.setup.ts"`, and `@` path alias matching the Vite build config
+- `frontend/vitest.setup.ts` — imports `@testing-library/jest-dom` to register custom matchers globally across all test files
+
 ### Framework
 
 | Tool | Version | Purpose |
@@ -261,10 +268,18 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 - **Test function naming** — `describe('<HookOrComponent>', () => { it('<does something>', ...) })`.
 - **Setup** — import `@testing-library/jest-dom` matchers in `vitest.setup.ts`; reference it via `setupFiles` in `vite.config.ts` / `vitest.config.ts`.
 
+### Test Files
+
+| File | Story | Coverage |
+|------|-------|----------|
+| `frontend/src/shared/components/IconButton.test.tsx` | STORY-015 | Shared primitive: accessible label, aria-label+title, click handler, disabled state |
+| `frontend/src/features/projects/components/ProjectList.test.tsx` | STORY-015 | Row actions: edit/delete icon buttons by aria-label, correct callback routing, multi-row isolation, empty state, error state |
+| `frontend/src/features/settings/components/DictionaryEditor.test.tsx` | STORY-015 | Edit mode toggle, Clear override button (enabled/disabled/in-flight), chip remove buttons, save/cancel flows |
+
 ### Run Commands
 
 ```bash
-# Full frontend unit suite
+# Full frontend unit suite (confirmed working — 27 tests, ~1.4s)
 cd frontend
 npx vitest run
 

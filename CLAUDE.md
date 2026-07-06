@@ -27,7 +27,7 @@ via an MCP server and to the human orchestrator via a web UI.
 ## Key Docs
 - Architecture: docs/architecture.md
 - API Contract: docs/api-contract.md  ← **v1.0 LOCKED**
-- Tech Decisions: docs/tech_decisions/ (ADR-001 … ADR-006)
+- Tech Decisions: docs/tech_decisions/ (ADR-001 … ADR-011; ADR-009 superseded by ADR-010)
 - Backend Conventions: docs/backend-coding-conventions.md  ← owned by backend-developer (TBD)
 - Frontend Conventions: docs/frontend-coding-conventions.md ← owned by frontend-developer (TBD)
 - DevOps Strategy: docs/devops-strategy.md ← owned by devops (TBD)
@@ -43,11 +43,11 @@ via an MCP server and to the human orchestrator via a web UI.
 - `backend/app/core/errors.py` — `ErrorCode` enum; `DomainError` class hierarchy (one subclass per HTTP status)
 - `backend/app/core/database/` — `Base`, `UUIDType`, `build_engine()` (SQLite WAL), session factory, `BaseRepository[T]`
 - `backend/app/core/storage/` — `FilesystemStorage` with write/read/snapshot for attachment files
-- `backend/app/container/` — `AppContainer` DI composition root; `db_session` Factory + all Settings providers; `SqlProjectChecker` for cross-domain project existence check; `container` singleton exported for wiring; `mcp_dependencies.py` — MCP async context managers (`@asynccontextmanager` + `@inject`) for each domain service, used via `fastmcp.dependencies.Depends()`
+- `backend/app/container/` — `AppContainer` DI composition root; `db_session` Factory + Settings + Projects providers; `container` singleton exported for wiring; `mcp_dependencies.py` — `provide_settings_service` + `provide_project_service` MCP async context managers (`@asynccontextmanager` + `@inject`), used via `fastmcp.dependencies.Depends()`
 - `backend/app/api/` — FastAPI app factory shell; CORS + error handler registered; domain routers added in TASK-004+
 - `backend/app/mcp/` — `FastMCP` server (HTTP Streamable transport, path-mounted at `/mcp`); Settings tools registered; future domains add tools via `register_*_tools(mcp_server)`
 - `backend/app/settings/` — `constants.py` (six `DICT_KEY_*` constants, `ALL_DICT_KEYS`, `validate_dict_key()`); `SystemSettings` + `ProjectSettings` ORM models; `SystemSettingsRepository` + `ProjectSettingsRepository`; `SettingsService` (all business rules; implements `EffectiveDictionary` Protocol); `EffectiveDictionary` + `ProjectChecker` Protocols in `service.py`; `schema.py` (Pydantic request/response schemas); `dependencies.py` (`_get_db` + `get_settings_service` FastAPI Depends); `controller.py` (5 route handlers under `/v1`); `mcp_tools.py` (5 MCP tools mirroring the REST surface)
-- `backend/app/projects/` — `Project` ORM model (`model.py`); `ProjectRepository` extending `BaseRepository[Project]` with `list_paginated`, `get_by_name_lower`, `get_name_conflict` (`repository.py`); stub `controller.py` (GET /v1/projects returns empty list, STORY-013); full service/schema/controller/mcp_tools added in STORY-003
+- `backend/app/projects/` — `Project` ORM model (`model.py`); `ProjectRepository` with `list_paginated`, `get_by_name_lower`, `get_name_conflict` (`repository.py`); `ProjectService` (create/get/list_paginated/update/delete, all validation + uniqueness rules, `service.py`); `schema.py` (`CreateProjectBody`, `UpdateProjectBody`, `ProjectResponse`, `PaginationMeta`); `controller.py` (5 REST route handlers: POST/GET list/GET by id/PUT/DELETE under `/v1/projects`); `mcp_tools.py` (5 MCP tools mirroring the REST surface: `create_project`, `list_projects`, `get_project`, `update_project`, `delete_project`)
 - `backend/migrations/` — Alembic env.py (reads DATABASE_URL from settings); `0001_project` (project table + Test Project seed); `0002_settings` (system_settings + project_settings with inline FK to project + six default dictionaries seed)
 - `frontend/src/app/` — application composition root: App.tsx (providers), Layout.tsx (nav shell + Outlet), router.tsx (route table), queryClient.ts (TQ singleton), index.css (global styles)
 - `frontend/src/core/client.ts` — typed fetch wrapper; `ApiRequestError` class; `apiClient` with get/post/put/patch/delete/upload methods
@@ -59,8 +59,9 @@ via an MCP server and to the human orchestrator via a web UI.
 - `frontend/src/api/endpoints/projects.ts` — plain async function for GET /v1/projects; full CRUD added in STORY-003
 - `frontend/src/shared/components/PageLoader.tsx` — full-page accessible loading spinner (aria-busy)
 - `frontend/src/shared/components/PlaceholderScreen.tsx` — generic "coming soon" screen used by all not-yet-implemented features
+- `frontend/src/shared/components/IconButton.tsx` — shared icon-button primitive for item/row-level actions; owns the full visual contract (size, intent variants, hover/focus/disabled states)
 - `frontend/src/shared/hooks/useProjectList.ts` — cross-feature TanStack Query hook for the project list
-- `frontend/src/features/projects/` — Projects placeholder page (STORY-003 fills this in)
+- `frontend/src/features/projects/` — Project Management screen: ProjectsPage (list + create/edit/delete), components/ (ProjectList, ProjectModal, ProjectForm, DeleteProjectDialog), hooks/ (useProjects — list query + CRUD mutations), utils/ (errorMessages)
 - `frontend/src/features/stories/` — Stories placeholder page (STORY-004)
 - `frontend/src/features/tasks/` — Tasks placeholder page (STORY-005)
 - `frontend/src/features/task-links/` — Task Links placeholder page (STORY-006)

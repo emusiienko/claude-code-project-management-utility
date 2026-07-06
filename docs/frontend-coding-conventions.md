@@ -94,6 +94,16 @@
 - API response types imported from `src/api/types.ts` — never redeclare inline in components
 - `satisfies` operator preferred over `as` for type narrowing when possible
 
+### API type naming convention
+
+Types in `src/api/types.ts` use the domain object name only — no `Response` or `Body` suffixes:
+
+- Output types (returned by endpoints): named after the entity — `Project`, `Story`, `Task`
+- Input types (sent to endpoints): verb prefix only — `CreateProject`, `UpdateProject`, `CreateStory`
+- Aggregate / detail types: descriptive name — `StoryDetail`, `TaskDetail`, `MilestoneDetail`
+
+Do not add `Response`, `Body`, `Payload`, `Dto`, or similar suffixes to any API type.
+
 ---
 
 ## Components
@@ -172,6 +182,33 @@ Three layers: `src/core/client.ts` (HTTP wrapper) → `src/api/endpoints/<domain
 - WCAG 2.1 AA minimum — minimum contrast ratios enforced via Tailwind token choices
 - `aria-label` or `aria-labelledby` on icon-only buttons
 - Drag-and-drop (dnd-kit): all drag operations must have a keyboard-accessible alternative
+
+---
+
+## Icons & Icon Buttons
+
+### Icon library
+
+- **Lucide React is the sole icon library** for this project. No other icon library may be introduced.
+- Import icons individually by name — never import the full icon set (`import { Pencil, Trash2 } from 'lucide-react'`). Named imports are required so tree-shaking keeps the initial chunk under budget.
+
+### When to use icon buttons vs. text buttons
+
+Two distinct button categories exist in the UI; mixing them is not permitted:
+
+- **Icon buttons** — used for item/row-level management actions such as Edit, Delete, Clear override, and per-value remove. These must use the shared `IconButton` primitive in `src/shared/components/IconButton.tsx` — never style an icon button inline inside a feature component.
+- **Text buttons** — used for form-level and primary CTA actions such as "New project", "Add", "Save", and "Cancel". These remain labeled text buttons and are outside the icon-button mandate.
+
+### Shared IconButton primitive
+
+All item/row-level icon buttons must go through `src/shared/components/IconButton.tsx`. This component owns the common visual contract (size, spacing, intent variants, hover/focus/disabled states). Creating a custom icon button inline in a feature is a convention violation — extract to the shared primitive instead.
+
+### Accessibility for icon-only buttons
+
+Icon-only buttons carry no visible text label. Both of the following are required on every `IconButton` instance:
+
+- `aria-label` — an accessible name describing the action and its target (e.g. `"Edit Project Alpha"`, `"Delete Alpha"`, `"Remove value from label"`).
+- `title` — the same string as `aria-label`, surfacing a native browser tooltip on hover. No third-party tooltip library is needed or permitted for this purpose.
 
 ---
 

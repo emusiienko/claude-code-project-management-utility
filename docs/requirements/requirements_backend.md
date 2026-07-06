@@ -34,12 +34,12 @@ The following assumptions were made where the validated idea or conceptual docum
 
 ## Data Model
 
-### Project
+### Project <!-- updated: 2026-07-06 (STORY-003 reconcile) -->
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
-| name | string | Yes | 1–200 chars; unique across all projects | |
+| name | string | Yes | 1–200 chars; unique across all projects (case-insensitive); whitespace-only names rejected | |
 | description | text | No | max 5,000 chars | |
 | created_at | timestamp | Yes | set on create | |
 | updated_at | timestamp | Yes | set on update | |
@@ -302,7 +302,12 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 
 ---
 
-### Projects
+### Projects <!-- updated: 2026-07-06 (STORY-003 reconcile) -->
+
+> **As-built notes (STORY-003):**
+> - Invalid UUID path params (`:id`) return 404, not 422 — consistent across all project endpoints.
+> - The `delete_project` MCP tool returns `{"success": true}` (MCP tools must return a value; void return is not valid in the MCP tool schema).
+> - Passing `null` for `description` in `PUT /projects/:id` is a no-op (field not cleared); an explicit description clear is not supported.
 
 #### POST /projects
 - **Auth:** none
@@ -751,7 +756,7 @@ Milestones also support attachment and comment endpoints using the same patterns
 
 | Entity | Field | Rule | Error Message |
 |--------|-------|------|---------------|
-| Project | name | Required; 1–200 chars; unique | "Project name is required and must be between 1 and 200 characters." / "A project with this name already exists." |
+| Project | name | Required; 1–200 chars; unique (case-insensitive); whitespace-only rejected | "Project name is required and must be between 1 and 200 characters." / "A project with this name already exists." |
 | Story | title | Required; 1–500 chars | "Story title is required." |
 | Story | status | Optional; if provided, in `story_statuses` dict | "Status value '{v}' is not allowed. Allowed: {list}." |
 | Story | labels[].key | Non-empty string | "Each label must have a non-empty key." |

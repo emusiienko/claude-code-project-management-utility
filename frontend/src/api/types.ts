@@ -218,17 +218,17 @@ export interface MilestoneDetail extends Milestone {
 // Request body types
 // ---------------------------------------------------------------------------
 
-export interface CreateProjectBody {
+export interface CreateProject {
   name: string;
   description?: string;
 }
 
-export interface UpdateProjectBody {
+export interface UpdateProject {
   name?: string;
   description?: string;
 }
 
-export interface CreateStoryBody {
+export interface CreateStory {
   title: string;
   content?: string;
   status?: string;
@@ -236,7 +236,7 @@ export interface CreateStoryBody {
   milestone_id?: string | null;
 }
 
-export interface UpdateStoryBody {
+export interface UpdateStory {
   title?: string;
   content?: string;
   status?: string;
@@ -244,7 +244,7 @@ export interface UpdateStoryBody {
   milestone_id?: string | null;
 }
 
-export interface CreateTaskBody {
+export interface CreateTask {
   title: string;
   content?: string;
   type: string;
@@ -254,7 +254,7 @@ export interface CreateTaskBody {
   labels?: Label[];
 }
 
-export interface UpdateTaskBody {
+export interface UpdateTask {
   title?: string;
   content?: string;
   type?: string;
@@ -264,12 +264,12 @@ export interface UpdateTaskBody {
   labels?: Label[];
 }
 
-export interface CreateTaskLinkBody {
+export interface CreateTaskLink {
   target_task_id: string;
   link_type: string;
 }
 
-export interface CreateDocumentAttachmentJsonBody {
+export interface CreateDocumentAttachment {
   type: string;
   kind: "document";
   content: string;
@@ -277,25 +277,25 @@ export interface CreateDocumentAttachmentJsonBody {
   author_role?: string;
 }
 
-export interface CreateExternalRefAttachmentJsonBody {
+export interface CreateExternalRefAttachment {
   type: string;
   kind: "external-ref";
   external_url: string;
   external_status?: string;
 }
 
-export interface CreateCommentBody {
+export interface CreateComment {
   content: string;
   author_role?: string;
   labels?: Label[];
 }
 
-export interface UpdateCommentBody {
+export interface UpdateComment {
   content?: string;
   labels?: Label[];
 }
 
-export interface CreateSessionBody {
+export interface CreateSession {
   topic: string;
   context?: string;
   status?: string;
@@ -304,7 +304,7 @@ export interface CreateSessionBody {
   linked_task_id?: string;
 }
 
-export interface UpdateSessionBody {
+export interface UpdateSession {
   status?: string;
   context?: string;
   result_decisions?: string;
@@ -314,13 +314,13 @@ export interface UpdateSessionBody {
   linked_task_id?: string | null;
 }
 
-export interface CreateMilestoneBody {
+export interface CreateMilestone {
   name: string;
   project_ids: string[];
   description?: string;
 }
 
-export interface UpdateMilestoneBody {
+export interface UpdateMilestone {
   name?: string;
   description?: string;
   project_ids?: string[];

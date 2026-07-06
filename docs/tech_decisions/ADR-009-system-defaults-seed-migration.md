@@ -1,7 +1,7 @@
 # ADR-009: System dictionary defaults seeded via a dedicated Alembic data migration
 
 **Date**: 2026-06-30
-**Status**: Accepted
+**Status**: Superseded by ADR-010
 **Decision**: The six system dictionary defaults (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `link_types`, `participant_roles`) arrive on a fresh database through a **dedicated Alembic data-seed migration** (`0003_settings_seed`), kept as a **separate revision** from the schema migration that creates the `system_settings` / `project_settings` tables (`0002_settings_schema`). The seed migration uses `op.bulk_insert` against a lightweight `sa.table()`/`sa.column()` stub rather than importing ORM models, and uses a fixed seed timestamp so the migration is deterministic. Defaults are therefore present after `alembic upgrade head` with no runtime bootstrap step, on both SQLite and PostgreSQL.
 **Options Considered**:
 - Dedicated data-seed migration, separate from schema (chosen)

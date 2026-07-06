@@ -8,3 +8,6 @@ waiting_for: none
 - 2026-07-03: API contract updated — Pydantic validation errors now 422
 - 2026-07-03: SESSION-008 created — frontend-developer code review + conventions update
 - 2026-07-04: SESSION-008 completed — frontend restructured to Feature-Sliced Design (features/ dir, 3-layer API arch, new config layout); conventions updated
+- 2026-07-06: STORY-003 accepted and fully reconciled — ADR-010 (migrations), ADR-011 (UUID coercion + validation placement); archived
+- 2026-07-06: STORY-015 accepted and fully reconciled — Lucide icons on Projects + Settings, IconButton primitive, Vitest frontend test suite (27 tests)
+- 2026-07-06: Code review conventions established: no Response/Body schema suffixes (backend + frontend), UUID coercion in BaseRepository, field validation in Pydantic schemas, DomainError.to_tool_error()

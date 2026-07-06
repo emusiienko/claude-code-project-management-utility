@@ -19,6 +19,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
+    /* Type roots — expose jest-dom matchers and vitest globals to tsc */
+    "types": ["@testing-library/jest-dom", "vitest/globals"],
+
     /* Path aliases — mirrors vite.config.ts aliases */
     "baseUrl": ".",
     "paths": {

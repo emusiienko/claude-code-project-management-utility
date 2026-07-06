@@ -36,6 +36,7 @@
 | Tailwind CSS    | Utility-first styling — fewer custom CSS surfaces. |
 | dnd-kit         | Accessible drag-and-drop for the Kanban board. |
 | react-markdown  | Render Markdown content (story/task content, comments). |
+| lucide-react    | <!-- updated: 2026-07-06 --> Sole icon library — item/row-level action buttons (Edit, Delete, etc.) use Lucide icons via the shared `IconButton` primitive; per-icon named imports keep tree-shaking effective. Mandated by requirements; see STORY-015. |
 
 ### Infrastructure
 
@@ -77,7 +78,7 @@ and the MCP tools are **thin layers** over each app's service — the service la
 of business logic and the only layer that touches the data layer.
 
 - `backend/app/core/` — app factory, configuration, DB engine/session, centralized error handling, filesystem storage helper, dictionary-resolution helper, common base classes
-- `backend/app/projects/` — Project CRUD <!-- updated: 2026-07-02 (STORY-013 reconcile): currently a temporary stub — `GET /projects` returns an empty `ListEnvelope<Project>` (echoing `page`/`limit`), with no service/repository/DB. Unblocks the Settings screen's project selector; replaced wholesale by STORY-003. -->
+- `backend/app/projects/` — Project CRUD <!-- updated: 2026-07-06 (STORY-003 reconcile): full domain slice — model, repository, service, schema, REST controller (five `/v1` endpoints), and five mirrored MCP tools. Replaced the STORY-013 stub wholesale. First true domain entity; establishes the per-domain package pattern for stories 004+. -->
 - `backend/app/stories/` — Story CRUD + on-demand task aggregation
 - `backend/app/tasks/` — Task CRUD + detail composition + on-demand dependency computation
 - `backend/app/task_links/` — typed directed links between tasks (same project only)
@@ -160,8 +161,8 @@ No circular dependencies: controllers and MCP tools depend on services, services
 ### Write path (REST or MCP), e.g. "create task"
 
 1. Request arrives at an entry layer — the REST controller (`POST /stories/:storyId/tasks`) or an MCP tool (`create_task`).
-2. The controller / tool parses input into the app's Pydantic schema (shape/length validation).
-3. It calls the app **service**.
+2. The controller / tool parses input into the app's Pydantic schema. <!-- updated: 2026-07-06 (STORY-003 reconcile) --> **Field-level validation (length, non-empty, format) lives in the schema via `@field_validator`** and fails as 422 through FastAPI's request-validation handler before the service is reached. Entry layers pass **string IDs straight through** — they never parse UUIDs (see ADR-011).
+3. It calls the app **service**. The service owns business-rule validation only (uniqueness, cross-field, existence). String IDs are coerced to `UUID` inside `BaseRepository`, which raises `NotFoundError` (404) for a malformed ID (ADR-011).
 4. Service resolves the owning **project** transitively (`task.story_id → story.project_id`) and loads that project's **effective dictionaries** via the settings service.
 5. Service validates dictionary-bound fields (`type`, `status`, `assignee_role`, `creator_role`); on violation raises a domain error → 422.
 6. Service persists via the data layer inside a transaction; timestamps set by the layer.
@@ -221,12 +222,17 @@ As specified in the backend requirements: story `(project_id, created_at DESC)` 
 - **labels (JSON array)** — JSON type mapping to `jsonb` (Postgres) / `JSON` text (SQLite). Filtering by `label_key`/`label_value` is dialect-aware inside the data layer (`json_each`/`json_extract` on SQLite; `jsonb` operators on Postgres). Adapters and services see one interface.
 - **Case-insensitive uniqueness** (project/milestone name) implemented dialect-aware (e.g. `LOWER()` functional uniqueness).
 - **Concurrency** — SQLite runs in WAL mode to allow concurrent reads under the ≥5-request concurrency requirement.
-- **Migrations** — Alembic scripts avoid dialect-only DDL; branch only where unavoidable.
+- **Migrations** — Alembic scripts avoid dialect-only DDL; branch only where unavoidable. <!-- updated: 2026-07-06 (STORY-003 reconcile) --> The chain is authored in **dependency order, root-table-first**: `project` is the first revision (`0001_project`, down: None), children come after, and every FK is declared **inline** toward an already-existing parent (no deferred FK, no `batch_alter_table`). Each schema revision **bundles its own seed** in the same `upgrade()`. See ADR-010. The functional `LOWER(name)` unique index is created via `op.create_index(..., sa.text("LOWER(name)"))` in the migration (not `__table_args__`), for portable reflection across dialects.
 
 ### Seed data
 
-`system_settings` is pre-seeded at install via a dedicated Alembic data migration, separate from the
-schema migration (see ADR-009), with the six dictionaries:
+<!-- updated: 2026-07-06 (STORY-003 reconcile): ADR-010 supersedes ADR-009 — seed is now bundled into the same revision as its schema, not a separate seed-only migration. -->
+Seed data is bundled into the schema revision that creates the table it populates (ADR-010). The
+chain is two revisions: `0001_project` creates the `project` table and seeds one "Test Project" row
+(fixed UUID `00000000-0000-0000-0000-000000000001`, deterministic timestamps); `0002_settings`
+creates `system_settings` + `project_settings` (inline `project_settings → project` FK,
+`ON DELETE CASCADE`) and seeds the six dictionaries in the same `upgrade()`. `system_settings` is
+therefore populated at install with no runtime bootstrap, with the six dictionaries:
 
 - `task_statuses`: `["todo", "in-progress", "done"]`
 - `task_types`: `["task", "bug", "testing-task"]`
@@ -280,6 +286,15 @@ Centralized in `core`. All domain errors map to the standard shape:
 The MCP adapter maps the same domain errors to MCP tool errors so agents receive equivalent,
 machine-readable failures. `details` is omitted when not applicable.
 
+<!-- updated: 2026-07-06 (STORY-003 reconcile) -->
+The domain→MCP mapping is a single `DomainError.to_tool_error()` instance method (deferred `fastmcp`
+import in `core`) returning a `ToolError` with the `[CODE] message` shape — MCP tool modules call
+`exc.to_tool_error()` rather than each defining a local conversion helper (ADR-011). Note the two
+distinct 4xx validation paths, both carrying a validation semantic: **structural** field errors
+(schema `@field_validator`) surface through FastAPI's request-validation handler as **422**, while the
+domain `ValidationError` class maps to **400**; dictionary/business violations use `UnprocessableError`
+→ **422**. Domains should raise the class matching the intended HTTP status per the table above.
+
 ---
 
 ## Environment Configuration
@@ -298,6 +313,7 @@ local-only). Variables grouped by concern:
 
 **CORS**
 - `CORS_ALLOWED_ORIGINS` — localhost origins for the Web UI (no reverse proxy in V1).
+- <!-- updated: 2026-07-06 (STORY-003 reconcile) --> CORS `allow_methods` is an **explicit** list (`GET, POST, PUT, PATCH, DELETE, OPTIONS`), not a wildcard — a wildcard silently omitted `DELETE` from preflight responses and browsers blocked project deletion (BUG-009). Any new HTTP method must be added to this list.
 
 **Limits**
 - Rate limit 1,000 req/min on all endpoints; attachment upload max 10 MB.

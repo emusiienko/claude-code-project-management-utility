@@ -13,7 +13,7 @@ from app.mcp.server import mcp_server_v1
 # Wiring also imports every module in each package, which triggers the
 # @mcp_server_v1.tool() decorators in domain mcp_tools.py files — no
 # explicit register_*() calls needed.
-container.wire(packages=["app.api", "app.mcp", "app.settings", "app.container"])
+container.wire(packages=["app.api", "app.mcp", "app.projects", "app.settings", "app.container"])
 
 # Named `application` to avoid shadowing the `app` package in Pyright analysis.
 # Uvicorn convention: `app = application` alias at module level so callers can
@@ -27,11 +27,15 @@ application = FastAPI(
 )
 
 # CORS — configured once here; origins driven by CORS_ALLOWED_ORIGINS env var.
+# Methods are listed explicitly instead of ["*"] to avoid edge-case behaviour
+# where Starlette's wildcard expansion interacts with non-wildcard allow_origins
+# (preflight for non-simple methods such as DELETE can return 400 when origins
+# are listed individually rather than "*").
 application.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

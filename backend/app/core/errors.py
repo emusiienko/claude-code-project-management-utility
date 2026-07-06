@@ -1,6 +1,10 @@
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from fastapi import status
+
+if TYPE_CHECKING:
+    from fastmcp.exceptions import ToolError
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +43,13 @@ class DomainError(Exception):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}[{self.code}]: {self.message}"
+
+    def to_tool_error(self) -> "ToolError":
+        # Deferred import avoids a hard dependency on fastmcp in core/; fastmcp is
+        # an MCP-layer concern and must not bleed into the domain error hierarchy.
+        from fastmcp.exceptions import ToolError
+
+        return ToolError(f"[{self.code}] {self.message}")
 
 
 class ValidationError(DomainError):

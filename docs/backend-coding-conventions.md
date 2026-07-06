@@ -122,6 +122,20 @@
 - Validators use `@field_validator` (Pydantic v2 API); no v1 `@validator` usage
 - Settings class uses `pydantic-settings` `BaseSettings`; all env vars declared there
 
+### Schema naming
+
+- **Output schemas** (returned from the API) are named after the domain object with no suffix:
+  `Project`, `Story`, `Task`. Never add `Response` or `Schema` as a suffix.
+- **Input schemas** for write operations use a verb prefix with no `Body` suffix:
+  `CreateProject`, `UpdateProject`, `CreateStory`. Never add `Body` or `Request` as a suffix.
+
+### Validation placement
+
+- **Field-level validation** (non-empty, max length, format) belongs in Pydantic `@field_validator`
+  decorators on the input schema. The service never sees data that violates these rules.
+- **Business-rule validation** (uniqueness, cross-field invariants, external state) belongs in the
+  service layer. The service calls the repository to assert constraints that Pydantic cannot know.
+
 ---
 
 ## SQLAlchemy 2.0

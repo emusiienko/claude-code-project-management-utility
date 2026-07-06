@@ -4,6 +4,7 @@ from dependency_injector.wiring import Closing, Provide, inject
 from sqlalchemy.orm import Session
 
 from app.container.container import AppContainer
+from app.projects.service import ProjectService
 from app.settings.service import SettingsService
 
 
@@ -18,4 +19,13 @@ async def provide_settings_service(
     # begins a transaction); DependencyResolver.__aexit__ calls shutdown() (commit + close).
     # @asynccontextmanager converts the async generator into an AbstractAsyncContextManager
     # so that fastmcp's uncalled_for engine can enter/exit it via AsyncExitStack.
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_project_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: ProjectService = Provide[AppContainer.project_service],
+):
     yield service

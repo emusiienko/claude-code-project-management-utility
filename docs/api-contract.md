@@ -183,17 +183,23 @@ type SettingsOverrides = Partial<Record<DictionaryKey, string[]>>; // project-le
 
 ## Projects
 
+<!-- updated: 2026-07-06 (STORY-003 reconcile): naming-only alignment — the request interfaces were
+     renamed `CreateProjectBody`/`UpdateProjectBody` → `CreateProject`/`UpdateProject` (no `Body`
+     suffix) to match the ratified schema/type naming convention (BUG-010 backend, BUG-011 frontend).
+     Wire shapes are byte-identical to LOCKED v1.0 — no field, path, status, or envelope changed. -->
+
 ```typescript
 // POST /projects                       -> 201 Envelope<Project>   | 422, 409, 500
-interface CreateProjectBody { name: string; description?: string; }
+interface CreateProject { name: string; description?: string; }
 
 // GET  /projects?page&limit             -> 200 ListEnvelope<Project>
 // GET  /projects/:id                    -> 200 Envelope<Project>   | 404
 // PUT  /projects/:id                    -> 200 Envelope<Project>   | 422, 404, 409
-interface UpdateProjectBody { name?: string; description?: string; }
+interface UpdateProject { name?: string; description?: string; }
 // DELETE /projects/:id                  -> 204                     | 404
 //   Cascade: stories -> tasks -> attachments/versions/comments/links/project_settings.
 //   Sessions linked to deleted stories/tasks have links set to null.
+//   A malformed (non-UUID) :id returns 404 NOT_FOUND, not 422 (ADR-011).
 ```
 
 **409 example:** `{ "error": "A project with this name already exists.", "code": "CONFLICT" }`

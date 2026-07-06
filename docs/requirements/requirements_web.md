@@ -47,15 +47,19 @@ Navigation rules:
 
 ## Page Behaviours
 
-### Projects & Milestones View (`/`)
+### Projects & Milestones View (`/`) <!-- updated: 2026-07-06 (STORY-003 reconcile) -->
 
-The page is divided into two sections: **Projects** (top) and **Milestones** (bottom).
+> **As-built notes (STORY-003):** The Projects section is fully implemented. Modals are implemented with native `<dialog>` elements (built-in focus trapping, Escape handling, backdrop rendering). The confirmation dialog communicates removal of stories, tasks, attachments, comments, and settings overrides. The Milestones section remains a placeholder (targeted in STORY-012). Breadcrumbs and "Not found" navigation are not yet implemented.
+
+The page is divided into two sections: **Projects** (top) and **Milestones** (bottom, placeholder until STORY-012).
 
 **Projects section:**
-- Lists all projects as a table or card grid: name, description (truncated), created_at
-- **Create project** button → inline form or slide-over panel: name (required), description (optional); saves on submit
-- **Edit** button per project → same form pre-filled
-- **Delete** button per project → confirmation dialog: "Delete project '{name}'? This will permanently remove all its stories, tasks, and attachments." → confirmed DELETE
+- Lists all projects as a table: name, description (truncated), created_at, with per-row edit/delete action buttons (Lucide icons)
+- **Create project** button → modal form: name (required, 1–200 chars), description (optional, max 5000); saves on submit
+- **Edit** button per project → same form pre-filled in a modal
+- **Delete** button per project → confirmation dialog that explicitly names all nested data that will be permanently removed (stories, tasks, attachments, comments, settings overrides)
+- Conflict error (409) surfaced as an inline message above the form submit button: API's `error` message verbatim
+- Empty state shown when no projects exist (not an error)
 - Clicking a project name navigates to its Stories View
 
 **Milestones section:**
@@ -284,6 +288,14 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 - Confirmation dialogs trap keyboard focus until dismissed
 - Status badges and icons have accessible text alternatives (not colour-only indicators)
 - Error messages are announced to screen readers via ARIA live regions
+
+### Icon Library & Action Buttons
+- **Lucide React** is the standard icon library for the entire application. No other icon library may be used.
+- All item-level action buttons — edit, delete, archive, view, and similar operations — must use Lucide React icons rather than plain text labels.
+- Icon-only action buttons must include a visible tooltip (on hover/focus) and an `aria-label` attribute whose value matches the action name (e.g. `aria-label="Edit"`, `aria-label="Delete"`).
+- This standard applies to all screens, current and future: Projects, Settings, Stories, Tasks, Sessions, Attachments, Comments, Task Links, Milestones, and Cross-project view.
+- Primary CTA buttons (e.g. "Create project", "Save") may combine an icon with a text label; the icon is optional for CTAs.
+- Destructive actions (delete, archive) must use a visually distinct icon color (e.g. red/danger tone) to differentiate them from non-destructive actions at a glance.
 
 ### Browser & Device Support
 - Latest stable Chrome, Safari, Firefox (desktop only)

@@ -13,10 +13,6 @@ from app.settings.service import SettingsService
 logger = logging.getLogger(__name__)
 
 
-def _to_tool_error(exc: DomainError) -> ToolError:
-    return ToolError(f"[{exc.code}] {exc.message}")
-
-
 @mcp_server_v1.tool()
 async def get_system_settings(
     service: SettingsService = Depends(provide_settings_service),
@@ -24,7 +20,7 @@ async def get_system_settings(
     try:
         return service.get_system_settings()
     except DomainError as exc:
-        raise _to_tool_error(exc) from exc
+        raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in get_system_settings: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
@@ -38,7 +34,7 @@ async def set_system_settings(
     try:
         return service.update_system_settings(body)
     except DomainError as exc:
-        raise _to_tool_error(exc) from exc
+        raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in set_system_settings: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
@@ -52,7 +48,7 @@ async def get_project_effective_settings(
     try:
         return service.resolve_all(project_id=project_id)
     except DomainError as exc:
-        raise _to_tool_error(exc) from exc
+        raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error(
             "Unexpected error in get_project_effective_settings: %s", exc, exc_info=exc
@@ -70,7 +66,7 @@ async def set_project_settings(
     try:
         return service.update_project_settings(project_id=project_id, body=body)
     except DomainError as exc:
-        raise _to_tool_error(exc) from exc
+        raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in set_project_settings: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
@@ -89,7 +85,7 @@ async def clear_project_setting(
             key=key,
         )
     except DomainError as exc:
-        raise _to_tool_error(exc) from exc
+        raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in clear_project_setting: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
