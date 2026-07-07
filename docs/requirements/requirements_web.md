@@ -8,80 +8,92 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| Projects View | List all projects; create, edit, delete | P0 |
-| Stories View | List stories per project; create, edit, delete; inline aggregate task state | P0 |
-| Tasks View | List tasks within a story; create, edit, delete | P0 |
-| Task Detail View | Full task view with embedded links, attachments, and comments | P0 |
+| Projects Management | Create, edit, delete projects from a dedicated management page | P0 |
+| Stories View | List stories per project with filter bar | P0 |
+| Board View | Kanban board of stories from the active milestone, grouped by story status; tab disabled when no active milestone exists | P0 |
+| Story Detail | Full-screen slide-over with task kanban + description/attachments/comments right panel | P0 |
+| Task Detail View | Full-screen modal with task metadata, links, attachments, and comments | P0 |
 | Project Settings View | Manage per-project dictionary overrides; view effective settings | P0 |
 | System Settings View | Manage system-level dictionary defaults | P0 |
 | Sessions View | List, create, edit sessions; filter incomplete; link to story/task | P1 |
+| Milestones View | List, create, edit, delete milestones within a project | P1 |
 | Attachments Management | Upload documents (text or file) and images; view, archive, browse history | P1 |
 | Comments Management | Create, edit, delete comments on stories and tasks | P1 |
 | Task Links Management | Create and delete typed directed links between tasks | P1 |
-| Cross-project View | List stories and tasks across all projects | P2 |
 
 ---
 
-## Navigation & Routing <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+## Navigation & Routing <!-- updated: 2026-07-07 (UX redesign) -->
+
+### Layout Shell
+
+The application has a two-level navigation shell.
+
+**Top bar** (always visible, full width):
+- **App switcher** (left): combobox displaying the active app name (`Task Manager` or `Sessions`). Switching replaces the entire content area and sidebar.
+- **Settings button** (right, Task Manager mode only): text button `⚙ Settings` navigating to `/settings` (system defaults). Hidden in Sessions mode.
+
+**Left sidebar** (Task Manager mode only, collapsible):
+- **Project combobox** at the top: displays the active project name; opens a dropdown listing all projects for quick switching.
+- **Project list**: all projects, with the active project visually highlighted.
+- **`⚙ Gestisci progetti`** link at the bottom → navigates to `/projects` (full-screen project CRUD page).
+- **Collapse/expand toggle** (`◄`/`▶`) anchored to the right edge of the sidebar. When collapsed, only the toggle button is visible and the main content expands to fill the full width. Collapsed/expanded state is persisted in browser local storage.
+
+**Project sub-navigation** (Task Manager mode only, visible when a project is active):
+Horizontal tab bar rendered below the top bar: `Stories` · `Board` · `Milestones` · `Settings`.
+- `Stories` → `/projects/:id/stories`
+- `Board` → `/projects/:id/board`
+- `Milestones` → `/projects/:id/milestones`
+- `Settings` → `/projects/:id/settings`
+
+Sessions mode has no sidebar and no sub-navigation bar.
+
+### Route Table
 
 | Route | View | Description |
 |-------|------|-------------|
-| `/` | Projects | Default redirect to `/projects` |
-| `/projects` | Projects | All projects list |
-| `/projects/:id` | Stories list | Stories within a project *(placeholder as of STORY-002)* |
-| `/projects/:id/stories/:storyId` | Story detail | Story metadata + task list + story-level attachments + story-level comments *(placeholder)* |
-| `/projects/:id/stories/:storyId/tasks/:taskId` | Task detail modal | Full-screen modal over the Story Detail View; URL updates on open for deep-linking *(placeholder)* |
-| `/milestones/:id` | Milestone detail | Milestone metadata + assigned stories + milestone attachments + milestone comments *(placeholder)* |
-| `/sessions` | Sessions list | All sessions *(placeholder)* |
-| `/settings` | Settings | System Defaults + Project Overrides (tab-switched) — **implemented in STORY-002** |
-| `/cross-project` | Cross-project view | Cross-project stories and tasks *(placeholder)* |
-
-> **As-built (STORY-002):** the layout shell exposes exactly **three** top-level navigation entries: **Projects** (`/projects`), **Sessions** (`/sessions`), and **Settings** (`/settings`). All other domains are sub-views reached through parent context or placeholder screens — they are not top-level nav items. The route `/projects/:id/settings` does not exist; Project Overrides is a tab within `/settings`.
+| `/` | Redirect | → `/projects/:lastId/stories` if a project was previously visited; otherwise → `/projects` |
+| `/projects` | Projects Management | Full-screen CRUD table for projects (no sidebar, no sub-nav) |
+| `/projects/:id/stories` | Stories List | Stories within the active project |
+| `/projects/:id/board` | Stories Board | Kanban of stories grouped by story status |
+| `/projects/:id/milestones` | Milestones | Milestones within the active project |
+| `/projects/:id/settings` | Project Settings | Per-project dictionary overrides |
+| `/projects/:id/stories/:storyId` | Story Detail | Full-screen slide-over on top of the current project view |
+| `/projects/:id/stories/:storyId/tasks/:taskId` | Task Detail | Modal on top of the Story Detail slide-over |
+| `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments + comments *(placeholder)* |
+| `/sessions` | Sessions | Full-screen flat list, no sidebar |
+| `/settings` | System Settings | Task Manager system-level dictionary defaults |
 
 Navigation rules:
-- The top-level navigation bar is always visible and includes: Projects, Sessions, Settings
-- Breadcrumbs are shown on all views below the top level (e.g. Projects → My Project → Story Title → Task Title) *(breadcrumbs not yet implemented; targeted in STORY-003+)*
-- Navigating to a resource that no longer exists (deleted) shows a "Not found" page with a link back to the parent level *(targeted in STORY-003+)*
+- Navigating to a resource that no longer exists (deleted) shows a "Not found" inline message with a link back to the parent level.
+- Breadcrumbs are shown within the Story Detail slide-over header: e.g. `← Stories / Story Title`.
+- The last visited project ID is persisted in browser local storage to power the `/` redirect.
 
 ---
 
 ## Page Behaviours
 
-### Projects & Milestones View (`/`) <!-- updated: 2026-07-06 (STORY-003 reconcile) -->
+### Projects Management (`/projects`) <!-- updated: 2026-07-07 (UX redesign) -->
 
-> **As-built notes (STORY-003):** The Projects section is fully implemented. Modals are implemented with native `<dialog>` elements (built-in focus trapping, Escape handling, backdrop rendering). The confirmation dialog communicates removal of stories, tasks, attachments, comments, and settings overrides. The Milestones section remains a placeholder (targeted in STORY-012). Breadcrumbs and "Not found" navigation are not yet implemented.
+> **As-built notes (STORY-003):** Previously implemented as the homepage at `/`. Migration to `/projects` as a dedicated management page (no sidebar, no sub-nav) is targeted in a future story. Modals use native `<dialog>` elements. The Milestones section previously shown here is now at `/projects/:id/milestones`.
 
-The page is divided into two sections: **Projects** (top) and **Milestones** (bottom, placeholder until STORY-012).
+Full-screen management page for projects; no sidebar, no sub-navigation. Accessible via the `⚙ Gestisci progetti` link in the left sidebar or by navigating to `/projects` directly.
 
-**Projects section:**
 - Lists all projects as a table: name, description (truncated), created_at, with per-row edit/delete action buttons (Lucide icons)
-- **Create project** button → modal form: name (required, 1–200 chars), description (optional, max 5000); saves on submit
+- **Create project** button → modal form: name (required, 1–200 chars), description (optional, max 5000 chars); saves on submit
 - **Edit** button per project → same form pre-filled in a modal
 - **Delete** button per project → confirmation dialog that explicitly names all nested data that will be permanently removed (stories, tasks, attachments, comments, settings overrides)
 - Conflict error (409) surfaced as an inline message above the form submit button: API's `error` message verbatim
 - Empty state shown when no projects exist (not an error)
-- Clicking a project name navigates to its Stories View
-
-**Milestones section:**
-- **Filter bar:** project dropdown (populated from all projects); selecting a project filters milestones to those associated with it; no selection = all milestones
-- Lists milestones as a table: name, associated projects (tag chips), story count, description (truncated)
-- **Create milestone** button → form panel: name (required), associated projects (multi-select, required — min 1), description (optional)
-- **Edit** button per milestone → same form pre-filled
-- **Delete** button per milestone → confirmation dialog: "Delete milestone '{name}'? Stories assigned to it will lose their milestone association."
-- Clicking a milestone name navigates to `/milestones/:id`
+- Clicking a project name navigates to its Stories View (`/projects/:id/stories`)
 
 ---
 
-### Milestone Detail View (`/milestones/:id`)
+### Stories View (`/projects/:id/stories`) <!-- updated: 2026-07-07 (UX redesign) -->
 
-- Displays: name, description, associated projects (tag chips), story count
-- **Edit milestone** button → form panel
-- **Stories** section: paginated list of assigned stories; each row shows title, project name, status badge; clicking a title navigates to that story's Story Detail View
-- **Attachments** and **Comments** sections follow the same behaviour as story-level attachments and comments
+> **As-built notes (STORY-004):** Implemented at `/projects/:id` (old route). Migration to `/projects/:id/stories` targeted in a future story.
 
----
-
-### Stories View (`/projects/:id`)
+Sub-nav active tab: **Stories**.
 
 - Shows project name as page heading
 - Lists stories as a table: title, status (badge), labels (tag chips), task aggregate (e.g. "3/5 done")
@@ -89,40 +101,68 @@ The page is divided into two sections: **Projects** (top) and **Milestones** (bo
 - **Create story** button → form panel: title (required), content (Markdown textarea, optional), status (dropdown, optional), labels editor
 - **Edit** button per story row → same form pre-filled
 - **Delete** button per story row → confirmation dialog
-- Clicking a story title navigates to its Story Detail View
+- Clicking a story title opens the Story Detail slide-over; URL updates to `/projects/:id/stories/:storyId`
 - Task aggregate ("3/5 done") is fetched from `GET /stories/:id/aggregate`; "N/A" shown if story has no tasks
 
 ---
 
-### Story Detail View (`/projects/:id/stories/:storyId`)
+### Board View (`/projects/:id/board`)
 
-**Layout:** two-column. The main area (left) contains the story header and the Kanban board. A collapsible right panel contains story-level attachments and comments. A toggle button (`‹`/`›` chevron anchored to the panel edge) expands or collapses it. When collapsed, the Kanban board fills the full width. The panel's open/closed state is persisted in browser local storage per story.
+Sub-nav active tab: **Board**.
+
+**Precondition:** the `Board` tab is enabled only when the project has exactly one milestone with status `active`. When no milestone is active (no milestones exist, or all are `planned`/`finished`), the `Board` tab is rendered as disabled (greyed out, not clickable) and navigating directly to `/projects/:id/board` redirects to `/projects/:id/stories`.
+
+- Shows project name and the active milestone name as page heading (e.g. "Project Beta — MVP v1")
+- Displays only stories **assigned to the active milestone**; stories not assigned to the active milestone are excluded
+- One column per status value in the project's effective `story_statuses` dictionary, ordered as defined in the dictionary
+- Each column header shows the status name and a count of story cards in that column
+- Each story card displays: title, labels (tag chips), task aggregate badge
+- Cards within a column are ordered by `created_at` ASC
+- **Drag-and-drop:** dragging a card to another column updates the story's `status` via `PUT /stories/:id`; optimistic update — card snaps back and an error toast is shown on API failure
+- **Add story** button at the bottom of each column → form panel with that column's status pre-filled and the active milestone pre-assigned (read-only in this context)
+- Clicking a story card title opens the Story Detail slide-over; URL updates to `/projects/:id/stories/:storyId`
+- **Edit** and **Delete** via card context menu (⋯ icon on hover)
+
+---
+
+### Story Detail slide-over (`/projects/:id/stories/:storyId`) <!-- updated: 2026-07-07 (UX redesign) -->
+
+**Opening:** clicking a story title (from Stories list or Board) triggers a slide-over panel that animates in from the right, covering the sidebar and sub-navigation. The background content is dimmed but not unmounted. The URL updates for deep-linking. Navigating directly to the story URL renders the project view with the slide-over already open.
+
+**Closing:** the `✕` button or `Escape` key closes the slide-over and restores the previous URL (Stories list or Board). The `← Stories` breadcrumb in the slide-over header also closes it and navigates to the Stories list.
+
+**Layout:** two-column inside the slide-over. The main area (left) contains the story header and the task kanban. A collapsible right panel contains the story description (rendered Markdown), story-level attachments, and story-level comments. A toggle button (`‹`/`›` chevron anchored to the panel edge) expands or collapses it. The panel's open/closed state is persisted in browser local storage per story.
 
 ```
-┌────────────────────────────────────┬─────────────────┐
-│  Story header                      │ ›  Right panel  │
-│  ────────────────────────────────  │                 │
-│  Kanban board (tasks)              │  Attachments    │
-│                                    │  ─────────────  │
-│                                    │  Comments       │
-└────────────────────────────────────┴─────────────────┘
-                                      ↑ collapsible
+┌──────────────────────────────────────────┬─────────────────────┐
+│  ← Stories / Story Title      ✏  [✕]    │ ›  Right panel      │
+│  ─────────────────────────────────────   │                     │
+│  Task kanban                             │  Description        │
+│                                          │  ──────────────     │
+│                                          │  Attachments        │
+│                                          │  ──────────────     │
+│                                          │  Comments           │
+└──────────────────────────────────────────┴─────────────────────┘
+                                             ↑ collapsible
 ```
 
 **Story header (always visible):**
-- Displays title, status badge, labels, rendered Markdown content (truncated with "Show more" if long)
+- Displays title, status badge, labels
 - **Edit story** button → form panel
 
-**Kanban board — main area:**
+**Task kanban — main area:**
 - One column per status value in the project's effective `task_statuses` dictionary, ordered as defined in the dictionary
 - Each column header shows the status name and a count of cards in that column
 - Each task card displays: title, type badge, assignee_role (if set), label chips
 - Cards within a column are ordered by `created_at` ASC
 - **Drag-and-drop:** dragging a card to another column updates the task's `status` via `PUT /tasks/:id`; optimistic update — card snaps back and an error toast is shown on API failure
-- **Filter bar** above the board: type, assignee_role, creator_role — all dropdowns from project's effective settings; active filters dim non-matching cards without removing columns
+- **Filter bar** above the board: type, assignee_role, creator_role — all dropdowns populated from project's effective settings; active filters dim non-matching cards without removing columns
 - **Add task** button at the bottom of each column → form panel with that column's status pre-filled (read-only in this context)
-- Clicking a card title navigates to its Task Detail View
+- Clicking a task card title opens the Task Detail modal; URL updates to `/projects/:id/stories/:storyId/tasks/:taskId`
 - **Edit** and **Delete** via card context menu (⋯ icon on hover)
+
+**Right panel — Story Description:**
+- Renders story content as Markdown (truncated with "Show more" if long)
 
 **Right panel — Story Attachments:**
 - Lists active attachments: type badge, kind badge, name/url, file_size_bytes, created_at
@@ -142,11 +182,11 @@ The page is divided into two sections: **Projects** (top) and **Milestones** (bo
 
 ### Task Detail View (`/projects/:id/stories/:storyId/tasks/:taskId`)
 
-**Layout:** full-screen modal overlay on top of the Story Detail View. The story board behind it is dimmed but not unmounted. The modal has a fixed header (task title + close button) and a single vertically scrollable body containing all sections. No collapsible panels — all sections are always visible and stacked in order.
+**Layout:** full-screen modal overlay on top of the Story Detail slide-over. The slide-over behind it is dimmed but not unmounted. The modal has a fixed header (task title + close button) and a single vertically scrollable body containing all sections.
 
-Opening: clicking a task card on the Kanban board opens the modal and updates the URL. Navigating directly to the task URL renders the Story Detail View with the modal already open.
+Opening: clicking a task card on the task kanban opens the modal and updates the URL. Navigating directly to the task URL renders the project view with the Story Detail slide-over open and the Task Detail modal on top.
 
-Closing: the `✕` button or the `Escape` key closes the modal and restores the URL to the story route.
+Closing: the `✕` button or `Escape` key closes the modal and restores the URL to the story route (slide-over remains open).
 
 Data is fetched from `GET /tasks/:id/detail` (single call — task + links + attachments + comments).
 
@@ -182,28 +222,61 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 
 **Attachments section:**
 - Heading "Attachments" with count badge
-- Same behaviour as Story Attachments (list, add, view file, history, archive, delete) — see Story Detail View above
+- Same behaviour as Story Attachments (list, add, view file, history, archive, delete) — see Story Detail above
 
 **Comments section:**
 - Heading "Comments" with count badge
 - Thread ordered oldest-first: author_role, content (rendered Markdown), labels, timestamp
 - **Edit** / **Delete** per comment (inline controls)
-- Add comment form pinned at the bottom of the section (not the modal — it scrolls with the content)
+- Add comment form pinned at the bottom of the section (scrolls with the content)
 
 ---
 
-### Sessions View (`/sessions`)
+### Milestones View (`/projects/:id/milestones`)
+
+Sub-nav active tab: **Milestones**.
+
+**Milestone statuses:** each milestone has one of three statuses: `Planned`, `Active`, `Finished`. Only **one milestone per project** may have status `Active` at any time.
+
+- Shows project name as page heading
+- Lists milestones as a table: name, status badge (`Planned` / `Active` / `Finished`), associated projects (tag chips), story count, description (truncated)
+- The active milestone row is visually highlighted (e.g. bold name or accent border)
+- **Create milestone** button → form panel: name (required), status (dropdown: Planned / Active / Finished, default: Planned), associated projects (multi-select, required — min 1), description (optional)
+- **Edit** button per milestone → same form pre-filled
+- **Activate** button per `Planned` or `Finished` milestone → sets its status to `Active`; if another milestone is currently `Active`, a confirmation dialog warns: "This will deactivate '{current active name}'. Continue?" — on confirm, the previous active milestone is set to `Planned` and the new one becomes `Active`
+- **Finish** button per `Active` milestone → sets its status to `Finished`; the Board tab becomes disabled until another milestone is activated
+- **Delete** button per milestone → confirmation dialog: "Delete milestone '{name}'? Stories assigned to it will lose their milestone association."
+- Clicking a milestone name navigates to `/milestones/:id`
+
+---
+
+### Milestone Detail View (`/milestones/:id`)
+
+- Displays: name, description, associated projects (tag chips), story count
+- **Edit milestone** button → form panel
+- **Stories** section: paginated list of assigned stories; each row shows title, project name, status badge; clicking a title opens the Story Detail slide-over
+- **Attachments** and **Comments** sections follow the same behaviour as story-level attachments and comments
+
+---
+
+### Sessions View (`/sessions`) <!-- updated: 2026-07-07 (UX redesign) -->
+
+No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in the top bar shows `Sessions`; the `⚙ Settings` button is hidden.
 
 - Lists sessions as a table: topic, status, participant_role, linked story/task (clickable), created_at, result indicator (✓ / pending)
 - **Incomplete only** toggle filter (calls `GET /sessions?incomplete=true`)
 - **Create session** button → form panel: topic (required), context (textarea), status, participant_role, optional link to story or task (search inputs)
 - **Edit** button per session → same form + result fields (result_decisions textarea, result_summary textarea)
 - **Archive** button per session → confirmation dialog
-- Clicking a linked story/task navigates to that resource
+- Clicking a linked story navigates to that story's Story Detail slide-over; clicking a linked task navigates to the task's Task Detail modal (via the story route)
 
 ---
 
-### System Settings View (`/settings` — System Defaults tab) <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign) -->
+
+> **As-built notes (STORY-002):** Previously implemented as two tabs (`System Defaults` / `Project Overrides`) at `/settings`. The Project Overrides tab is removed from this view — project overrides now live at `/projects/:id/settings`.
+
+Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only). No sidebar; no sub-navigation bar.
 
 - Six dictionary editors in a 2-column responsive grid (not accordion), one per key: `task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `link_types`, `participant_roles`
 - Each editor shows the current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
@@ -214,14 +287,15 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 
 ---
 
-### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign) -->
 
-> **Implementation note (STORY-002):** the Settings view was implemented as two tabs (`System Defaults` / `Project Overrides`) under the existing `/settings` route — not as a separate `/projects/:id/settings` route. Project selection is handled by a project selector in the Project Overrides tab. This is an intentional deviation from the original routing spec; the route `/projects/:id/settings` does not exist. See `docs/architecture.md` § Known Divergences.
+> **As-built notes (STORY-002):** Previously implemented as the "Project Overrides" tab within `/settings`. Now a dedicated route accessed via the `Settings` tab in the project sub-navigation bar.
 
-- Two-tab layout at `/settings`: **System Defaults** tab and **Project Overrides** tab
-- **System Defaults tab:** six dictionary editors (one per key) in a 2-column grid; each has independent save/error state; calls `PUT /v1/system/settings` with the changed key only
-- **Project Overrides tab:** project selector (left panel) + effective settings panel (right panel); overridden keys show an "Override" badge
-- **Override / Edit button** per key → activates inline editor for that key
+Sub-nav active tab: **Settings**.
+
+- Lists all six dictionary keys with their effective values
+- Each key row shows: key name, current override value (if set) with an `Override` badge, or the inherited system default value
+- **Override / Edit button** per key → activates inline chip list editor for that key
 - **Clear override** button (visible when override is set) → intended to revert to system default; calls `DELETE /v1/projects/:projectId/settings/:key` — **this endpoint does not exist on the backend as of STORY-002; the action fails at runtime** (see Known Gaps in backend requirements)
 - **Save** button per key → calls `PUT /v1/projects/:id/settings` with only the changed key
 - Effective values always visible via `GET /v1/projects/:id/settings/effective`
@@ -266,11 +340,13 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 | Required field missing on submit | Inline error below the field before API call is made |
 | API 400 / 422 — field-level errors | Each `details[].field` maps to the corresponding form input; error shown below that input |
 | API 409 — conflict (e.g. duplicate project name) | Error banner at top of form: the API's `error` message verbatim |
-| API 404 — navigated resource deleted | "Not found" page with back-navigation link |
+| API 404 — navigated resource deleted | "Not found" inline message with back-navigation link |
 | API 500 — server error | Toast notification: "An unexpected error occurred. Please try again." |
 | Network unreachable | Toast notification: "Cannot connect to the server. Make sure the utility is running." |
 | File > 10 MB selected for image upload | Inline error below file input before upload is attempted: "File must be smaller than 10 MB." |
 | Confirmation dialog — user cancels | Dialog closes; no action taken |
+| Activating a milestone when one is already active | Confirmation dialog: "This will deactivate '{current active name}'. Continue?" — cancel keeps current state; confirm swaps active milestone |
+| Board tab accessed with no active milestone | Tab is disabled (greyed out, not clickable); direct URL navigation redirects to `/projects/:id/stories` |
 
 ---
 
@@ -279,6 +355,7 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 ### Performance
 - Initial page load (projects list): < 2 s (accessed via Docker localhost port mapping)
 - Navigation between views (client-side routing): < 300 ms
+- Story Detail slide-over open animation: ≤ 150 ms
 - File upload progress indicator shown for uploads > 1 MB
 
 ### Accessibility
@@ -286,6 +363,8 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 - All interactive elements (buttons, links, inputs, dropdowns) are keyboard-accessible with visible focus indicators
 - All form fields have associated `<label>` elements and ARIA attributes where native labels are insufficient
 - Confirmation dialogs trap keyboard focus until dismissed
+- Story Detail slide-over traps keyboard focus while open; `Escape` closes it and returns focus to the triggering element
+- Task Detail modal traps keyboard focus while open; `Escape` closes it and returns focus to the triggering task card
 - Status badges and icons have accessible text alternatives (not colour-only indicators)
 - Error messages are announced to screen readers via ARIA live regions
 

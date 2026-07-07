@@ -46,18 +46,19 @@ The following assumptions were made where the validated idea or conceptual docum
 
 ---
 
-### Story
+### Story <!-- updated: 2026-07-07 (STORY-004 reconcile) -->
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
-| project_id | UUID | Yes | FK → Project; immutable | |
+| project_id | UUID | Yes | FK → Project; CASCADE DELETE; immutable | |
 | title | string | Yes | 1–500 chars | |
 | content | text | No | max 50,000 chars | Markdown |
 | status | string | No | from project's `story_statuses` dictionary if provided; null allowed | e.g. "planned", "in-progress", "accepted" |
 | labels | JSON array | No | array of `{key: string, value: string}`; all keys free-form | arbitrary metadata; status is NOT stored here |
-| created_at | timestamp | Yes | set on create | |
-| updated_at | timestamp | Yes | set on update | |
+| milestone_id | UUID | No | nullable; no FK constraint until STORY-012 creates the milestone table | column exists in DB; FK added by STORY-012 migration |
+| created_at | timestamp | Yes | set on create | timezone-aware |
+| updated_at | timestamp | Yes | set on update | timezone-aware |
 
 **Computed (not stored):** `aggregate_state` — computed on demand from task statuses; see `GET /stories/:id/aggregate`.
 
@@ -345,7 +346,15 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 
 ---
 
-### Stories
+### Stories <!-- updated: 2026-07-07 (STORY-004 reconcile) -->
+
+> **As-built notes (STORY-004):**
+> - Invalid UUID path params (`:projectId`, `:id`) return 404, not 422 — consistent with the projects domain (ADR-011).
+> - The REST controller uses a single `APIRouter` mounted at `/v1/stories`. All story routes (POST, GET list, GET by id, PUT, DELETE) are served under the `/v1/stories` prefix; the `/projects` prefix was removed before acceptance.
+> - `PUT /stories/:id` omitting `status` in the request body leaves the current status **unchanged**. To explicitly remove a previously-set status, send `"status": null`. This applies to `content` as well.
+> - `PUT /stories/:id` omitting `labels` in the request body leaves the current labels **unchanged**. Sending `"labels": []` clears all labels (valid).
+> - The `delete_story` MCP tool returns `{"success": true}` (MCP tools must return a value; void return is not valid in the MCP tool schema).
+> - `GET /stories/:id/aggregate` is **not yet implemented** — it requires the tasks domain (STORY-005). The endpoint is defined in the contract; implementation is deferred.
 
 #### POST /projects/:projectId/stories
 - **Auth:** none  **Rate limit:** 1,000 req/min

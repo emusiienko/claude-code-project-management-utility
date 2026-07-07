@@ -10,3 +10,4 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-014](STORY-014-docker-uv/description.md) | Backend Docker image uses uv | fix | P1 | Accepted | | | ✓ | ✓ | | |
 | [STORY-003](STORY-003-project-management/description.md) | Project Management | feature | P0 | Accepted | ✓ | | ✓ | ✓ | ✓ | ✓ |
 | [STORY-015](STORY-015-icon-buttons/description.md) | Replace Text Action Buttons with Lucide Icons | fix | P2 | Accepted | ✓ | | ✓ | ✓ | ✓ | |
+| [STORY-004](STORY-004-story-management/description.md) | Story Management | feature | P0 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |

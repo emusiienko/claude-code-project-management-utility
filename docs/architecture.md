@@ -79,7 +79,7 @@ of business logic and the only layer that touches the data layer.
 
 - `backend/app/core/` — app factory, configuration, DB engine/session, centralized error handling, filesystem storage helper, dictionary-resolution helper, common base classes
 - `backend/app/projects/` — Project CRUD <!-- updated: 2026-07-06 (STORY-003 reconcile): full domain slice — model, repository, service, schema, REST controller (five `/v1` endpoints), and five mirrored MCP tools. Replaced the STORY-013 stub wholesale. First true domain entity; establishes the per-domain package pattern for stories 004+. -->
-- `backend/app/stories/` — Story CRUD + on-demand task aggregation
+- `backend/app/stories/` — Story CRUD + on-demand task aggregation <!-- updated: 2026-07-07 (STORY-004 reconcile): full domain slice built — model, repository (dialect-aware label-filtered paginated list, ADR-012), service (parent-project existence, effective `story_statuses` validation via the `EffectiveDictionary` Protocol, label-replace semantics), schema, single REST router at `/v1/stories`, and five mirrored MCP tools. On-demand task aggregation (`GET /stories/:id/aggregate`) remains deferred to STORY-005 (tasks). -->
 - `backend/app/tasks/` — Task CRUD + detail composition + on-demand dependency computation
 - `backend/app/task_links/` — typed directed links between tasks (same project only)
 - `backend/app/attachments/` — document/image/external-ref attachments + version history; filesystem-backed
@@ -196,7 +196,8 @@ are normative constraints for the backend implementor (see ADR-002).
 ### Tables
 
 - **project** — `id` (UUID PK), `name` (unique, case-insensitive, 1–200), `description`, `created_at`, `updated_at`
-- **story** — `id`, `project_id` (FK→project, CASCADE), `title`, `content`, `status` (validated vs effective `story_statuses`), `labels` (JSON array), `milestone_id` (FK→milestone, SET NULL), `created_at`, `updated_at`
+- **story** — `id`, `project_id` (FK→project, CASCADE), `title`, `content`, `status` (validated vs effective `story_statuses`), `labels` (JSON array), `milestone_id` (SET NULL — see below), `created_at`, `updated_at` <!-- updated: 2026-07-07 (STORY-004 reconcile): `0003_story` ships `milestone_id` as an **FK-less** nullable column; the intended FK→milestone (`ON DELETE SET NULL`) is added by STORY-012's migration when the `milestone` table is created. See ADR-013. -->
+  - Three indexes: `(project_id, created_at DESC)`, `(project_id, status)`, `(milestone_id)`.
 - **task** — `id`, `story_id` (FK→story, CASCADE), `title`, `content`, `type`, `status`, `assignee_role`, `creator_role`, `labels` (JSON array), `created_at`, `updated_at`
 - **task_link** — `id`, `source_task_id` (FK→task, CASCADE), `target_task_id` (FK→task, CASCADE), `link_type`; unique (`source_task_id`, `target_task_id`, `link_type`); `target ≠ source`; both tasks same project
 - **attachment** — `id`, `container_type` (story|task|milestone), `container_id`, `type`, `kind` (document|image|external-ref), `mime_type` (cond.), `file_size_bytes` (cond.), `file_path` (internal, never exposed), `archived_at`, `external_url` (cond.), `external_status`, `created_at`, `updated_at`
@@ -219,10 +220,12 @@ As specified in the backend requirements: story `(project_id, created_at DESC)` 
 ### Portability constraints (SQLite ⇄ PostgreSQL)
 
 - **UUID** — portable UUID type: native `uuid` on Postgres, `CHAR(36)` string on SQLite.
-- **labels (JSON array)** — JSON type mapping to `jsonb` (Postgres) / `JSON` text (SQLite). Filtering by `label_key`/`label_value` is dialect-aware inside the data layer (`json_each`/`json_extract` on SQLite; `jsonb` operators on Postgres). Adapters and services see one interface.
+- **labels (JSON array)** — JSON type mapping to `jsonb` (Postgres) / `JSON` text (SQLite). Filtering by `label_key`/`label_value` is dialect-aware inside the data layer (`json_each` + `json_extract` on SQLite; `jsonb_array_elements` + `@>` containment on Postgres, each in an `EXISTS` subquery). Services and controllers see one neutral `label_key`/`label_value` interface. <!-- updated: 2026-07-07 (STORY-004 reconcile): implemented and proven portable in the story repository — first JSON-array filter in the codebase; reusable by tasks/comments. Dialect detected via `session.get_bind().dialect.name`. See ADR-012. -->
+  - A `label_key` no story carries yields an empty page (never an error); `label_key` and `label_value` narrow independently. JSON-array filters are not B-tree indexable — acceptable at the ≤1,000-row list scale.
 - **Case-insensitive uniqueness** (project/milestone name) implemented dialect-aware (e.g. `LOWER()` functional uniqueness).
 - **Concurrency** — SQLite runs in WAL mode to allow concurrent reads under the ≥5-request concurrency requirement.
-- **Migrations** — Alembic scripts avoid dialect-only DDL; branch only where unavoidable. <!-- updated: 2026-07-06 (STORY-003 reconcile) --> The chain is authored in **dependency order, root-table-first**: `project` is the first revision (`0001_project`, down: None), children come after, and every FK is declared **inline** toward an already-existing parent (no deferred FK, no `batch_alter_table`). Each schema revision **bundles its own seed** in the same `upgrade()`. See ADR-010. The functional `LOWER(name)` unique index is created via `op.create_index(..., sa.text("LOWER(name)"))` in the migration (not `__table_args__`), for portable reflection across dialects.
+- **Migrations** — Alembic scripts avoid dialect-only DDL; branch only where unavoidable. <!-- updated: 2026-07-06 (STORY-003 reconcile) --> The chain is authored in **dependency order, root-table-first**: `project` is the first revision (`0001_project`, down: None), children come after, and every FK is declared **inline** toward an already-existing parent (no deferred FK, no `batch_alter_table`). Each schema revision **bundles its own seed** in the same `upgrade()`. See ADR-010. The functional `LOWER(name)` unique index is created via `op.create_index(..., sa.text("LOWER(name)"))` in the migration (not `__table_args__`), for portable reflection across dialects. <!-- updated: 2026-07-07 (STORY-004 reconcile): `0003_story` (down: `0002_settings`) creates the `story` table with an inline `project_id` FK and three indexes. The one exception to inline-FK-toward-existing-parent is `story.milestone_id`: it ships as an FK-less column because its parent `milestone` table is created only in STORY-012, which adds the FK then (portably; SQLite needs `batch_alter_table`). See ADR-013. -->
+  - **UUID DDL:** migration DDL declares UUID columns as `String(36)` (portable across both dialects); the dialect abstraction (`UUIDType`) lives in the ORM layer, not in the migration.
 
 ### Seed data
 
