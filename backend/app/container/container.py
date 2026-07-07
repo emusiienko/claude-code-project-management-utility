@@ -7,6 +7,8 @@ from app.projects.repository import ProjectRepository
 from app.projects.service import ProjectService
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
 from app.settings.service import SettingsService
+from app.stories.repository import StoryRepository
+from app.stories.service import StoryService
 
 
 class AppContainer(containers.DeclarativeContainer):
@@ -72,4 +74,20 @@ class AppContainer(containers.DeclarativeContainer):
         SettingsService,
         system_repo=system_settings_repository,
         project_repo=project_settings_repository,
+    )
+
+    # --------------------------------------------------------------------------
+    # Stories domain — Factories (resolved per injection)
+    # --------------------------------------------------------------------------
+
+    story_repository = providers.Factory(
+        StoryRepository,
+        session=db_session,
+    )
+
+    story_service = providers.Factory(
+        StoryService,
+        repo=story_repository,
+        project_repo=project_repository,
+        effective_dict=settings_service,
     )

@@ -13,7 +13,9 @@ from app.mcp.server import mcp_server_v1
 # Wiring also imports every module in each package, which triggers the
 # @mcp_server_v1.tool() decorators in domain mcp_tools.py files — no
 # explicit register_*() calls needed.
-container.wire(packages=["app.api", "app.mcp", "app.projects", "app.settings", "app.container"])
+container.wire(
+    packages=["app.api", "app.mcp", "app.projects", "app.settings", "app.stories", "app.container"]
+)
 
 # Named `application` to avoid shadowing the `app` package in Pyright analysis.
 # Uvicorn convention: `app = application` alias at module level so callers can

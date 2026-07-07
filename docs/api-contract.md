@@ -11,6 +11,12 @@
 > (e.g. `create_task`, `list_stories`, `get_task_detail`); request and response payloads use the same
 > schemas defined here. Domain errors map to MCP tool errors with the same `code`.
 
+> **v1.1 revision — approved by user 2026-07-07 (Stories domain only).** The Stories list/create
+> endpoints move from the project-scoped path `/projects/:projectId/stories` to a single base path
+> `/stories`. `project_id` becomes a request-body field (POST) and a required query parameter (GET
+> list). All other Story endpoints, request/response schemas, and every other domain are unchanged.
+> Future Story filters (e.g. `milestone_id`) follow the same query-parameter pattern.
+
 ---
 
 ## Shared shapes
@@ -209,14 +215,16 @@ interface UpdateProject { name?: string; description?: string; }
 ## Stories
 
 ```typescript
-// POST /projects/:projectId/stories     -> 201 Envelope<Story>   | 404, 422
+// POST /stories                          -> 201 Envelope<Story>   | 404, 422
 interface CreateStoryBody {
+  project_id: string;         // required — parent project
   title: string; content?: string; status?: string;
   labels?: Label[]; milestone_id?: string | null;
 }
 
-// GET  /projects/:projectId/stories?page&limit&status&label_key&label_value
+// GET  /stories?project_id&page&limit&status&label_key&label_value
 //                                        -> 200 ListEnvelope<Story> | 404
+//   project_id is a required query param. 404 if the project does not exist.
 // GET  /stories/:id                      -> 200 Envelope<Story>     | 404
 // PUT  /stories/:id                      -> 200 Envelope<Story>     | 404, 422
 interface UpdateStoryBody {
@@ -243,6 +251,12 @@ interface StoryDetail extends Story {
 ```
 
 **422 example:** `{ "error": "Status value 'foo' is not allowed. Allowed: planned, in-progress, pending-approval, accepted.", "code": "UNPROCESSABLE" }`
+
+> **Relation to Cross-project Queries (v1.1).** The `GET /stories` list above is the single primary
+> Story list endpoint and requires `project_id`. The `GET /stories` entry under *Cross-project
+> Queries* describes the same path with `project_id` **optional** (omit to list stories across all
+> projects). Both are served by one handler: when `project_id` is present it scopes to that project
+> (404 if the project is missing); when absent it returns stories across all projects.
 
 > `milestone_id` constraint: the story's project must be in the milestone's associated project set,
 > else `422` "Story's project is not associated with this milestone."

@@ -6,6 +6,7 @@
  */
 
 import { Pencil, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { Project } from "@/api/types";
 import { IconButton } from "@/shared/components/IconButton";
 import { PageLoader } from "@/shared/components/PageLoader";
@@ -92,7 +93,14 @@ export function ProjectList({
               key={project.id}
               className="border-b border-border last:border-0 hover:bg-surface-muted/50"
             >
-              <td className="px-4 py-3 font-medium text-text">{project.name}</td>
+              <td className="px-4 py-3 font-medium text-text">
+                <Link
+                  to={`/projects/${project.id}`}
+                  className="text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  {project.name}
+                </Link>
+              </td>
               <td className="hidden px-4 py-3 text-text-secondary sm:table-cell">
                 {project.description ? (
                   <span className="line-clamp-2">{project.description}</span>

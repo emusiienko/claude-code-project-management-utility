@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import type { Project } from "@/api/types";
 import { ProjectList } from "./ProjectList";
@@ -26,7 +27,7 @@ const defaultProps = {
 describe("ProjectList", () => {
   it("renders edit and delete icon buttons for each project row", () => {
     const project = makeProject({ name: "Alpha" });
-    render(<ProjectList {...defaultProps} projects={[project]} />);
+    render(<MemoryRouter><ProjectList {...defaultProps} projects={[project]} /></MemoryRouter>);
 
     expect(screen.getByRole("button", { name: "Edit Alpha" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Alpha" })).toBeInTheDocument();
@@ -36,7 +37,7 @@ describe("ProjectList", () => {
     const handleEdit = vi.fn();
     const project = makeProject({ name: "Bravo" });
     render(
-      <ProjectList {...defaultProps} projects={[project]} onEdit={handleEdit} />
+      <MemoryRouter><ProjectList {...defaultProps} projects={[project]} onEdit={handleEdit} /></MemoryRouter>
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Edit Bravo" }));
@@ -49,7 +50,7 @@ describe("ProjectList", () => {
     const handleDelete = vi.fn();
     const project = makeProject({ name: "Charlie" });
     render(
-      <ProjectList {...defaultProps} projects={[project]} onDelete={handleDelete} />
+      <MemoryRouter><ProjectList {...defaultProps} projects={[project]} onDelete={handleDelete} /></MemoryRouter>
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Delete Charlie" }));
@@ -63,7 +64,7 @@ describe("ProjectList", () => {
       makeProject({ id: "00000000-0000-0000-0000-000000000001", name: "Alpha" }),
       makeProject({ id: "00000000-0000-0000-0000-000000000002", name: "Beta" }),
     ];
-    render(<ProjectList {...defaultProps} projects={projects} />);
+    render(<MemoryRouter><ProjectList {...defaultProps} projects={projects} /></MemoryRouter>);
 
     expect(screen.getByRole("button", { name: "Edit Alpha" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Alpha" })).toBeInTheDocument();
@@ -77,7 +78,7 @@ describe("ProjectList", () => {
       makeProject({ id: "00000000-0000-0000-0000-000000000001", name: "Alpha" }),
       makeProject({ id: "00000000-0000-0000-0000-000000000002", name: "Beta" }),
     ];
-    render(<ProjectList {...defaultProps} projects={projects} onEdit={handleEdit} />);
+    render(<MemoryRouter><ProjectList {...defaultProps} projects={projects} onEdit={handleEdit} /></MemoryRouter>);
 
     await userEvent.click(screen.getByRole("button", { name: "Edit Beta" }));
 
@@ -86,19 +87,21 @@ describe("ProjectList", () => {
   });
 
   it("shows empty state when projects list is empty", () => {
-    render(<ProjectList {...defaultProps} projects={[]} />);
+    render(<MemoryRouter><ProjectList {...defaultProps} projects={[]} /></MemoryRouter>);
 
     expect(screen.getByText("No projects yet")).toBeInTheDocument();
   });
 
   it("shows error alert when isError is true", () => {
     render(
-      <ProjectList
-        {...defaultProps}
-        isError
-        error={new Error("Network error")}
-        projects={undefined}
-      />
+      <MemoryRouter>
+        <ProjectList
+          {...defaultProps}
+          isError
+          error={new Error("Network error")}
+          projects={undefined}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByRole("alert")).toBeInTheDocument();

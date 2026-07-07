@@ -16,6 +16,7 @@ from app.core.database.base import Base
 # as it is implemented.
 from app.projects.model import Project  # noqa: F401
 from app.settings.model import ProjectSettings, SystemSettings  # noqa: F401
+from app.stories.model import Story  # noqa: F401
 
 config = context.config
 

@@ -503,6 +503,9 @@ is set explicitly on the command line; `.env` is not used for tests.
 - SQLite runs in WAL mode — enable via `PRAGMA journal_mode=WAL` on connection in `core/database/`
 - Case-insensitive uniqueness for project/milestone names: implemented via a functional unique index
   (`LOWER(name)`) — dialect-aware DDL in the migration, transparent to the service layer
+- **SQL dialect differences**: All logic that differs between SQLite and PostgreSQL (JSON operators,
+  CAST syntax, etc.) must be extracted into reusable helper functions in `backend/app/core/database/`.
+  Domain repositories call these helpers — they do not contain inline dialect branches.
 
 ---
 

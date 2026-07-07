@@ -27,4 +27,21 @@ export const API_PATHS = {
   /** DELETE /v1/projects/:projectId/settings/:key — clears a single override. */
   PROJECT_SETTINGS_KEY: (projectId: string, key: string) =>
     `/v1/projects/${projectId}/settings/${key}`,
+
+  // ---------------------------------------------------------------------------
+  // Stories
+  // ---------------------------------------------------------------------------
+
+  /**
+   * GET  /v1/stories?project_id=&page=&limit=&status=&label_key=&label_value= — paginated, filtered list.
+   * POST /v1/stories — create a story (project_id in request body).
+   */
+  STORIES: "/v1/stories",
+
+  /**
+   * GET    /v1/stories/:id — fetch a single story.
+   * PUT    /v1/stories/:id — update a story.
+   * DELETE /v1/stories/:id — permanently delete a story.
+   */
+  STORY: (id: string) => `/v1/stories/${id}`,
 } as const;

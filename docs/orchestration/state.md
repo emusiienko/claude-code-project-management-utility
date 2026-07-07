@@ -1,6 +1,10 @@
 ## Active wait
 waiting_for: none
 
+## STORY-004 design notes
+- Plan confirmed, no revision — implementation can start
+- SESSION-009 completed: labels = free-form {key,value}, settings dicts = fixed set of 6, status only dict-bound field on story
+
 ## Recent changes
 - 2026-07-02: STORY-013 accepted; STORY-001 + STORY-013 fully reconciled and archived
 - 2026-07-02: STORY-014 (Docker uv) accepted and fully reconciled

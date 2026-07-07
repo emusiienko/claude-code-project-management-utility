@@ -1,14 +1,15 @@
 /**
  * Application route table.
  *
- * Only the 3 top-level routes from the Web UI requirements are registered here:
- *   /          — Projects & Milestones (home)
- *   /sessions  — Sessions list
- *   /settings  — System settings
+ * Top-level routes from the Web UI requirements:
+ *   /                       — Projects list (home)
+ *   /projects/:projectId    — Stories sub-view for a project (STORY-004)
+ *   /sessions               — Sessions list
+ *   /settings               — System settings
  *
- * Sub-routes under /projects/:id/... (Stories, Tasks, Milestones, etc.) are
- * added when those features are implemented. All pages are lazy-loaded with
- * React.lazy + Suspense to keep the initial bundle small.
+ * All pages are lazy-loaded with React.lazy + Suspense to keep the initial
+ * bundle small. The 3-item top-level nav rule holds — /projects/:projectId
+ * is a sub-view, not a nav entry.
  */
 
 import React, { Suspense } from "react";
@@ -22,6 +23,9 @@ import { PageLoader } from "@/shared/components/PageLoader";
 
 const ProjectsPage = React.lazy(
   () => import("@/features/projects/ProjectsPage"),
+);
+const StoriesPage = React.lazy(
+  () => import("@/features/stories/StoriesPage"),
 );
 const SessionsPage = React.lazy(
   () => import("@/features/sessions/SessionsPage"),
@@ -47,12 +51,22 @@ export const router = createBrowserRouter([
     path: "/",
     element: <Layout />,
     children: [
-      // Home: Projects & Milestones combined view (requirement: route `/`)
+      // Home: Projects list (requirement: route `/`)
       {
         index: true,
         element: (
           <SuspendedPage>
             <ProjectsPage />
+          </SuspendedPage>
+        ),
+      },
+
+      // Stories sub-view: /projects/:projectId — not a top-level nav entry
+      {
+        path: "projects/:projectId",
+        element: (
+          <SuspendedPage>
+            <StoriesPage />
           </SuspendedPage>
         ),
       },

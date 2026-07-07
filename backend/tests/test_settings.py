@@ -181,24 +181,27 @@ class TestUpdateSystemSettings:
             json={"link_types": SEED_DEFAULTS["link_types"]},
         )
 
-    async def test_unknown_key_returns_400(self, client: AsyncClient) -> None:
+    async def test_unknown_key_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
             json={"non_existent_key": ["a", "b"]},
         )
-        assert response.status_code == 400, (
-            f"Unknown key should return 400, got {response.status_code}"
+        assert response.status_code == 422, (
+            f"Unknown key should return 422, got {response.status_code}"
         )
 
     async def test_unknown_key_error_code(self, client: AsyncClient) -> None:
+        # Pydantic model_validator raises ValueError → FastAPI returns 422 with
+        # default {"detail": [...]} structure (request_validation_error_handler
+        # was removed in SESSION-007; see docs/sessions/SESSION-007-*.md).
         response = await client.put(
             "/v1/system/settings",
             json={"non_existent_key": ["a", "b"]},
         )
         body = response.json()
-        assert "code" in body, "Error response missing 'code'"
-        assert body["code"] == "VALIDATION_ERROR", (
-            f"Expected VALIDATION_ERROR, got {body.get('code')}"
+        assert "detail" in body, "Pydantic 422 response missing 'detail'"
+        assert isinstance(body["detail"], list), (
+            f"'detail' should be a list, got {type(body['detail'])}"
         )
 
     async def test_empty_values_returns_400(self, client: AsyncClient) -> None:
@@ -545,7 +548,7 @@ class TestUpdateProjectSettings:
             f"Expected exact override {override}, got {data['task_statuses']}"
         )
 
-    async def test_unknown_key_returns_400(
+    async def test_unknown_key_returns_422(
         self, client: AsyncClient, create_project
     ) -> None:
         project_id = create_project("Unknown Key Project")
@@ -553,8 +556,8 @@ class TestUpdateProjectSettings:
             f"/v1/projects/{project_id}/settings",
             json={"unknown_key": ["a", "b"]},
         )
-        assert response.status_code == 400, (
-            f"Unknown key should return 400, got {response.status_code}"
+        assert response.status_code == 422, (
+            f"Unknown key should return 422, got {response.status_code}"
         )
 
     async def test_empty_values_returns_400(

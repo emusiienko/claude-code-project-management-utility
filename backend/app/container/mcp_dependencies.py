@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.container.container import AppContainer
 from app.projects.service import ProjectService
 from app.settings.service import SettingsService
+from app.stories.service import StoryService
 
 
 @asynccontextmanager
@@ -27,5 +28,14 @@ async def provide_settings_service(
 async def provide_project_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: ProjectService = Provide[AppContainer.project_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_story_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: StoryService = Provide[AppContainer.story_service],
 ):
     yield service

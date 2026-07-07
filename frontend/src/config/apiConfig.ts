@@ -13,6 +13,8 @@
 export const PAGINATION = {
   /** Full project list — the API maximum is 100. Used by the project selector in Settings. */
   PROJECTS: 100,
+  /** Default page size for the stories list within a project. */
+  STORIES: 50,
 } as const;
 
 /**
@@ -28,4 +30,6 @@ export const DATA_FRESHNESS = {
   PROJECT_SETTINGS: 60 * 1000,
   /** Project list — rarely changes during a working session. */
   PROJECTS: 30 * 1000,
+  /** Story list — user-generated content; keep fresh but avoid redundant fetches. */
+  STORIES: 0,
 } as const;

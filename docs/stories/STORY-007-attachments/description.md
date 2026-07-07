@@ -30,3 +30,4 @@ Attachments are the artifact layer of the utility. Plans, architecture docs, imp
 - [ ] Attempting to update an archived document attachment is rejected
 - [ ] Requesting the file download for an external-reference attachment returns an error: "External reference attachments do not have a stored file."
 - [ ] Using an attachment type not in the project's `attachment_types` dictionary is rejected with a validation error
+- [ ] When a story is deleted, all its story-level attachments are permanently removed
