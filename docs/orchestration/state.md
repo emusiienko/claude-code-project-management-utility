@@ -15,3 +15,4 @@ waiting_for: none
 - 2026-07-06: STORY-003 accepted and fully reconciled — ADR-010 (migrations), ADR-011 (UUID coercion + validation placement); archived
 - 2026-07-06: STORY-015 accepted and fully reconciled — Lucide icons on Projects + Settings, IconButton primitive, Vitest frontend test suite (27 tests)
 - 2026-07-06: Code review conventions established: no Response/Body schema suffixes (backend + frontend), UUID coercion in BaseRepository, field validation in Pydantic schemas, DomainError.to_tool_error()
+- 2026-07-10: STORY-016 (Navigation & UX Redesign) fully reconciled — ADR-014 (app switcher shell), requirements_web.md updated, 30 new frontend tests (140 total), TC-023–TC-034 merged into master QA registry; archived

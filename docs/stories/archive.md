@@ -11,3 +11,4 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-003](STORY-003-project-management/description.md) | Project Management | feature | P0 | Accepted | ✓ | | ✓ | ✓ | ✓ | ✓ |
 | [STORY-015](STORY-015-icon-buttons/description.md) | Replace Text Action Buttons with Lucide Icons | fix | P2 | Accepted | ✓ | | ✓ | ✓ | ✓ | |
 | [STORY-004](STORY-004-story-management/description.md) | Story Management | feature | P0 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| [STORY-016](STORY-016-navigation-ux-redesign/description.md) | Navigation & UX Redesign | feature | P0 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |

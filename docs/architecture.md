@@ -91,24 +91,46 @@ of business logic and the only layer that touches the data layer.
 - `backend/app/mcp/` — resolving mcp protocol
 - `backend/migrations/` — Alembic migration scripts
 
-### Frontend — screen-based decomposition
+### Frontend — feature-based decomposition
 
 > Internal organization owned by frontend-developer; recorded here at folder-boundary level only.
 
-- `frontend/src/screens/` — one folder per route/screen (projects+milestones, stories list, story detail, task detail modal, milestone detail, sessions, system settings, project settings)
+- `frontend/src/app/` — application composition root and layout shells: providers, router, query client, and the three nested layout shells (`RootLayout`, `AppShell`, `ProjectShell`) plus the top-bar/sidebar/redirect components
+- `frontend/src/features/` — one folder per feature/screen (projects, stories, board, settings, and lazy-loaded placeholders for tasks, task-links, attachments, comments, sessions, milestones, cross-project)
 - `frontend/src/shared/` — reusable UI components, hooks, utilities
-- `frontend/src/core/` — app config, routing, providers, error boundaries
-- `frontend/src/api/` — REST client, contract types, query/mutation hooks
+- `frontend/src/core/` — REST client and cross-cutting client concerns
+- `frontend/src/api/` — contract types, endpoint functions, path/config constants
+- `frontend/src/config/` — cache-key registry and other client config
 
-<!-- updated: 2026-06-30 (STORY-002 reconcile) -->
-**Navigation model (established in STORY-002):** the layout shell exposes exactly **three** top-level
-navigation entries — **Projects** (home, `/`), **Sessions** (`/sessions`), and **Settings**
-(`/settings`). The remaining domains (Stories, Tasks, Task Links, Attachments, Comments, Milestones,
-Cross-project) are **sub-views reached through their parent context**, not top-level nav items. Routes
-for those domains still exist as lazy-loaded placeholder screens (so the route table is complete from
-day one), but they are not surfaced in the navigation bar. STORY-003+ replace a placeholder with the
-real screen; they do not add top-level nav entries beyond the three above without a requirements
-change.
+<!-- updated: 2026-07-10 (STORY-016 reconcile) -->
+**Navigation model (redesigned in STORY-016, supersedes the STORY-002 flat top-nav; see ADR-014):**
+the shell is a **three-level nested layout hierarchy** driven by an **app switcher**, replacing the
+former flat three-item top nav (Projects / Sessions / Settings).
+
+- **RootLayout** (flat root) — hosts the top bar: an app-switcher combobox (`Task Manager` /
+  `Sessions`) on the left and a `⚙ Settings` button on the right (Task Manager mode only). `/projects`,
+  `/sessions`, and `/settings` render directly in its outlet with **no** project chrome.
+- **AppShell** (Task Manager mode) — renders the **collapsible project sidebar** (project combobox,
+  project list with active highlight, `⚙ Gestisci progetti` link to `/projects`) beside its outlet.
+  Collapsed state persists in local storage. All project-scoped routes (`/projects/:id/*`) render here.
+- **ProjectShell** — renders the four-tab per-project **sub-navigation** (Stories, Board, Milestones,
+  Settings) with active-tab highlight, plus a nested outlet. An unknown project ID renders an inline
+  "Not found" message linking back to `/projects`.
+
+Leaf routes render in the ProjectShell outlet: Stories list (`/projects/:id/stories`), Board
+(`/projects/:id/board`), Milestones (`/projects/:id/milestones` — still the STORY-012 placeholder),
+and Project Settings (`/projects/:id/settings`). The **Story Detail slide-over** is a **nested child
+route** of the Stories list (`/projects/:id/stories/:storyId`): it animates in from the right over a
+dimmed, still-mounted list/board, so a direct visit renders the project view with the slide-over
+already open; `✕`, `Escape`, and the `← Stories` breadcrumb close it back to the parent route.
+
+`/` is a redirect (`RootRedirect`) to `/projects/:lastId/stories` using the last-visited project ID
+from local storage, or `/projects` when none exists. In Sessions mode (`/sessions`) no sidebar and no
+sub-nav render and the `⚙ Settings` button is hidden.
+
+The prior top-level nav rule still holds in spirit: the remaining domains (Tasks, Task Links,
+Attachments, Comments) are sub-views reached through their parent context, not app-switcher entries.
+Sessions is now a distinct **app** (via the switcher), not a top-nav item.
 
 ---
 
@@ -260,11 +282,9 @@ access-control mechanisms.
 
 ## State Management (client)
 
-- **Server state** lives in TanStack Query; mutations invalidate the relevant queries. The Kanban
-  drag-and-drop uses optimistic updates against `PUT /tasks/:id` and rolls back with an error toast
-  on failure.
-- **Local UI state** (e.g. story-detail right-panel open/closed) is persisted per story in browser
-  local storage.
+- **Server state** lives in TanStack Query; mutations invalidate the relevant queries. Kanban
+  drag-and-drop uses optimistic updates that roll back on failure. <!-- updated: 2026-07-10 (STORY-016 reconcile): the **Board** drags **stories** between status columns via `PUT /v1/stories/:id` (optimistic cache update, rollback on error; columns derived from the project's effective `story_statuses` dictionary, never hardcoded). The task-level Kanban that drags tasks via `PUT /tasks/:id` is still deferred to STORY-005; the slide-over renders a task-kanban placeholder only. -->
+- **Local UI state** is persisted in browser local storage via a shared `useLocalStorage` hook. <!-- updated: 2026-07-10 (STORY-016 reconcile) --> Three consumers: the sidebar collapsed/expanded state (global), the last-visited project ID (drives the `/` redirect and app-switch return target), and the story-detail right-panel open/closed state (persisted **per story**, keyed by story ID).
 - The frontend holds **no business logic** — all validation and dictionary rules are server-side;
   the UI only mirrors them for UX (e.g. populating dropdowns from `GET /projects/:id/settings/effective`).
 
@@ -338,6 +358,13 @@ with SQLite there is no `db` container.
 ## Known Divergences (reconcile log)
 
 <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+
+- **Settings surfaces are split by scope (STORY-016).** <!-- updated: 2026-07-10 (STORY-016 reconcile) -->
+  Global `/settings` now shows **only** system-level dictionary defaults; its former "Project
+  Overrides" tab was removed. The project-overrides UI (the existing effective-settings panel,
+  unchanged) is relocated to the `Settings` sub-nav tab at `/projects/:id/settings` inside
+  ProjectShell. This is a relocation of already-working UI — the clear-override gap below is neither
+  fixed nor worsened by STORY-016 and remains open.
 
 - **Clear-override has no end-to-end surface.** The Settings acceptance criterion "a project override
   for a specific key can be cleared, restoring the system default" is **not satisfied end to end** as

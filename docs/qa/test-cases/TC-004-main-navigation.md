@@ -2,7 +2,7 @@
 id: TC-004
 tags: @smoke @regression
 story: STORY-002
-status: Active
+status: Inactive
 ---
 
 # TC-004: Main navigation items match planned screens
