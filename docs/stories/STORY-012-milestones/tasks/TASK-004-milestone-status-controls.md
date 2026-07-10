@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: frontend-developer
 story: STORY-012
 ---
@@ -42,10 +42,39 @@ None.
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-10
+
 **What was done**:
-**Deviations from plan**:
+Added Activate and Finish status controls to each milestone row in the Milestones tab, together with
+a confirmation dialog for the "activate over an already-active milestone" case.
+
+- Created `ActivateMilestoneDialog` — a `<dialog>`-based confirmation that names the currently-active
+  milestone ("X is currently Active and will be set back to Planned") before the user confirms.
+- Updated `MilestoneList` to accept `onActivate`, `onFinish`, and `pendingStatusIds` props.
+  Each row conditionally renders an Activate button (`Play` icon) when `status !== "active"` and
+  a Finish button (`CircleCheck` icon) when `status !== "finished"`. The `pendingStatusIds` set
+  disables both buttons while a mutation is in-flight for that specific row.
+- Rewrote `MilestonesPage` to wire the new props: `handleActivate` looks up the current active
+  milestone in the cached list; if one exists, it opens `ActivateMilestoneDialog`; otherwise it
+  calls `runActivate` directly. `handleFinish` calls the mutation directly with no dialog.
+  Inline error banner handles Finish errors (no modal is open during a Finish mutation).
+- The `useActivateMilestone` and `useFinishMilestone` hooks existed from TASK-003 — reused without
+  modification.
+
+**Deviations from plan**: None.
+
 **Technical decisions made**:
+- Activate action from `finished` status uses the same code path as from `planned` — no special
+  casing needed; the backend is idempotent and accepts any-status-to-active.
+- `pendingStatusIds` tracks in-flight mutations per-row (a `Set<string>`) rather than a single
+  `isPending` boolean, so multiple rows can be disabled independently if users act quickly.
+- Finish errors surface via an inline banner above the list (no modal required) since Finish is
+  a direct action with no pre-confirmation step.
+
 **Code locations**:
-**Technical debt noted**:
+- `frontend/src/features/milestones/components/ActivateMilestoneDialog.tsx` — new confirmation dialog
+- `frontend/src/features/milestones/components/MilestoneList.tsx` — added status action buttons + new props
+- `frontend/src/features/milestones/MilestonesPage.tsx` — wired activate/finish handlers + new modal state
+
+**Technical debt noted**: None.

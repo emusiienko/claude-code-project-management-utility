@@ -21,6 +21,7 @@ import { X, ChevronLeft, Pencil } from "lucide-react";
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
+import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
 import { TaskKanbanPlaceholder } from "./TaskKanbanPlaceholder";
 import { StoryRightPanel } from "./StoryRightPanel";
 import { StoryModal } from "./StoryModal";
@@ -61,10 +62,12 @@ export function StorySlideOver() {
   // Queries
   const { data: story, isLoading, isError } = useStory(storyId);
   const { data: effectiveSettings } = useProjectSettingsEffective(projectId);
+  const { data: milestonesEnvelope } = useProjectMilestones(projectId);
   const updateMutation = useUpdateStory();
 
   const storyStatusOptions = effectiveSettings?.story_statuses ?? [];
   const taskStatusOptions = effectiveSettings?.task_statuses ?? [];
+  const milestoneOptions = milestonesEnvelope?.data ?? [];
 
   // Close navigates back to the parent stories list
   const handleClose = useCallback(() => {
@@ -79,6 +82,17 @@ export function StorySlideOver() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [handleClose]);
+
+  // Milestone assignment — updates only milestone_id, no other fields touched
+  function handleMilestoneAssign(milestoneId: string | null) {
+    if (!story) return;
+    updateMutation.mutate(
+      { storyId: story.id, data: { milestone_id: milestoneId } },
+      {
+        onError: (err) => setMutationError(extractErrorMessage(err)),
+      },
+    );
+  }
 
   // Edit modal handlers
   function openEdit(s: Story) {
@@ -102,6 +116,8 @@ export function StorySlideOver() {
           content: values.content || undefined,
           status: values.status || undefined,
           labels: values.labels,
+          // null explicitly clears milestone assignment
+          milestone_id: values.milestone_id,
         },
       },
       {
@@ -242,6 +258,8 @@ export function StorySlideOver() {
                 story={story}
                 isOpen={isPanelOpen}
                 onToggle={() => setIsPanelOpen((prev) => !prev)}
+                onMilestoneAssign={handleMilestoneAssign}
+                isMilestoneUpdatePending={updateMutation.isPending}
               />
             </>
           )}
@@ -253,6 +271,7 @@ export function StorySlideOver() {
         <StoryModal
           story={editModal.story}
           statusOptions={storyStatusOptions}
+          milestoneOptions={milestoneOptions}
           onSubmit={handleEditSubmit}
           onClose={closeEdit}
           isSubmitting={updateMutation.isPending}

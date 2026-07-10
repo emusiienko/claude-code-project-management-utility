@@ -3,6 +3,8 @@ from dependency_injector import containers, providers
 from app.config import settings
 from app.core.database import build_engine, build_session_factory, init_db_session
 from app.core.storage import FilesystemStorage
+from app.milestones.repository import MilestoneRepository
+from app.milestones.service import MilestoneService
 from app.projects.repository import ProjectRepository
 from app.projects.service import ProjectService
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
@@ -77,6 +79,15 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
+    # Milestones domain — Factories (resolved per injection)
+    # --------------------------------------------------------------------------
+
+    milestone_repository = providers.Factory(
+        MilestoneRepository,
+        session=db_session,
+    )
+
+    # --------------------------------------------------------------------------
     # Stories domain — Factories (resolved per injection)
     # --------------------------------------------------------------------------
 
@@ -90,4 +101,13 @@ class AppContainer(containers.DeclarativeContainer):
         repo=story_repository,
         project_repo=project_repository,
         effective_dict=settings_service,
+        # Cross-domain: stories service validates milestone existence + project.
+        milestone_repo=milestone_repository,
+    )
+
+    milestone_service = providers.Factory(
+        MilestoneService,
+        repo=milestone_repository,
+        project_repo=project_repository,
+        story_repo=story_repository,
     )

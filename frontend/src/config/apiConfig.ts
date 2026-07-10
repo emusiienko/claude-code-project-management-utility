@@ -20,6 +20,11 @@ export const PAGINATION = {
    * A future story will add pagination or virtualization if projects exceed this.
    */
   BOARD_STORIES: 100,
+  /**
+   * Milestone list per project — projects are unlikely to have more than 100 milestones.
+   * Fetches all milestones in one request so the Board can find the active one.
+   */
+  MILESTONES: 100,
 } as const;
 
 /**
@@ -37,4 +42,9 @@ export const DATA_FRESHNESS = {
   PROJECTS: 30 * 1000,
   /** Story list — user-generated content; keep fresh but avoid redundant fetches. */
   STORIES: 0,
+  /**
+   * Milestone list per project — changes infrequently during a working session;
+   * 30 s avoids redundant refetches when the Board polls for the active milestone.
+   */
+  MILESTONES: 30 * 1000,
 } as const;

@@ -152,7 +152,7 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 | STORY-008 (Comments) | `test_comments.py` | CRUD on story/task/milestone; label filtering; author_role optional |
 | STORY-009 (Sessions) | `test_sessions.py` | CRUD; linked_story/task validation; archive; incomplete-session query |
 | STORY-010 (MCP) | skip | MCP tools are REST-equivalent; REST coverage is sufficient; MCP smoke only if requested |
-| STORY-012 (Milestones) | `test_milestones.py` | CRUD; M:N project association; name-per-project uniqueness; story assignment; story_count |
+| STORY-012 (Milestones) | `test_milestones.py` | CRUD; single-project ownership; name-per-project uniqueness (409); story assignment; story_count; activate/finish lifecycle; single-active invariant + cross-project isolation; delete-clears-assignment; milestone_id filter on story list |
 
 ### Run Commands
 
@@ -285,6 +285,8 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 | `frontend/src/features/board/BoardPage.test.tsx` | STORY-016 | Loading guard (settings/stories), error alert, empty-statuses message, one column per status, Board heading, story count summary, kanban region landmark |
 | `frontend/src/features/settings/SettingsPage.test.tsx` | STORY-016 | Heading present, SystemSettings renders, no Project Overrides tab, no System Defaults tab (flat page), copy mentions project context |
 | `frontend/src/features/settings/ProjectSettingsPage.test.tsx` | STORY-016 | Project Settings heading, EffectiveSettingsPanel renders, project ID passed from route, override descriptive copy |
+| `frontend/src/shared/hooks/useActiveMilestone.test.ts` | STORY-012 | empty list → null; all non-active → null; one active → returned; disabled when projectId empty |
+| `frontend/src/features/board/hooks/useBoardMilestoneFilter.test.ts` | STORY-012 | no active milestone (null ids/object); active milestone surfaces ids; handleShowAll clears filter; projectId change resets showingAll; isLoading forwarded |
 
 ### Run Commands
 

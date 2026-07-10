@@ -44,4 +44,30 @@ export const API_PATHS = {
    * DELETE /v1/stories/:id — permanently delete a story.
    */
   STORY: (id: string) => `/v1/stories/${id}`,
+
+  // ---------------------------------------------------------------------------
+  // Milestones
+  // ---------------------------------------------------------------------------
+
+  /**
+   * GET  /v1/milestones?project_id=&page=&limit= — list milestones (filter by project).
+   * POST /v1/milestones — create a milestone.
+   */
+  MILESTONES: "/v1/milestones",
+
+  /**
+   * GET    /v1/milestones/:id — fetch a single milestone.
+   * PUT    /v1/milestones/:id — update a milestone (name/description only).
+   * DELETE /v1/milestones/:id — delete a milestone.
+   */
+  MILESTONE: (id: string) => `/v1/milestones/${id}`,
+
+  /** POST /v1/milestones/:id/activate — activate a milestone. */
+  MILESTONE_ACTIVATE: (id: string) => `/v1/milestones/${id}/activate`,
+
+  /** POST /v1/milestones/:id/finish — finish a milestone. */
+  MILESTONE_FINISH: (id: string) => `/v1/milestones/${id}/finish`,
+
+  /** GET /v1/milestones/:id/stories — paginated list of stories assigned to this milestone. */
+  MILESTONE_STORIES: (id: string) => `/v1/milestones/${id}/stories`,
 } as const;

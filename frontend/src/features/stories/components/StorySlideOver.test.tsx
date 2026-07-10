@@ -28,12 +28,20 @@ vi.mock("@/features/settings/hooks/useProjectSettings", () => ({
   useProjectSettingsEffective: vi.fn(),
 }));
 
+// MilestoneAssignment (rendered in StoryRightPanel) calls useProjectMilestones
+// which requires a QueryClientProvider. Mock the hook to avoid that dependency.
+vi.mock("@/features/milestones/hooks/useMilestones", () => ({
+  useProjectMilestones: vi.fn(),
+}));
+
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
+import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
 
 const mockUseStory = vi.mocked(useStory);
 const mockUseUpdateStory = vi.mocked(useUpdateStory);
 const mockUseProjectSettingsEffective = vi.mocked(useProjectSettingsEffective);
+const mockUseProjectMilestones = vi.mocked(useProjectMilestones);
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -98,6 +106,11 @@ beforeEach(() => {
   } as never);
   mockUseProjectSettingsEffective.mockReturnValue({
     data: { story_statuses: ["Planned", "In Progress", "Done"], task_statuses: [] },
+  } as never);
+  // MilestoneAssignment inside StoryRightPanel needs a milestone list
+  mockUseProjectMilestones.mockReturnValue({
+    data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } },
+    isLoading: false,
   } as never);
 });
 

@@ -44,6 +44,7 @@ async def list_stories(
     status_filter: str | None = Query(default=None, alias="status"),
     label_key: str | None = Query(default=None),
     label_value: str | None = Query(default=None),
+    milestone_id: str | None = Query(default=None),
     _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
     service: StoryService = Depends(Provide[AppContainer.story_service]),
 ) -> dict:
@@ -54,6 +55,7 @@ async def list_stories(
         status_filter=status_filter,
         label_key_filter=label_key,
         label_value_filter=label_value,
+        milestone_id_filter=milestone_id,
     )
     total_pages = math.ceil(total / limit) if total > 0 else 0
     return {

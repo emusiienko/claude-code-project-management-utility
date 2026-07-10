@@ -11,6 +11,7 @@ class ApiVersion(str, Enum):
 class AppPath(str, Enum):
     PROJECTS = "projects"
     STORIES = "stories"
+    MILESTONES = "milestones"
     # Future domains: add one entry per top-level URL path segment.
 
     def __str__(self) -> str:

@@ -30,6 +30,8 @@ export interface StoryFilters {
   status?: string;
   label_key?: string;
   label_value?: string;
+  /** v1.2: filter to stories assigned to this milestone ID. */
+  milestone_id?: string;
 }
 
 /**

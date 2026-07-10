@@ -5,6 +5,13 @@
  * are derived from the project's effective settings, never hardcoded, so
  * the board stays consistent with the project's configured statuses.
  *
+ * Active-milestone filter (STORY-012, TASK-005):
+ *   When the project has an active milestone, the Board defaults to showing
+ *   only stories assigned to that milestone. A filter banner names the active
+ *   milestone and offers a "Show all stories" toggle that persists until the
+ *   user navigates away. When no active milestone exists, all stories are shown
+ *   with no filter indicator.
+ *
  * Drag-and-drop:
  *   - Dragging a card to a different column fires an optimistic update via
  *     useUpdateStory. The card moves immediately; a failed API call rolls back
@@ -30,13 +37,16 @@ import { PAGINATION } from "@/config/apiConfig";
 import { PageLoader } from "@/shared/components/PageLoader";
 import { useBoardDrag } from "./hooks/useBoardDrag";
 import { useBoardStories } from "./hooks/useBoardStories";
+import { useBoardMilestoneFilter } from "./hooks/useBoardMilestoneFilter";
 import { BoardColumn } from "./components/BoardColumn";
 import { BoardCard } from "./components/BoardCard";
+import { BoardMilestoneFilter } from "./components/BoardMilestoneFilter";
 import type { Story, ListEnvelope } from "@/api/types";
 
 /**
  * Board kanban view — one column per effective story status.
  * Drag cards between columns to update story status optimistically.
+ * Defaults to filtering by the project's active milestone when one exists.
  */
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -47,6 +57,10 @@ export default function BoardPage() {
   // Per-card inline error messages keyed by story ID
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
 
+  // Active-milestone filter state — defaults to filtering when a milestone is active
+  const { activeMilestoneId, activeMilestone, isLoading: milestoneLoading, handleShowAll } =
+    useBoardMilestoneFilter(safeProjectId);
+
   // Server data
   const { data: effectiveSettings, isLoading: settingsLoading } =
     useProjectSettingsEffective(safeProjectId);
@@ -54,10 +68,13 @@ export default function BoardPage() {
     data: storiesEnvelope,
     isLoading: storiesLoading,
     isError,
-  } = useBoardStories(safeProjectId);
+  } = useBoardStories(safeProjectId, activeMilestoneId);
 
   // The board-specific cache key used for optimistic updates
-  const boardCacheKey = CACHE_KEYS.stories.list(safeProjectId, { board: true });
+  const boardCacheKey = CACHE_KEYS.stories.list(safeProjectId, {
+    board: true,
+    milestone_id: activeMilestoneId ?? null,
+  });
 
   // Story status update mutation — used for optimistic update + rollback
   const updateMutation = useUpdateStory();
@@ -105,7 +122,7 @@ export default function BoardPage() {
         },
       );
     },
-    [safeProjectId, boardCacheKey, queryClient, updateMutation],
+    [boardCacheKey, queryClient, updateMutation],
   );
 
   /** Called when a drop targets a status no longer in the effective dictionary. */
@@ -139,7 +156,7 @@ export default function BoardPage() {
   // Render guards
   // ---------------------------------------------------------------------------
 
-  if (settingsLoading || storiesLoading) {
+  if (settingsLoading || storiesLoading || milestoneLoading) {
     return <PageLoader />;
   }
 
@@ -177,11 +194,56 @@ export default function BoardPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // Empty state for filtered view with no stories
+  // ---------------------------------------------------------------------------
+
+  const isFiltered = Boolean(activeMilestone);
+  const isEmpty = allStories.length === 0;
+
+  if (isFiltered && isEmpty) {
+    return (
+      <div className="flex flex-col gap-4 p-6">
+        {activeMilestone && (
+          <BoardMilestoneFilter
+            milestoneName={activeMilestone.name}
+            onShowAll={handleShowAll}
+          />
+        )}
+        <p
+          aria-live="polite"
+          className="rounded-md border border-dashed border-border p-8 text-center text-sm text-text-secondary"
+        >
+          No stories are assigned to milestone{" "}
+          <span className="font-medium text-text">
+            &ldquo;{activeMilestone?.name}&rdquo;
+          </span>
+          .{" "}
+          <button
+            type="button"
+            onClick={handleShowAll}
+            className="text-brand-600 underline hover:text-brand-700"
+          >
+            Show all stories
+          </button>{" "}
+          or assign stories to this milestone from the Stories tab.
+        </p>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Board canvas
   // ---------------------------------------------------------------------------
 
   return (
     <div className="flex flex-col gap-4 p-6">
+      {activeMilestone && (
+        <BoardMilestoneFilter
+          milestoneName={activeMilestone.name}
+          onShowAll={handleShowAll}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-text">Board</h2>
         <p className="text-xs text-text-muted">

@@ -30,6 +30,7 @@ import {
   type StoryFilters,
 } from "./hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
+import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
 import { LAST_PROJECT_KEY } from "@/app/RootRedirect";
 import type { Story } from "@/api/types";
@@ -70,9 +71,11 @@ export default function StoriesPage() {
 
   // Server data
   const { data: effectiveSettings } = useProjectSettingsEffective(safeProjectId);
+  const { data: milestonesEnvelope } = useProjectMilestones(safeProjectId);
   const { data: storiesEnvelope, isLoading, isError, error } = useStories(safeProjectId, filters);
 
   const statusOptions = effectiveSettings?.story_statuses ?? [];
+  const milestoneOptions = milestonesEnvelope?.data ?? [];
   const stories = storiesEnvelope?.data;
 
   // Mutations
@@ -112,6 +115,7 @@ export default function StoriesPage() {
           content: values.content || undefined,
           status: values.status || undefined,
           labels: values.labels.length > 0 ? values.labels : undefined,
+          milestone_id: values.milestone_id ?? undefined,
         },
       },
       {
@@ -133,6 +137,8 @@ export default function StoriesPage() {
           // null explicitly clears status; empty string → send null
           status: values.status || undefined,
           labels: values.labels,
+          // null explicitly clears milestone assignment
+          milestone_id: values.milestone_id,
         },
       },
       {
@@ -290,6 +296,7 @@ export default function StoriesPage() {
       {modal.type === "create" && (
         <StoryModal
           statusOptions={statusOptions}
+          milestoneOptions={milestoneOptions}
           onSubmit={handleCreateSubmit}
           onClose={closeModal}
           isSubmitting={isCreateSubmitting}
@@ -302,6 +309,7 @@ export default function StoriesPage() {
         <StoryModal
           story={modal.story}
           statusOptions={statusOptions}
+          milestoneOptions={milestoneOptions}
           onSubmit={handleEditSubmit}
           onClose={closeModal}
           isSubmitting={isEditSubmitting}

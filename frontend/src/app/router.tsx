@@ -8,6 +8,7 @@
  *   ├─ /projects           → ProjectsPage (no sidebar, no sub-nav)
  *   ├─ /sessions           → SessionsPage (no sidebar, no sub-nav)
  *   ├─ /settings           → SettingsPage (no sidebar, no sub-nav)
+ *   ├─ /milestones/:id     → MilestoneDetailPage (no sidebar, back-link to project milestones)
  *   └─ AppShell (/projects/:projectId/*)
  *      └─ ProjectShell
  *         ├─ index         → redirect to /stories
@@ -46,6 +47,9 @@ const SettingsPage = React.lazy(
 );
 const MilestonesPage = React.lazy(
   () => import("@/features/milestones/MilestonesPage"),
+);
+const MilestoneDetailPage = React.lazy(
+  () => import("@/features/milestones/MilestoneDetailPage"),
 );
 const BoardPage = React.lazy(() => import("@/features/board/BoardPage"));
 const ProjectSettingsPage = React.lazy(
@@ -104,6 +108,18 @@ export const router = createBrowserRouter([
         element: (
           <SuspendedPage>
             <SettingsPage />
+          </SuspendedPage>
+        ),
+      },
+
+      // Milestone detail — top-level route so the URL /milestones/:id is reachable
+      // without a project context in the path. The back-link on the page navigates
+      // to /projects/:projectId/milestones using the milestone's own project_id.
+      {
+        path: "milestones/:id",
+        element: (
+          <SuspendedPage>
+            <MilestoneDetailPage />
           </SuspendedPage>
         ),
       },

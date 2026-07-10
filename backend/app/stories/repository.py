@@ -35,6 +35,7 @@ class StoryRepository(BaseRepository[Story]):
         status_filter: str | None = None,
         label_key_filter: str | None = None,
         label_value_filter: str | None = None,
+        milestone_id_filter: uuid.UUID | None = None,
     ) -> tuple[list[Story], int]:
         pid = self._coerce_uuid(project_id, "Project")
 
@@ -42,6 +43,11 @@ class StoryRepository(BaseRepository[Story]):
 
         if status_filter is not None:
             base_stmt = base_stmt.where(Story.status == status_filter)
+
+        if milestone_id_filter is not None:
+            base_stmt = base_stmt.where(
+                Story.milestone_id == milestone_id_filter
+            )
 
         if label_key_filter is not None or label_value_filter is not None:
             base_stmt = apply_json_array_filter(
@@ -51,6 +57,26 @@ class StoryRepository(BaseRepository[Story]):
                 label_key_filter,
                 label_value_filter,
             )
+
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total = self._session.execute(count_stmt).scalar_one()
+
+        rows_stmt = (
+            base_stmt
+            .order_by(Story.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = list(self._session.scalars(rows_stmt).all())
+        return rows, total
+
+    def list_paginated_by_milestone(
+        self,
+        milestone_id: uuid.UUID,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[Story], int]:
+        base_stmt = select(Story).where(Story.milestone_id == milestone_id)
 
         count_stmt = select(func.count()).select_from(base_stmt.subquery())
         total = self._session.execute(count_stmt).scalar_one()

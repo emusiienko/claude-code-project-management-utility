@@ -155,11 +155,17 @@ export interface Session {
   updated_at: string;
 }
 
+/** Lifecycle status for a milestone — lowercase on the wire; UI capitalises. */
+export type MilestoneStatus = "planned" | "active" | "finished";
+
 export interface Milestone {
   id: string;
   name: string;
   description: string | null;
-  project_ids: string[];
+  /** Single owning project (v1.2 — replaces former project_ids[]). */
+  project_id: string;
+  status: MilestoneStatus;
+  /** Included in list/detail responses. */
   story_count?: number;
   created_at: string;
   updated_at: string;
@@ -213,6 +219,7 @@ export interface MilestoneDetail extends Milestone {
   attachments: Attachment[];
   comments: Comment[];
 }
+
 
 // ---------------------------------------------------------------------------
 // Request body types
@@ -316,12 +323,11 @@ export interface UpdateSession {
 
 export interface CreateMilestone {
   name: string;
-  project_ids: string[];
+  project_id: string;
   description?: string;
 }
 
 export interface UpdateMilestone {
   name?: string;
   description?: string;
-  project_ids?: string[];
 }

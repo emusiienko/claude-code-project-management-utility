@@ -14,7 +14,15 @@ from app.mcp.server import mcp_server_v1
 # @mcp_server_v1.tool() decorators in domain mcp_tools.py files — no
 # explicit register_*() calls needed.
 container.wire(
-    packages=["app.api", "app.mcp", "app.projects", "app.settings", "app.stories", "app.container"]
+    packages=[
+        "app.api",
+        "app.mcp",
+        "app.milestones",
+        "app.projects",
+        "app.settings",
+        "app.stories",
+        "app.container",
+    ]
 )
 
 # Named `application` to avoid shadowing the `app` package in Pyright analysis.

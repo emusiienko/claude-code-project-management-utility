@@ -4,6 +4,7 @@ from dependency_injector.wiring import Closing, Provide, inject
 from sqlalchemy.orm import Session
 
 from app.container.container import AppContainer
+from app.milestones.service import MilestoneService
 from app.projects.service import ProjectService
 from app.settings.service import SettingsService
 from app.stories.service import StoryService
@@ -37,5 +38,14 @@ async def provide_project_service(
 async def provide_story_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: StoryService = Provide[AppContainer.story_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_milestone_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: MilestoneService = Provide[AppContainer.milestone_service],
 ):
     yield service

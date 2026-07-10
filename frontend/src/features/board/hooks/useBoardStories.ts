@@ -1,9 +1,15 @@
 /**
- * useBoardStories — fetches all stories for the board view.
+ * useBoardStories — fetches stories for the board view.
  *
  * Uses the API maximum page size (PAGINATION.BOARD_STORIES = 100) to load all
- * project stories in a single request. The board kanban does not paginate —
- * a future story (STORY-012+) will add virtualization if needed.
+ * relevant stories in a single request. The board kanban does not paginate.
+ *
+ * When `milestoneId` is provided, fetches only stories assigned to that milestone
+ * (active-milestone filter introduced in STORY-012, TASK-005). Without `milestoneId`,
+ * all project stories are fetched unfiltered.
+ *
+ * @param projectId   - Owning project ID.
+ * @param milestoneId - Optional milestone ID to filter stories by.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -11,15 +17,15 @@ import { CACHE_KEYS } from "@/config/cacheConfig";
 import { DATA_FRESHNESS, PAGINATION } from "@/config/apiConfig";
 import { listStories } from "@/api/endpoints/stories";
 
-/**
- * Query hook for the board: fetches all stories for a project without filters.
- *
- * @param projectId - Owning project ID.
- */
-export function useBoardStories(projectId: string) {
+export function useBoardStories(projectId: string, milestoneId?: string | null) {
+  const filters = milestoneId ? { milestone_id: milestoneId } : undefined;
   return useQuery({
-    queryKey: CACHE_KEYS.stories.list(projectId, { board: true }),
-    queryFn: () => listStories(projectId, undefined, 1, PAGINATION.BOARD_STORIES),
+    queryKey: CACHE_KEYS.stories.list(projectId, {
+      board: true,
+      milestone_id: milestoneId ?? null,
+    }),
+    queryFn: () =>
+      listStories(projectId, filters, 1, PAGINATION.BOARD_STORIES),
     staleTime: DATA_FRESHNESS.STORIES,
     enabled: Boolean(projectId),
   });

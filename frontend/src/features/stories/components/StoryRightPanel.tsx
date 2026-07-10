@@ -3,20 +3,24 @@
  *
  * Shows:
  *   - Story description rendered as Markdown (via react-markdown)
+ *   - Milestone assignment control (inline set/clear)
  *   - Attachments placeholder (STORY-007)
  *   - Comments placeholder (STORY-008)
  *
  * The panel is toggled by the parent; its open/closed state is persisted per
  * story in localStorage (managed by the parent via useLocalStorage).
  *
- * @param story    - The story whose description is rendered.
- * @param isOpen   - Whether the panel is currently expanded.
- * @param onToggle - Callback to toggle open/closed state.
+ * @param story                    - The story whose description is rendered.
+ * @param isOpen                   - Whether the panel is currently expanded.
+ * @param onToggle                 - Callback to toggle open/closed state.
+ * @param onMilestoneAssign        - Called when the user changes the milestone assignment.
+ * @param isMilestoneUpdatePending - True while the parent's update mutation is in flight.
  */
 
 import ReactMarkdown from "react-markdown";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Story } from "@/api/types";
+import { MilestoneAssignment } from "./MilestoneAssignment";
 
 interface StoryRightPanelProps {
   /** Story data to display. */
@@ -25,13 +29,23 @@ interface StoryRightPanelProps {
   isOpen: boolean;
   /** Toggles the panel open or closed. */
   onToggle: () => void;
+  /** Called when the user sets or clears the story's milestone assignment. */
+  onMilestoneAssign: (milestoneId: string | null) => void;
+  /** True while the parent's milestone update mutation is in flight. */
+  isMilestoneUpdatePending?: boolean;
 }
 
 /**
- * Collapsible right panel with story description (Markdown), attachments
- * placeholder, and comments placeholder.
+ * Collapsible right panel with story description (Markdown), milestone assignment,
+ * attachments placeholder, and comments placeholder.
  */
-export function StoryRightPanel({ story, isOpen, onToggle }: StoryRightPanelProps) {
+export function StoryRightPanel({
+  story,
+  isOpen,
+  onToggle,
+  onMilestoneAssign,
+  isMilestoneUpdatePending = false,
+}: StoryRightPanelProps) {
   return (
     <aside
       aria-label="Story details panel"
@@ -72,6 +86,22 @@ export function StoryRightPanel({ story, isOpen, onToggle }: StoryRightPanelProp
             ) : (
               <p className="text-xs italic text-text-muted">No description provided.</p>
             )}
+          </section>
+
+          {/* Milestone assignment section */}
+          <section aria-labelledby="story-milestone-heading">
+            <h3
+              id="story-milestone-heading"
+              className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary"
+            >
+              Milestone
+            </h3>
+            <MilestoneAssignment
+              projectId={story.project_id}
+              milestoneId={story.milestone_id}
+              isPending={isMilestoneUpdatePending}
+              onAssign={onMilestoneAssign}
+            />
           </section>
 
           {/* Attachments placeholder */}

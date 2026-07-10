@@ -39,6 +39,10 @@ vi.mock("./hooks/useBoardDrag", () => ({
   useBoardDrag: vi.fn(),
 }));
 
+vi.mock("./hooks/useBoardMilestoneFilter", () => ({
+  useBoardMilestoneFilter: vi.fn(),
+}));
+
 // Mock BoardColumn and BoardCard to avoid dnd-kit DOM hooks in jsdom
 vi.mock("./components/BoardColumn", () => ({
   BoardColumn: ({ status, stories }: { status: string; stories: { id: string }[] }) => (
@@ -65,11 +69,13 @@ import { useUpdateStory } from "@/features/stories/hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useBoardStories } from "./hooks/useBoardStories";
 import { useBoardDrag } from "./hooks/useBoardDrag";
+import { useBoardMilestoneFilter } from "./hooks/useBoardMilestoneFilter";
 
 const mockUseUpdateStory = vi.mocked(useUpdateStory);
 const mockUseProjectSettingsEffective = vi.mocked(useProjectSettingsEffective);
 const mockUseBoardStories = vi.mocked(useBoardStories);
 const mockUseBoardDrag = vi.mocked(useBoardDrag);
+const mockUseBoardMilestoneFilter = vi.mocked(useBoardMilestoneFilter);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -101,9 +107,18 @@ const BOARD_DRAG_NOOP = {
 // Setup
 // ---------------------------------------------------------------------------
 
+const MILESTONE_FILTER_NOOP = {
+  activeMilestoneId: null,
+  activeMilestone: null,
+  showingAll: false,
+  handleShowAll: vi.fn(),
+  isLoading: false,
+};
+
 beforeEach(() => {
   mockUseUpdateStory.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseBoardDrag.mockReturnValue(BOARD_DRAG_NOOP as never);
+  mockUseBoardMilestoneFilter.mockReturnValue(MILESTONE_FILTER_NOOP as never);
 });
 
 // ---------------------------------------------------------------------------

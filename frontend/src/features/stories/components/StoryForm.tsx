@@ -3,21 +3,21 @@
  *
  * Fields: title (required), content (optional Markdown textarea),
  * status (dropdown from project's effective story_statuses, optional),
+ * milestone (dropdown from project's milestones, optional),
  * labels (shared LabelsEditor component).
- *
- * The milestone_id field is intentionally omitted — it is not surfaced
- * in the UI until STORY-012.
  */
 
 import { useState, type FormEvent } from "react";
 import { LabelsEditor } from "@/shared/components/LabelsEditor";
-import type { Label } from "@/api/types";
+import type { Label, Milestone } from "@/api/types";
 
 export interface StoryFormValues {
   title: string;
   content: string;
   status: string;
   labels: Label[];
+  /** null = explicitly cleared (send null to API); undefined = not changed */
+  milestone_id: string | null;
 }
 
 interface StoryFormProps {
@@ -25,6 +25,12 @@ interface StoryFormProps {
   initialValues?: StoryFormValues;
   /** Allowed status values from the project's effective story_statuses dict. */
   statusOptions: string[];
+  /**
+   * Milestones available for selection — should be scoped to the story's project.
+   * When undefined the milestone field is hidden (e.g. milestones not yet loaded).
+   * An empty array shows the field in a "no milestones" disabled state.
+   */
+  milestoneOptions?: Milestone[];
   /** Called when the user submits the form with valid data. */
   onSubmit: (values: StoryFormValues) => void;
   /** Called when the user cancels. */
@@ -60,7 +66,13 @@ const DEFAULT_VALUES: StoryFormValues = {
   content: "",
   status: "",
   labels: [],
+  milestone_id: null,
 };
+
+/** Capitalizes the first letter of a milestone status for display. */
+function capitalizeStatus(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 /**
  * Create/edit form for a story.
@@ -69,6 +81,7 @@ const DEFAULT_VALUES: StoryFormValues = {
 export function StoryForm({
   initialValues = DEFAULT_VALUES,
   statusOptions,
+  milestoneOptions,
   onSubmit,
   onCancel,
   isSubmitting,
@@ -91,6 +104,7 @@ export function StoryForm({
       content: values.content,
       status: values.status,
       labels: values.labels,
+      milestone_id: values.milestone_id,
     });
   }
 
@@ -157,6 +171,45 @@ export function StoryForm({
           ))}
         </select>
       </div>
+
+      {/* Milestone (shown only when milestoneOptions is provided) */}
+      {milestoneOptions !== undefined && (
+        <div className="mb-4">
+          <label
+            htmlFor="story-milestone"
+            className="mb-1 block text-sm font-medium text-text"
+          >
+            Milestone
+          </label>
+          <select
+            id="story-milestone"
+            value={values.milestone_id ?? ""}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                milestone_id: e.target.value === "" ? null : e.target.value,
+              }))
+            }
+            disabled={isSubmitting || milestoneOptions.length === 0}
+            className="w-full rounded-md border border-border px-3 py-2 text-sm text-text shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50"
+          >
+            <option value="">— None —</option>
+            {milestoneOptions.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+                {m.status !== "planned"
+                  ? ` (${capitalizeStatus(m.status)})`
+                  : ""}
+              </option>
+            ))}
+          </select>
+          {milestoneOptions.length === 0 && (
+            <p className="mt-1 text-xs italic text-text-muted">
+              No milestones in this project yet.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="mb-4">

@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-012
 ---
@@ -48,10 +48,22 @@ created at Reconcile, not now).
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
+
+**Date**: 2026-07-10
+
+**What was done**: Created Alembic revision `0004_milestone` (chained after `0003_story`) that:
+1. Creates the `milestone` table with `id` (String(36) PK), `project_id` (inline FK → project, ON DELETE CASCADE), `name`, `description`, `status` (VARCHAR(20), server_default `'planned'`), `created_at`, `updated_at`.
+2. Creates three indexes: `ix_milestone_project_id` (project_id), `ix_milestone_project_status` (project_id, status), `ix_milestone_project_name_lower` (project_id, LOWER(name), unique) — enforcing case-insensitive name uniqueness within a project.
+3. Adds the deferred `story.milestone_id → milestone.id` FK (ON DELETE SET NULL) via `batch_alter_table`, which rebuilds the table on SQLite (the only portable way to add a FK) and emits `ALTER TABLE ADD CONSTRAINT` on PostgreSQL, resolving ADR-013.
+
+Migration was verified: `alembic upgrade head` from empty database succeeds; `downgrade` then `upgrade` roundtrip also clean. Full test suite: 150 passed, 1 xfailed (identical to pre-implementation baseline — no regressions).
+
+**Deviations from plan**: None.
+
 **Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+- `status` column uses `server_default="planned"` (string) in DDL rather than relying on the ORM layer — this ensures the default is applied even for direct SQL inserts (e.g. future migrations), matching the approach used for other server-owned defaults.
+- The `batch_alter_table` constraint is named `fk_story_milestone_id` explicitly so that `downgrade()` can drop it by name portably.
+
+**Code locations**: `backend/migrations/versions/0004_milestone.py`
+
+**Technical debt noted**: None. The `env.py` import of the `Milestone` ORM model will be added in TASK-002 when the model is created.

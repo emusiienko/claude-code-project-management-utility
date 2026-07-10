@@ -42,6 +42,7 @@ async def list_stories(
     status: str | None = None,
     label_key: str | None = None,
     label_value: str | None = None,
+    milestone_id: str | None = None,
     service: StoryService = Depends(provide_story_service),
 ) -> dict:
     try:
@@ -52,6 +53,7 @@ async def list_stories(
             status_filter=status,
             label_key_filter=label_key,
             label_value_filter=label_value,
+            milestone_id_filter=milestone_id,
         )
         total_pages = math.ceil(total / limit) if total > 0 else 0
         return {

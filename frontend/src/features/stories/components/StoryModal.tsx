@@ -8,13 +8,18 @@
 
 import { useEffect, useRef } from "react";
 import { StoryForm, type StoryFormValues } from "./StoryForm";
-import type { Story } from "@/api/types";
+import type { Milestone, Story } from "@/api/types";
 
 interface StoryModalProps {
   /** The story to edit. When undefined, the modal is in "create" mode. */
   story?: Story;
   /** Allowed status values from the project's effective story_statuses dict. */
   statusOptions: string[];
+  /**
+   * Milestones available for the milestone selector.
+   * Omit to hide the field; pass [] to show it in disabled/empty state.
+   */
+  milestoneOptions?: Milestone[];
   /** Called when the form is submitted. */
   onSubmit: (values: StoryFormValues) => void;
   /** Called when the modal is dismissed (Cancel or Escape). */
@@ -32,6 +37,7 @@ interface StoryModalProps {
 export function StoryModal({
   story,
   statusOptions,
+  milestoneOptions,
   onSubmit,
   onClose,
   isSubmitting,
@@ -77,10 +83,12 @@ export function StoryModal({
                 content: story.content ?? "",
                 status: story.status ?? "",
                 labels: story.labels,
+                milestone_id: story.milestone_id,
               }
             : undefined
         }
         statusOptions={statusOptions}
+        milestoneOptions={milestoneOptions}
         onSubmit={onSubmit}
         onCancel={onClose}
         isSubmitting={isSubmitting}

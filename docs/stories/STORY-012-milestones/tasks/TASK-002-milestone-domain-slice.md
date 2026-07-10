@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-012
 ---
@@ -82,10 +82,60 @@ service transaction (ADR created at Reconcile).
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-10
+
 **What was done**:
+Built the full `milestones` domain slice and extended the stories domain:
+
+1. `backend/app/milestones/` — new domain package following the established per-app pattern:
+   - `model.py` — `Milestone` ORM model with `project_id` FK (CASCADE), `name`, `description`, `status` (default "planned"), timestamps
+   - `schema.py` — `CreateMilestone`, `UpdateMilestone` request schemas with field-level validators; `Milestone` response schema with `story_count: int | None`; `MILESTONE_STATUS_*` constants (single source of truth for the three wire values)
+   - `repository.py` — `MilestoneRepository` extending `BaseRepository[Milestone]`: `get_name_conflict`, `get_active_for_project`, `list_paginated`, `get_story_counts` (batched GROUP BY — no N+1), `get_story_count`, `clear_story_links` (bulk UPDATE stories.milestone_id = NULL)
+   - `service.py` — `MilestoneService` with full CRUD + activate (atomic demote-then-promote) + finish (idempotent), `get_with_story_count`, `list_stories`; `_assert_name_unique` enforces case-insensitive uniqueness within a project
+   - `controller.py` — 7 thin REST handlers: POST, GET list, GET by id (with story_count), PUT, DELETE, POST activate, POST finish, GET stories; all under `/v1/milestones`
+   - `mcp_tools.py` — 7 MCP tools mirroring the REST surface exactly
+
+2. `backend/app/stories/` — targeted extensions:
+   - `repository.py`: added `milestone_id_filter: uuid.UUID | None` to `list_paginated`, added `list_paginated_by_milestone` for `GET /milestones/:id/stories`
+   - `service.py`: added `milestone_repo: MilestoneRepositoryProtocol | None` injected dependency; `create` and `update` validate `milestone_id` (404 if missing, 422 if wrong project); `list_paginated` accepts `milestone_id_filter: str | None` (malformed UUID → empty page); `MilestoneRepositoryProtocol` runtime-checkable Protocol defined at module end
+   - `controller.py`: `milestone_id` query param added to `list_stories`
+   - `mcp_tools.py`: `milestone_id` param added to `list_stories`
+
+3. `backend/app/container/container.py` — `milestone_repository` + `milestone_service` providers; `story_service` now receives `milestone_repo=milestone_repository`; Milestones section placed before Stories to avoid provider forward-reference issues
+
+4. `backend/app/container/mcp_dependencies.py` — `provide_milestone_service` bridge added
+
+5. `backend/app/api/routes.py` — `MILESTONES = "milestones"` added to `AppPath`
+
+6. `backend/app/api/router.py` — milestones router included under `/v1/milestones`
+
+7. `backend/app/main.py` — `"app.milestones"` added to `container.wire()` packages list
+
 **Deviations from plan**:
+None. All acceptance criteria implemented as specified.
+
 **Technical decisions made**:
+
+- **`MilestoneRepositoryProtocol` in `stories/service.py`**: To avoid a circular import (`milestones/` imports `stories/model.py` for `get_story_counts`; `stories/` would import `milestones/` for validation), a minimal `runtime_checkable` Protocol is defined at the bottom of `stories/service.py`. The concrete `MilestoneRepository` satisfies it via duck typing. The `if TYPE_CHECKING` guard is used for the `MilestoneModel` annotation so the actual import only runs for type checkers, not at runtime.
+
+- **`story_count` composition in controller/MCP tool**: `Milestone.model_validate(m).model_dump()` then `m_dict["story_count"] = count` because the ORM model does not carry `story_count` (it is computed). On the detail endpoint `get_with_story_count` returns a tuple; on the list endpoint `list_paginated` returns `list[tuple[Milestone, int]]`. Both surfaces are consistent.
+
+- **Empty-page semantics for malformed `milestone_id` filter**: a malformed UUID in `milestone_id_filter` on the story list returns `[], 0` immediately (before the DB query) rather than raising a validation error. This matches the contract: "unknown milestone_id yields an empty page (not an error)".
+
+- **`story_service` provider placement**: moved `milestone_repository` provider above the Stories section in `container.py` so `story_service` can reference `milestone_repository` by name without forward-reference issues in `dependency_injector`.
+
 **Code locations**:
+- `backend/app/milestones/` — entire new domain slice
+- `backend/app/stories/repository.py` — `milestone_id_filter` + `list_paginated_by_milestone`
+- `backend/app/stories/service.py` — milestone validation + `MilestoneRepositoryProtocol`
+- `backend/app/stories/controller.py` — `milestone_id` query param on list
+- `backend/app/stories/mcp_tools.py` — `milestone_id` param on `list_stories`
+- `backend/app/container/container.py` — new Milestones providers, wired `story_service`
+- `backend/app/container/mcp_dependencies.py` — `provide_milestone_service`
+- `backend/app/api/routes.py` — `MILESTONES` path enum
+- `backend/app/api/router.py` — milestones router registration
+- `backend/app/main.py` — `"app.milestones"` in wire list
+
 **Technical debt noted**:
+- Pre-existing: `mcp_tools.py` for stories calls `service.create(project_id=project_id, data=body)` but the service signature is `create(self, data: CreateStory)` — the `project_id` kwarg is silently ignored. This pre-existed this task and was not introduced by this work. Noted here for QA awareness; tracked via the existing pre-existing test coverage gap.
