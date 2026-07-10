@@ -255,15 +255,15 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 
 Sub-nav active tab: **Milestones**.
 
-**Milestone statuses:** each milestone has one of three statuses: `Planned`, `Active`, `Finished`. Only **one milestone per project** may have status `Active` at any time.
+**Milestone statuses:** each milestone has one of three statuses: `Planned`, `Active`, `Finished`. Only **one milestone per project** may have status `Active` at any time. The active milestone is the Board's default story filter.
 
-- Shows project name as page heading
-- Lists milestones as a table: name, status badge (`Planned` / `Active` / `Finished`), associated projects (tag chips), story count, description (truncated)
+- Lists milestones as a table: name, status badge (`Planned` / `Active` / `Finished`), story count, description (truncated)
 - The active milestone row is visually highlighted (e.g. bold name or accent border)
-- **Create milestone** button → form panel: name (required), status (dropdown: Planned / Active / Finished, default: Planned), associated projects (multi-select, required — min 1), description (optional)
-- **Edit** button per milestone → same form pre-filled
+- Empty state shown when no milestones exist for the project, with a prompt to create one
+- **Create milestone** button → form panel: name (required), description (optional); status defaults to `Planned`
+- **Edit** button per milestone → same form pre-filled (name and description only)
 - **Activate** button per `Planned` or `Finished` milestone → sets its status to `Active`; if another milestone is currently `Active`, a confirmation dialog warns: "This will deactivate '{current active name}'. Continue?" — on confirm, the previous active milestone is set to `Planned` and the new one becomes `Active`
-- **Finish** button per `Active` milestone → sets its status to `Finished`; the Board tab becomes disabled until another milestone is activated
+- **Finish** button per `Active` milestone → sets its status to `Finished`; the Board reverts to showing all stories unfiltered
 - **Delete** button per milestone → confirmation dialog: "Delete milestone '{name}'? Stories assigned to it will lose their milestone association."
 - Clicking a milestone name navigates to `/milestones/:id`
 
@@ -271,10 +271,11 @@ Sub-nav active tab: **Milestones**.
 
 ### Milestone Detail View (`/milestones/:id`)
 
-- Displays: name, description, associated projects (tag chips), story count
-- **Edit milestone** button → form panel
-- **Stories** section: paginated list of assigned stories; each row shows title, project name, status badge; clicking a title opens the Story Detail slide-over
-- **Attachments** and **Comments** sections follow the same behaviour as story-level attachments and comments
+- Displays: name, description, status badge, story count
+- **Edit milestone** button → form panel (name and description only)
+- **Stories** section: paginated list of assigned stories; each row shows title, status badge; clicking a title opens the Story Detail slide-over
+
+> **Deferred to STORY-007 and STORY-008:** Attachments and Comments sections.
 
 ---
 
@@ -365,7 +366,7 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 | File > 10 MB selected for image upload | Inline error below file input before upload is attempted: "File must be smaller than 10 MB." |
 | Confirmation dialog — user cancels | Dialog closes; no action taken |
 | Activating a milestone when one is already active | Confirmation dialog: "This will deactivate '{current active name}'. Continue?" — cancel keeps current state; confirm swaps active milestone |
-| Board tab accessed with no active milestone | Tab is disabled (greyed out, not clickable); direct URL navigation redirects to `/projects/:id/stories` — **deferred to STORY-012; as of STORY-016 the Board tab is always enabled** |
+| Board tab accessed with no active milestone | Board shows all stories without any filter applied; no filter indicator is visible; the Board tab is always enabled |
 
 ---
 

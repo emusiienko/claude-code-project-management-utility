@@ -17,6 +17,14 @@
 > list). All other Story endpoints, request/response schemas, and every other domain are unchanged.
 > Future Story filters (e.g. `milestone_id`) follow the same query-parameter pattern.
 
+> **v1.2 revision — approved by user 2026-07-10 (Milestones domain only).** A milestone now belongs
+> to **exactly one project** (single `project_id`, replacing the former M:N `project_ids[]` set) and
+> carries a **lifecycle status** (`planned` → `active` → `finished`, lowercase on the wire). At most
+> one milestone per project may be `active`. Two action endpoints drive transitions
+> (`POST /milestones/:id/activate`, `POST /milestones/:id/finish`); activation atomically demotes the
+> project's previously-active milestone back to `planned`. This supersedes the LOCKED v1.0 Milestones
+> shape. The `Story.milestone_id` field and every other domain are unchanged.
+
 ---
 
 ## Shared shapes
@@ -167,11 +175,14 @@ interface Session {
   updated_at: string;
 }
 
+type MilestoneStatus = "planned" | "active" | "finished";  // lowercase on the wire; UI capitalises
+
 interface Milestone {
   id: string;
-  name: string;              // 1–200, unique within each associated project
+  name: string;              // 1–200, unique within its project
   description: string | null;
-  project_ids: string[];     // associated projects
+  project_id: string;        // the single owning project
+  status: MilestoneStatus;   // default "planned" on create
   story_count?: number;      // included in list/detail
   created_at: string;
   updated_at: string;
@@ -222,9 +233,11 @@ interface CreateStoryBody {
   labels?: Label[]; milestone_id?: string | null;
 }
 
-// GET  /stories?project_id&page&limit&status&label_key&label_value
+// GET  /stories?project_id&page&limit&status&label_key&label_value&milestone_id
 //                                        -> 200 ListEnvelope<Story> | 404
 //   project_id is a required query param. 404 if the project does not exist.
+//   milestone_id (optional, v1.2): filter to stories assigned to that milestone. Used by the
+//   Board view to show only the active milestone's stories. Unknown milestone_id yields an empty page.
 // GET  /stories/:id                      -> 200 Envelope<Story>     | 404
 // PUT  /stories/:id                      -> 200 Envelope<Story>     | 404, 422
 interface UpdateStoryBody {
@@ -258,8 +271,8 @@ interface StoryDetail extends Story {
 > projects). Both are served by one handler: when `project_id` is present it scopes to that project
 > (404 if the project is missing); when absent it returns stories across all projects.
 
-> `milestone_id` constraint: the story's project must be in the milestone's associated project set,
-> else `422` "Story's project is not associated with this milestone."
+> `milestone_id` constraint (v1.2): the milestone must belong to the story's project, else `422`
+> "This milestone does not belong to the story's project." A non-existent `milestone_id` returns `404`.
 
 ---
 
@@ -441,18 +454,37 @@ Effective resolution: for each key, use `project_settings.values` if a row exist
 
 ## Milestones
 
+<!-- v1.2 (2026-07-10): single-project ownership + lifecycle status. Supersedes the LOCKED v1.0
+     M:N (project_ids[]) shape. A milestone belongs to exactly one project and has a status. -->
+
 ```typescript
 // POST /milestones                         -> 201 Envelope<Milestone> | 422, 404, 409
-interface CreateMilestoneBody { name: string; project_ids: string[]; description?: string; } // ≥1 project
-// GET  /milestones?page&limit&project_id    -> 200 ListEnvelope<Milestone> (incl. project_ids, story_count)
+interface CreateMilestoneBody { name: string; project_id: string; description?: string; }
+//   Created with status "planned". 404 if project_id does not exist.
+//   409 if a milestone with this name already exists in that project.
+
+// GET  /milestones?page&limit&project_id    -> 200 ListEnvelope<Milestone> (incl. project_id, status, story_count)
+//   project_id filters to one project's milestones; omit to list across all projects.
 // GET  /milestones/:id                      -> 200 Envelope<Milestone> | 404
 // PUT  /milestones/:id                      -> 200 Envelope<Milestone> | 404, 409, 422
-interface UpdateMilestoneBody {            // project_ids replaces the full set
-  name?: string; description?: string; project_ids?: string[];
+interface UpdateMilestoneBody {            // name + description only; project_id is immutable
+  name?: string; description?: string;
 }
-//   422: removing a project that still has stories assigned to this milestone.
+//   Editing project_id is not supported (immutable after create).
+//   409 if the new name collides with another milestone in the same project.
 // DELETE /milestones/:id                    -> 204 | 404
 //   Sets milestone_id = null on assigned stories; stories not deleted.
+
+// --- Lifecycle transitions (server-owned, atomic) ---
+// POST /milestones/:id/activate             -> 200 Envelope<Milestone> | 404
+//   Sets this milestone's status to "active". If another milestone in the SAME project is
+//   currently "active", that one is atomically demoted to "planned" in the same transaction.
+//   Idempotent: activating an already-active milestone is a no-op success.
+//   Valid from any prior status ("planned" or "finished" -> "active").
+// POST /milestones/:id/finish               -> 200 Envelope<Milestone> | 404
+//   Sets this milestone's status to "finished". No side effect on other milestones.
+//   Idempotent: finishing an already-finished milestone is a no-op success.
+
 // GET  /milestones/:id/stories?page&limit    -> 200 ListEnvelope<Story> (each incl. project_id) | 404
 
 // GET  /milestones/:id/detail                -> 200 Envelope<MilestoneDetail> | 404
@@ -464,14 +496,19 @@ interface MilestoneDetail extends Milestone {
 }
 ```
 
-**409 example:** `{ "error": "A milestone named 'Q3' already exists in project 'Platform'.", "code": "CONFLICT" }`
+**409 example:** `{ "error": "A milestone named 'Q3' already exists in this project.", "code": "CONFLICT" }`
+
+> **Board filtering.** There is no dedicated "board" endpoint. The Board view filters client-side by
+> issuing the existing `GET /stories?project_id=…&milestone_id=…` list with the active milestone's id.
+> The frontend discovers a project's active milestone from the milestone list
+> (`GET /milestones?project_id=…`, the single row whose `status === "active"`).
 
 ---
 
 ## Cross-project Queries
 
 ```typescript
-// GET /stories?page&limit&project_id&status&label_key&label_value
+// GET /stories?page&limit&project_id&status&label_key&label_value&milestone_id
 //                                          -> 200 ListEnvelope<Story> (each incl. project_id)
 // GET /tasks?page&limit&project_id&story_id&status&type&assignee_role&creator_role
 //                                          -> 200 ListEnvelope<Task> (each incl. story_id + derived project_id)

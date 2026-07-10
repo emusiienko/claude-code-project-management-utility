@@ -27,7 +27,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | Attachments | Document attachments (Markdown/text files, stored on filesystem, with change history, archivable) and image attachments (binary files on filesystem, archivable) and external-reference attachments (URL + status, detachable) attached to stories or tasks | P1 |
 | Comments | Author + text notes attached to stories or tasks; support labels | P1 |
 | Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
-| Milestones | Named planning markers associated with one or more projects; stories are optionally assigned to a milestone (nullable FK); each milestone has its own description, attachments, and comments | P1 |
+| Milestones | Named planning markers scoped to a single project; each milestone has a status (`Planned` / `Active` / `Finished`); only one milestone per project may be `Active` at a time; stories are optionally assigned to a milestone (nullable FK) | P1 |
 | Cross-project Queries | List stories and tasks across all projects in a single query; project-scoped is the default | P2 |
 
 ---

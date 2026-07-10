@@ -85,7 +85,7 @@ of business logic and the only layer that touches the data layer.
 - `backend/app/attachments/` — document/image/external-ref attachments + version history; filesystem-backed
 - `backend/app/comments/` — comments on stories/tasks/milestones
 - `backend/app/sessions/` — session records + incomplete-session query
-- `backend/app/milestones/` — milestones + project association (M:N) + story assignment
+- `backend/app/milestones/` — milestones (single owning project) + lifecycle status + story assignment <!-- updated: 2026-07-10 (STORY-012 feature design): single-project ownership + lifecycle (planned/active/finished) supersedes the M:N project-association design; see api-contract v1.2 and Planned ADR-015. -->
 - `backend/app/settings/` — system + project dictionaries; effective-dictionary resolution
 - `backend/app/api/` — resolving and uniting separate routers, managing API versions, starting from V1, a lightweight component
 - `backend/app/mcp/` — resolving mcp protocol
@@ -158,17 +158,17 @@ Aggregation / composition (a service reads another app's data to assemble a deri
 - `tasks service → comments data`: task detail (`GET /tasks/:id/detail`) composes the task's comments (created_at ASC).
 - `stories service → attachments data` & `stories service → comments data`: story detail (`GET /stories/:id/detail`) composes the story's active attachments and comments (side collections only; tasks are not included — they are board-driven via the tasks list + aggregate).
 - `milestones service → attachments data` & `milestones service → comments data`: milestone detail (`GET /milestones/:id/detail`) composes the milestone's active attachments and comments (assigned stories are not included — paginated via `GET /milestones/:id/stories`).
-- `milestones service → stories data`: milestone `story_count` and `GET /milestones/:id/stories` derive/compose assigned stories (also listed under Milestones).
+- `milestones service → stories data`: milestone `story_count` and `GET /milestones/:id/stories` derive/compose assigned stories (also listed under Milestones); the Board filters stories by the active milestone via `GET /stories?milestone_id=…`.
 
 > Note: `projects` has no composition relation to `stories`. Listing a project's stories
 > (`GET /projects/:projectId/stories`) is the *stories* service filtered by `project_id` (captured as
 > `stories → projects`); the projects service derives nothing from stories. Project→Story containment
 > is expressed by the FK + `ON DELETE CASCADE` in the schema, not by a runtime service dependency.
 
-Milestones:
-- `milestones service → projects data`: validates that every associated project exists and enforces name uniqueness within each associated project (M:N via the milestone_project join).
-- `milestones service → stories data`: reads assigned stories (`story_count`, milestone story list) and blocks removing a project that still has stories assigned to the milestone.
-- `stories service → milestones data`: assigning `milestone_id` validates that the story's project is in the milestone's associated project set.
+Milestones: <!-- updated: 2026-07-10 (STORY-012 feature design): single-project + lifecycle model -->
+- `milestones service → projects data`: validates the single owning project exists and enforces name uniqueness within that project.
+- `milestones service → stories data`: reads assigned stories (`story_count`, milestone story list); on delete, clears `milestone_id` on assigned stories (no story deleted).
+- `stories service → milestones data`: assigning `milestone_id` validates the milestone exists (404) and belongs to the story's project (422).
 
 Storage & client:
 - `attachments service → core.storage`: file read/write/snapshot on the attachments volume.
@@ -228,16 +228,17 @@ are normative constraints for the backend implementor (see ADR-002).
 - **session** — `id`, `topic`, `context`, `result_decisions`, `result_summary`, `status` (free-form), `participant_role`, `linked_story_id` (FK→story, SET NULL), `linked_task_id` (FK→task, SET NULL), `archived_at`, `created_at`, `updated_at`
 - **system_settings** — `key` (PK, one of six dictionary keys), `values` (JSON array, ≥1), `updated_at`
 - **project_settings** — composite PK (`project_id` FK→project CASCADE, `key`), `values` (JSON array, ≥1 — fully replaces system default; replace-never-merge per ADR-008), `updated_at`
-- **milestone** — `id`, `name` (unique within each associated project), `description`, `created_at`, `updated_at`
-- **milestone_project** — composite PK (`milestone_id` FK→milestone CASCADE, `project_id` FK→project CASCADE) — M:N join
+- **milestone** — `id`, `project_id` (FK→project, CASCADE), `name` (unique within its project, case-insensitive, 1–200), `description`, `status` (`planned`|`active`|`finished`, default `planned`), `created_at`, `updated_at` <!-- updated: 2026-07-10 (STORY-012 feature design): single owning project (nullable-less FK) + lifecycle status replace the former M:N `milestone_project` join. At most one `active` per project — enforced by the service in the same transaction as activate, not by a DB constraint. -->
+  - Indexes: `(project_id)`, `(project_id, status)`.
 
 ### Relations & cascade
 
-Project → Story → Task all CASCADE; Story/Task/Milestone → Attachment/Comment CASCADE; Attachment(document) → AttachmentVersion CASCADE; Task → TaskLink CASCADE (either side); Session → Story/Task SET NULL; Milestone ↔ Project join CASCADE; Story → Milestone SET NULL.
+Project → Story → Task all CASCADE; Story/Task/Milestone → Attachment/Comment CASCADE; Attachment(document) → AttachmentVersion CASCADE; Task → TaskLink CASCADE (either side); Session → Story/Task SET NULL; Project → Milestone CASCADE; Story → Milestone SET NULL. <!-- updated: 2026-07-10 (STORY-012 feature design): Milestone now belongs to one Project (Project → Milestone CASCADE), replacing the Milestone ↔ Project M:N join. -->
+- **STORY-012 migration also adds the deferred `story.milestone_id` FK** (`ON DELETE SET NULL`) at the point the `milestone` table is created, resolving ADR-013. On SQLite this requires `batch_alter_table` (table rebuild) since SQLite cannot `ALTER TABLE ADD CONSTRAINT`; the migration must do this portably.
 
 ### Indexes
 
-As specified in the backend requirements: story `(project_id, created_at DESC)` and `(project_id, status)` and `(milestone_id)`; task `(story_id, status)`, `(story_id, type)`, `(assignee_role)`, `(creator_role)`; task_link `(source_task_id, link_type)` and `(target_task_id, link_type)`; attachment `(container_type, container_id, type, archived_at)`; attachment_version `(attachment_id, created_at DESC)`; comment `(container_type, container_id, created_at ASC)`; session `(archived_at, result_decisions)`, `(linked_story_id)`, `(linked_task_id)`; milestone_project `(milestone_id)` and `(project_id)`.
+As specified in the backend requirements: story `(project_id, created_at DESC)` and `(project_id, status)` and `(milestone_id)`; task `(story_id, status)`, `(story_id, type)`, `(assignee_role)`, `(creator_role)`; task_link `(source_task_id, link_type)` and `(target_task_id, link_type)`; attachment `(container_type, container_id, type, archived_at)`; attachment_version `(attachment_id, created_at DESC)`; comment `(container_type, container_id, created_at ASC)`; session `(archived_at, result_decisions)`, `(linked_story_id)`, `(linked_task_id)`; milestone `(project_id)` and `(project_id, status)`. <!-- updated: 2026-07-10 (STORY-012 feature design): milestone indexes replace the former milestone_project join indexes. -->
 
 ### Portability constraints (SQLite ⇄ PostgreSQL)
 
