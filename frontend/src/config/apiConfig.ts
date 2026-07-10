@@ -15,6 +15,11 @@ export const PAGINATION = {
   PROJECTS: 100,
   /** Default page size for the stories list within a project. */
   STORIES: 50,
+  /**
+   * Board view fetches all stories in one request — use the API maximum (100).
+   * A future story will add pagination or virtualization if projects exceed this.
+   */
+  BOARD_STORIES: 100,
 } as const;
 
 /**

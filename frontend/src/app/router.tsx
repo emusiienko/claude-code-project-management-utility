@@ -1,20 +1,31 @@
 /**
  * Application route table.
  *
- * Top-level routes from the Web UI requirements:
- *   /                       — Projects list (home)
- *   /projects/:projectId    — Stories sub-view for a project (STORY-004)
- *   /sessions               — Sessions list
- *   /settings               — System settings
+ * Three nesting levels of layout shells as established in STORY-016 TASK-001:
+ *
+ *   RootLayout (/)
+ *   ├─ index               → RootRedirect (→ /projects/:lastId/stories or /projects)
+ *   ├─ /projects           → ProjectsPage (no sidebar, no sub-nav)
+ *   ├─ /sessions           → SessionsPage (no sidebar, no sub-nav)
+ *   ├─ /settings           → SettingsPage (no sidebar, no sub-nav)
+ *   └─ AppShell (/projects/:projectId/*)
+ *      └─ ProjectShell
+ *         ├─ index         → redirect to /stories
+ *         ├─ /stories      → StoriesPage
+ *         ├─ /board        → BoardPage (TASK-007)
+ *         ├─ /milestones   → MilestonesPage (placeholder)
+ *         └─ /settings     → ProjectSettingsPage (TASK-009)
  *
  * All pages are lazy-loaded with React.lazy + Suspense to keep the initial
- * bundle small. The 3-item top-level nav rule holds — /projects/:projectId
- * is a sub-view, not a nav entry.
+ * bundle small.
  */
 
 import React, { Suspense } from "react";
-import { createBrowserRouter } from "react-router-dom";
-import { Layout } from "@/app/Layout";
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import { RootLayout } from "@/app/RootLayout";
+import { AppShell } from "@/app/AppShell";
+import { ProjectShell } from "@/app/ProjectShell";
+import { RootRedirect } from "@/app/RootRedirect";
 import { PageLoader } from "@/shared/components/PageLoader";
 
 // ---------------------------------------------------------------------------
@@ -33,6 +44,19 @@ const SessionsPage = React.lazy(
 const SettingsPage = React.lazy(
   () => import("@/features/settings/SettingsPage"),
 );
+const MilestonesPage = React.lazy(
+  () => import("@/features/milestones/MilestonesPage"),
+);
+const BoardPage = React.lazy(() => import("@/features/board/BoardPage"));
+const ProjectSettingsPage = React.lazy(
+  () => import("@/features/settings/ProjectSettingsPage"),
+);
+const StorySlideOver = React.lazy(
+  () =>
+    import("@/features/stories/components/StorySlideOver").then((m) => ({
+      default: m.StorySlideOver,
+    })),
+);
 
 // ---------------------------------------------------------------------------
 // Suspense wrapper applied at the router level so every page benefits
@@ -48,29 +72,25 @@ function SuspendedPage({ children }: { children: React.ReactNode }) {
 
 export const router = createBrowserRouter([
   {
+    // Level 1: flat root layout — top bar region + outlet
     path: "/",
-    element: <Layout />,
+    element: <RootLayout />,
     children: [
-      // Home: Projects list (requirement: route `/`)
+      // `/` → redirect to last-visited project or /projects
       {
         index: true,
+        element: <RootRedirect />,
+      },
+
+      // Full-page management routes — no sidebar, no sub-nav
+      {
+        path: "projects",
         element: (
           <SuspendedPage>
             <ProjectsPage />
           </SuspendedPage>
         ),
       },
-
-      // Stories sub-view: /projects/:projectId — not a top-level nav entry
-      {
-        path: "projects/:projectId",
-        element: (
-          <SuspendedPage>
-            <StoriesPage />
-          </SuspendedPage>
-        ),
-      },
-
       {
         path: "sessions",
         element: (
@@ -86,6 +106,78 @@ export const router = createBrowserRouter([
             <SettingsPage />
           </SuspendedPage>
         ),
+      },
+
+      // Level 2: AppShell — project sidebar + outlet for all project-scoped routes
+      {
+        path: "projects/:projectId",
+        element: <AppShell />,
+        children: [
+          // Level 3: ProjectShell — sub-nav tabs + leaf content outlet
+          {
+            element: <ProjectShell />,
+            children: [
+              // /projects/:projectId → redirect to /stories tab
+              {
+                index: true,
+                element: <Navigate to="stories" replace />,
+              },
+
+              // Stories tab — layout route so the list stays mounted when the
+              // story detail slide-over (:storyId child) is active.
+              {
+                path: "stories",
+                element: (
+                  <SuspendedPage>
+                    <StoriesPage />
+                  </SuspendedPage>
+                ),
+                children: [
+                  // Story detail slide-over — nested child route keeps the list
+                  // mounted in the background while the slide-over is open.
+                  {
+                    path: ":storyId",
+                    element: (
+                      <SuspendedPage>
+                        <StorySlideOver />
+                      </SuspendedPage>
+                    ),
+                  },
+                ],
+              },
+
+              // Board tab — kanban board with drag-and-drop status updates
+              {
+                path: "board",
+                element: (
+                  <SuspendedPage>
+                    <BoardPage />
+                  </SuspendedPage>
+                ),
+              },
+
+              // Milestones tab — full implementation in STORY-012
+              {
+                path: "milestones",
+                element: (
+                  <SuspendedPage>
+                    <MilestonesPage />
+                  </SuspendedPage>
+                ),
+              },
+
+              // Project settings tab — dictionary overrides for this project
+              {
+                path: "settings",
+                element: (
+                  <SuspendedPage>
+                    <ProjectSettingsPage />
+                  </SuspendedPage>
+                ),
+              },
+            ],
+          },
+        ],
       },
     ],
   },

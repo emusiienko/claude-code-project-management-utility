@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { ProjectList } from "./components/ProjectList";
 import { ProjectModal } from "./components/ProjectModal";
 import { DeleteProjectDialog } from "./components/DeleteProjectDialog";
@@ -100,7 +101,7 @@ export default function ProjectsPage() {
   const isDeleteSubmitting = deleteMutation.isPending;
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-5xl px-6 py-8">
       {/* Page heading */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -112,9 +113,11 @@ export default function ProjectsPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          aria-label="New project"
+          title="New project"
+          className="inline-flex items-center justify-center rounded-md bg-brand-600 p-2 text-white hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
-          New project
+          <Plus size={16} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
 
@@ -126,6 +129,7 @@ export default function ProjectsPage() {
         error={error}
         onEdit={openEdit}
         onDelete={openDelete}
+        onCreateFirst={openCreate}
       />
 
       {/* Create modal */}

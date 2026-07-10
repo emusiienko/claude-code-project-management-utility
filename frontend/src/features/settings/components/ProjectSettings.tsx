@@ -78,8 +78,12 @@ interface EffectiveSettingsPanelProps {
  * Renders a DictionaryEditor for each of the six dictionary keys, using the
  * project's effective settings as the displayed values. Shows an "Override"
  * badge on keys that have project-level overrides and a "Clear override" button.
+ *
+ * Exported so that project-context routes (e.g. /projects/:id/settings) can
+ * embed it directly with the project ID from the route param, without the
+ * project-selector side panel.
  */
-function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProps) {
+export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProps) {
   const {
     data: effectiveSettings,
     isLoading: isLoadingEffective,

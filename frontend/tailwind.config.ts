@@ -58,6 +58,16 @@ const config: Config = {
         lg: "0.75rem",
         xl: "1rem",
       },
+      keyframes: {
+        // Slide-in animation for the Story Detail slide-over (STORY-016 TASK-008).
+        "slide-in-from-right": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
+        },
+      },
+      animation: {
+        "slide-in-from-right": "slide-in-from-right 0.3s ease-out",
+      },
     },
   },
   plugins: [],

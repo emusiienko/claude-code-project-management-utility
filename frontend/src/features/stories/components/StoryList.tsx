@@ -2,8 +2,9 @@
  * StoryList — renders the paginated story table for a project.
  *
  * Handles loading, error, and empty states. Delegates row actions
- * (edit, delete) to the parent via callbacks. Clicking the story title
- * opens the edit modal (same as the edit icon button).
+ * (edit, delete, and title click) to the parent via callbacks. Clicking
+ * a story title calls onTitleClick, which in the Stories list navigates
+ * to the story detail slide-over route.
  */
 
 import { Pencil, Trash2 } from "lucide-react";
@@ -20,6 +21,8 @@ interface StoryListProps {
   onEdit: (story: Story) => void;
   onDelete: (story: Story) => void;
   onNew: () => void;
+  /** Called when the user clicks a story title — navigates to the detail route. */
+  onTitleClick: (story: Story) => void;
 }
 
 /**
@@ -63,6 +66,7 @@ export function StoryList({
   onEdit,
   onDelete,
   onNew,
+  onTitleClick,
 }: StoryListProps) {
   if (isLoading) {
     return <PageLoader />;
@@ -143,13 +147,13 @@ export function StoryList({
               key={story.id}
               className="border-b border-border last:border-0 hover:bg-surface-muted/50"
             >
-              {/* Title — clickable to open edit modal */}
+              {/* Title — clickable to open story detail slide-over */}
               <td className="px-4 py-3">
                 <button
                   type="button"
-                  onClick={() => onEdit(story)}
+                  onClick={() => onTitleClick(story)}
                   className="text-left font-medium text-brand-600 hover:text-brand-700 hover:underline focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-1 rounded"
-                  aria-label={`Edit story: ${story.title}`}
+                  aria-label={`Open story: ${story.title}`}
                 >
                   {story.title}
                 </button>

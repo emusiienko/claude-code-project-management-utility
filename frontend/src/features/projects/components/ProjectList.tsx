@@ -19,6 +19,8 @@ interface ProjectListProps {
   error: unknown;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
+  /** Called when the user clicks "Create your first project" in the empty state. */
+  onCreateFirst?: () => void;
 }
 
 /**
@@ -32,6 +34,7 @@ export function ProjectList({
   error,
   onEdit,
   onDelete,
+  onCreateFirst,
 }: ProjectListProps) {
   if (isLoading) {
     return <PageLoader />;
@@ -52,12 +55,21 @@ export function ProjectList({
     return (
       <div
         aria-live="polite"
-        className="flex h-48 flex-col items-center justify-center rounded-md border border-dashed border-border"
+        className="flex flex-col items-center justify-center rounded-md border border-dashed border-border py-20"
       >
-        <p className="text-sm font-medium text-text-secondary">No projects yet</p>
-        <p className="mt-1 text-xs text-text-muted">
-          Create your first project to get started.
+        <p className="text-base font-semibold text-text">No projects yet</p>
+        <p className="mt-1 text-sm text-text-secondary">
+          Get started by creating your first project.
         </p>
+        {onCreateFirst && (
+          <button
+            type="button"
+            onClick={onCreateFirst}
+            className="mt-6 rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          >
+            Create your first project
+          </button>
+        )}
       </div>
     );
   }

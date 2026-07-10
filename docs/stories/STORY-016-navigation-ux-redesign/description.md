@@ -1,5 +1,5 @@
 ---
-status: Planned
+status: Accepted
 type: feature
 priority: P0
 date: 2026-07-07

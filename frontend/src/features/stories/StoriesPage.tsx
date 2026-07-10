@@ -1,17 +1,24 @@
 /**
- * StoriesPage — entry point for the /projects/:projectId route.
+ * StoriesPage — Stories tab content at /projects/:projectId/stories.
  *
  * Orchestrates the story list, filter bar, create/edit modal, and delete
  * confirmation dialog for stories within a single project. All server state
  * lives in TanStack Query hooks; this component handles only page-level UI
  * state (filters, which modal is open, which story is selected).
  *
+ * On mount, records the active project ID to localStorage so RootRedirect
+ * returns to this project on the next visit.
+ *
+ * Clicking a story title navigates to /projects/:projectId/stories/:storyId
+ * where TASK-008's slide-over will render.
+ *
  * The task aggregate column shows "N/A" — the aggregate endpoint is out of
  * scope until STORY-005.
  */
 
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Plus, ChevronDown } from "lucide-react";
+import { useParams, useNavigate, Outlet } from "react-router-dom";
 import { StoryList } from "./components/StoryList";
 import { StoryModal } from "./components/StoryModal";
 import { DeleteStoryDialog } from "./components/DeleteStoryDialog";
@@ -22,8 +29,9 @@ import {
   useDeleteStory,
   type StoryFilters,
 } from "./hooks/useStories";
-import { useProjectDetail } from "@/features/projects/hooks/useProjects";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
+import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
+import { LAST_PROJECT_KEY } from "@/app/RootRedirect";
 import type { Story } from "@/api/types";
 import type { StoryFormValues } from "./components/StoryForm";
 import { extractErrorMessage } from "./utils/errorMessages";
@@ -41,6 +49,17 @@ type ModalState =
 export default function StoriesPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const safeProjectId = projectId ?? "";
+  const navigate = useNavigate();
+
+  // Record this project as last visited so RootRedirect returns here.
+  const [, setLastProjectId] = useLocalStorage<string | null>(LAST_PROJECT_KEY, null);
+  useEffect(() => {
+    if (safeProjectId) {
+      setLastProjectId(safeProjectId);
+    }
+  // Run only when the projectId changes, not on every setLastProjectId reference change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeProjectId]);
 
   // Filters live in page-level state and feed the list query key
   const [filters, setFilters] = useState<StoryFilters>({});
@@ -50,7 +69,6 @@ export default function StoriesPage() {
   const [mutationError, setMutationError] = useState<string | undefined>();
 
   // Server data
-  const { data: project } = useProjectDetail(safeProjectId);
   const { data: effectiveSettings } = useProjectSettingsEffective(safeProjectId);
   const { data: storiesEnvelope, isLoading, isError, error } = useStories(safeProjectId, filters);
 
@@ -133,6 +151,11 @@ export default function StoriesPage() {
     });
   }
 
+  // Title click — navigate to story detail slide-over (rendered in TASK-008)
+  function handleTitleClick(story: Story) {
+    navigate(`/projects/${safeProjectId}/stories/${story.id}`);
+  }
+
   // Filter bar handlers
   function applyFilters() {
     setFilters({ ...draftFilters });
@@ -147,32 +170,18 @@ export default function StoriesPage() {
   const isEditSubmitting = updateMutation.isPending;
   const isDeleteSubmitting = deleteMutation.isPending;
 
-  const projectName = project?.name ?? "Project";
-
   return (
-    <div>
-      {/* Breadcrumb + Page heading */}
-      <div className="mb-1 text-xs text-text-muted">
-        <Link to="/" className="hover:underline text-brand-600">
-          Projects
-        </Link>
-        <span className="mx-1">/</span>
-        <span className="text-text-secondary">{projectName}</span>
-      </div>
-
+    <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-text">{projectName}</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Stories within this project.
-          </p>
-        </div>
+        <h2 className="text-lg font-semibold text-text">Stories</h2>
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          aria-label="New story"
+          title="New story"
+          className="inline-flex items-center justify-center rounded-md bg-brand-600 p-2 text-white hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
-          New story
+          <Plus size={16} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
 
@@ -183,24 +192,27 @@ export default function StoriesPage() {
           <label htmlFor="filter-status" className="text-xs font-medium text-text-secondary">
             Status
           </label>
-          <select
-            id="filter-status"
-            value={draftFilters.status ?? ""}
-            onChange={(e) =>
-              setDraftFilters((f) => ({
-                ...f,
-                status: e.target.value || undefined,
-              }))
-            }
-            className="rounded border border-border px-2 py-1.5 text-sm text-text focus:border-brand-500 focus:outline-none"
-          >
-            <option value="">All statuses</option>
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="relative inline-block">
+            <select
+              id="filter-status"
+              value={draftFilters.status ?? ""}
+              onChange={(e) =>
+                setDraftFilters((f) => ({
+                  ...f,
+                  status: e.target.value || undefined,
+                }))
+              }
+              className="w-auto appearance-none rounded border border-border pl-2 pr-8 py-1.5 text-sm text-text focus:border-brand-500 focus:outline-none"
+            >
+              <option value="">All statuses</option>
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true" />
+          </div>
         </div>
 
         {/* Label key filter */}
@@ -271,6 +283,7 @@ export default function StoriesPage() {
         onEdit={openEdit}
         onDelete={openDelete}
         onNew={openCreate}
+        onTitleClick={handleTitleClick}
       />
 
       {/* Create modal */}
@@ -306,6 +319,10 @@ export default function StoriesPage() {
           errorMessage={mutationError}
         />
       )}
+
+      {/* Story detail slide-over — rendered by the :storyId child route (TASK-008).
+          The Outlet keeps the list mounted in the background while the slide-over is active. */}
+      <Outlet />
     </div>
   );
 }
