@@ -108,10 +108,9 @@ const BOARD_DRAG_NOOP = {
 // ---------------------------------------------------------------------------
 
 const MILESTONE_FILTER_NOOP = {
-  activeMilestoneId: null,
-  activeMilestone: null,
-  showingAll: false,
-  handleShowAll: vi.fn(),
+  selectedMilestoneId: null,
+  milestones: [],
+  handleSelectMilestone: vi.fn(),
   isLoading: false,
 };
 

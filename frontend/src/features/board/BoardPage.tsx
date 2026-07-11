@@ -5,12 +5,11 @@
  * are derived from the project's effective settings, never hardcoded, so
  * the board stays consistent with the project's configured statuses.
  *
- * Active-milestone filter (STORY-012, TASK-005):
- *   When the project has an active milestone, the Board defaults to showing
- *   only stories assigned to that milestone. A filter banner names the active
- *   milestone and offers a "Show all stories" toggle that persists until the
- *   user navigates away. When no active milestone exists, all stories are shown
- *   with no filter indicator.
+ * Milestone filter (STORY-017):
+ *   A combobox in the board header lists all project milestones. The board
+ *   defaults to the active milestone when one exists, otherwise shows all
+ *   stories. The user can freely switch between milestones or "All stories"
+ *   without navigating away. Selection resets on project navigation change.
  *
  * Drag-and-drop:
  *   - Dragging a card to a different column fires an optimistic update via
@@ -57,9 +56,13 @@ export default function BoardPage() {
   // Per-card inline error messages keyed by story ID
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
 
-  // Active-milestone filter state — defaults to filtering when a milestone is active
-  const { activeMilestoneId, activeMilestone, isLoading: milestoneLoading, handleShowAll } =
-    useBoardMilestoneFilter(safeProjectId);
+  // Milestone combobox filter state — defaults to the active milestone when one exists
+  const {
+    selectedMilestoneId,
+    milestones,
+    isLoading: milestoneLoading,
+    handleSelectMilestone,
+  } = useBoardMilestoneFilter(safeProjectId);
 
   // Server data
   const { data: effectiveSettings, isLoading: settingsLoading } =
@@ -68,12 +71,12 @@ export default function BoardPage() {
     data: storiesEnvelope,
     isLoading: storiesLoading,
     isError,
-  } = useBoardStories(safeProjectId, activeMilestoneId);
+  } = useBoardStories(safeProjectId, selectedMilestoneId);
 
   // The board-specific cache key used for optimistic updates
   const boardCacheKey = CACHE_KEYS.stories.list(safeProjectId, {
     board: true,
-    milestone_id: activeMilestoneId ?? null,
+    milestone_id: selectedMilestoneId ?? null,
   });
 
   // Story status update mutation — used for optimistic update + rollback
@@ -194,68 +197,56 @@ export default function BoardPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Empty state for filtered view with no stories
+  // Board canvas
   // ---------------------------------------------------------------------------
 
-  const isFiltered = Boolean(activeMilestone);
-  const isEmpty = allStories.length === 0;
+  const selectedMilestoneName =
+    selectedMilestoneId != null
+      ? (milestones.find((m) => m.id === selectedMilestoneId)?.name ?? null)
+      : null;
 
-  if (isFiltered && isEmpty) {
-    return (
-      <div className="flex flex-col gap-4 p-6">
-        {activeMilestone && (
+  return (
+    <div className="flex flex-col gap-4 p-6">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-lg font-semibold text-text">Board</h2>
+        <div className="flex items-center gap-4">
           <BoardMilestoneFilter
-            milestoneName={activeMilestone.name}
-            onShowAll={handleShowAll}
+            selectedMilestoneId={selectedMilestoneId}
+            milestones={milestones}
+            onSelectMilestone={handleSelectMilestone}
           />
-        )}
+          <p className="text-xs text-text-muted">
+            {allStories.length}{" "}
+            {allStories.length === 1 ? "story" : "stories"}
+            {allStories.length >= PAGINATION.BOARD_STORIES && (
+              <span className="ml-1 text-text-muted">
+                (showing first {PAGINATION.BOARD_STORIES})
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {allStories.length === 0 && selectedMilestoneName != null && (
         <p
           aria-live="polite"
           className="rounded-md border border-dashed border-border p-8 text-center text-sm text-text-secondary"
         >
           No stories are assigned to milestone{" "}
           <span className="font-medium text-text">
-            &ldquo;{activeMilestone?.name}&rdquo;
+            &ldquo;{selectedMilestoneName}&rdquo;
           </span>
-          .{" "}
+          . Assign stories from the Stories tab or select{" "}
           <button
             type="button"
-            onClick={handleShowAll}
+            onClick={() => handleSelectMilestone(null)}
             className="text-brand-600 underline hover:text-brand-700"
           >
-            Show all stories
-          </button>{" "}
-          or assign stories to this milestone from the Stories tab.
+            All stories
+          </button>
+          .
         </p>
-      </div>
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Board canvas
-  // ---------------------------------------------------------------------------
-
-  return (
-    <div className="flex flex-col gap-4 p-6">
-      {activeMilestone && (
-        <BoardMilestoneFilter
-          milestoneName={activeMilestone.name}
-          onShowAll={handleShowAll}
-        />
       )}
-
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-text">Board</h2>
-        <p className="text-xs text-text-muted">
-          {allStories.length}{" "}
-          {allStories.length === 1 ? "story" : "stories"}
-          {allStories.length >= PAGINATION.BOARD_STORIES && (
-            <span className="ml-1 text-text-muted">
-              (showing first {PAGINATION.BOARD_STORIES})
-            </span>
-          )}
-        </p>
-      </div>
 
       {/* Horizontally-scrollable board canvas — columns remain accessible
           regardless of sidebar collapsed state. The min-width on the inner

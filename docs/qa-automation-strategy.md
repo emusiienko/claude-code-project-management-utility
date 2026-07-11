@@ -285,8 +285,7 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 | `frontend/src/features/board/BoardPage.test.tsx` | STORY-016 | Loading guard (settings/stories), error alert, empty-statuses message, one column per status, Board heading, story count summary, kanban region landmark |
 | `frontend/src/features/settings/SettingsPage.test.tsx` | STORY-016 | Heading present, SystemSettings renders, no Project Overrides tab, no System Defaults tab (flat page), copy mentions project context |
 | `frontend/src/features/settings/ProjectSettingsPage.test.tsx` | STORY-016 | Project Settings heading, EffectiveSettingsPanel renders, project ID passed from route, override descriptive copy |
-| `frontend/src/shared/hooks/useActiveMilestone.test.ts` | STORY-012 | empty list → null; all non-active → null; one active → returned; disabled when projectId empty |
-| `frontend/src/features/board/hooks/useBoardMilestoneFilter.test.ts` | STORY-012 | no active milestone (null ids/object); active milestone surfaces ids; handleShowAll clears filter; projectId change resets showingAll; isLoading forwarded |
+| `frontend/src/features/board/hooks/useBoardMilestoneFilter.test.ts` | STORY-012 / STORY-017 | no milestones → null id + empty array; milestones with no active → null id; active milestone → defaults to its id; milestones array populated; isLoading forwarded; handleSelectMilestone changes id; accepts null (show all); projectId change resets to new default |
 
 ### Run Commands
 

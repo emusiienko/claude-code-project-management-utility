@@ -2,52 +2,64 @@
  * useBoardMilestoneFilter — unit tests
  *
  * Covers:
- * - When no active milestone: activeMilestoneId is null, activeMilestone is null,
- *   showingAll is false, isLoading reflects the underlying query state.
- * - When an active milestone exists: activeMilestoneId equals its id,
- *   activeMilestone is the milestone object, showingAll is false.
- * - handleShowAll: sets showingAll to true; activeMilestoneId becomes null;
- *   activeMilestone becomes null (filter dismissed).
- * - projectId change resets showingAll to false (navigating away semantics).
- * - isLoading is forwarded from useActiveMilestone while the query is in-flight.
+ * - When the project has no milestones: selectedMilestoneId is null, milestones is empty.
+ * - When milestones exist but none is active: selectedMilestoneId is null.
+ * - When an active milestone exists: selectedMilestoneId defaults to its id.
+ * - handleSelectMilestone changes selectedMilestoneId.
+ * - projectId change resets selectedMilestoneId to the new default (STORY-017).
+ * - isLoading is forwarded from useProjectMilestones while the query is in-flight.
  */
 
 import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { Milestone } from "@/api/types";
+import type { Milestone, ListEnvelope } from "@/api/types";
 
 // ---------------------------------------------------------------------------
-// Mock useActiveMilestone — the only external boundary for this hook
+// Mock useProjectMilestones — the only external boundary for this hook
 // ---------------------------------------------------------------------------
 
-vi.mock("@/shared/hooks/useActiveMilestone");
+vi.mock("@/features/milestones/hooks/useMilestones", () => ({
+  useProjectMilestones: vi.fn(),
+}));
 
-import { useActiveMilestone } from "@/shared/hooks/useActiveMilestone";
+import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
 import { useBoardMilestoneFilter } from "./useBoardMilestoneFilter";
 
-const mockUseActiveMilestone = vi.mocked(useActiveMilestone);
+const mockUseProjectMilestones = vi.mocked(useProjectMilestones);
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeActiveMilestone(id = "m-active"): Milestone {
+function makeMilestone(
+  id: string,
+  status: Milestone["status"] = "planned",
+): Milestone {
   return {
     id,
-    name: "Active Sprint",
+    name: `Milestone ${id}`,
     description: null,
     project_id: "proj-1",
-    status: "active",
-    story_count: 3,
+    status,
+    story_count: 0,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
 }
 
-type UseQueryResult = { data: Milestone | null; isLoading: boolean };
+type QueryResult = { data: ListEnvelope<Milestone> | undefined; isLoading: boolean };
 
-function mockQuery(result: UseQueryResult) {
-  mockUseActiveMilestone.mockReturnValue(result as ReturnType<typeof useActiveMilestone>);
+function mockQuery(milestones: Milestone[], isLoading = false) {
+  const result: QueryResult = {
+    data: isLoading
+      ? undefined
+      : {
+          data: milestones,
+          meta: { total: milestones.length, page: 1, limit: 100, totalPages: 1 },
+        },
+    isLoading,
+  };
+  mockUseProjectMilestones.mockReturnValue(result as ReturnType<typeof useProjectMilestones>);
 }
 
 // ---------------------------------------------------------------------------
@@ -59,134 +71,113 @@ describe("useBoardMilestoneFilter", () => {
     vi.clearAllMocks();
   });
 
-  it("activeMilestoneId is null when no active milestone exists", () => {
-    mockQuery({ data: null, isLoading: false });
+  it("selectedMilestoneId is null when there are no milestones", () => {
+    mockQuery([]);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
-    expect(result.current.activeMilestoneId).toBeNull();
+    expect(result.current.selectedMilestoneId).toBeNull();
   });
 
-  it("activeMilestone is null when no active milestone exists", () => {
-    mockQuery({ data: null, isLoading: false });
+  it("milestones array is empty when there are no milestones", () => {
+    mockQuery([]);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
-    expect(result.current.activeMilestone).toBeNull();
+    expect(result.current.milestones).toEqual([]);
   });
 
-  it("showingAll starts as false regardless of active milestone", () => {
-    mockQuery({ data: null, isLoading: false });
+  it("selectedMilestoneId is null when milestones exist but none is active", () => {
+    mockQuery([makeMilestone("m-1", "planned"), makeMilestone("m-2", "finished")]);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
-    expect(result.current.showingAll).toBe(false);
+    expect(result.current.selectedMilestoneId).toBeNull();
   });
 
-  it("isLoading reflects the underlying query loading state (true)", () => {
-    mockQuery({ data: null, isLoading: true });
+  it("selectedMilestoneId defaults to the active milestone id when one exists", () => {
+    mockQuery([
+      makeMilestone("m-1", "planned"),
+      makeMilestone("m-active", "active"),
+    ]);
+
+    const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
+
+    expect(result.current.selectedMilestoneId).toBe("m-active");
+  });
+
+  it("milestones array contains all fetched milestones", () => {
+    const ms = [makeMilestone("m-1", "planned"), makeMilestone("m-2", "active")];
+    mockQuery(ms);
+
+    const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
+
+    expect(result.current.milestones).toHaveLength(2);
+  });
+
+  it("isLoading is true while the query is in-flight", () => {
+    mockQuery([], true);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
     expect(result.current.isLoading).toBe(true);
   });
 
-  it("isLoading reflects the underlying query loading state (false)", () => {
-    mockQuery({ data: null, isLoading: false });
+  it("isLoading is false when the query has resolved", () => {
+    mockQuery([]);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
     expect(result.current.isLoading).toBe(false);
   });
 
-  it("activeMilestoneId equals the active milestone id when one exists", () => {
-    const milestone = makeActiveMilestone("m-active");
-    mockQuery({ data: milestone, isLoading: false });
-
-    const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
-
-    expect(result.current.activeMilestoneId).toBe("m-active");
-  });
-
-  it("activeMilestone is the active milestone object when one exists", () => {
-    const milestone = makeActiveMilestone();
-    mockQuery({ data: milestone, isLoading: false });
-
-    const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
-
-    expect(result.current.activeMilestone).toBe(milestone);
-  });
-
-  it("handleShowAll sets showingAll to true", () => {
-    const milestone = makeActiveMilestone();
-    mockQuery({ data: milestone, isLoading: false });
+  it("handleSelectMilestone changes selectedMilestoneId to the given id", () => {
+    mockQuery([makeMilestone("m-1", "planned")]);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
     act(() => {
-      result.current.handleShowAll();
+      result.current.handleSelectMilestone("m-1");
     });
 
-    expect(result.current.showingAll).toBe(true);
+    expect(result.current.selectedMilestoneId).toBe("m-1");
   });
 
-  it("activeMilestoneId becomes null after handleShowAll", () => {
-    const milestone = makeActiveMilestone();
-    mockQuery({ data: milestone, isLoading: false });
+  it("handleSelectMilestone accepts null to show all stories", () => {
+    mockQuery([makeMilestone("m-active", "active")]);
 
     const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
 
-    act(() => {
-      result.current.handleShowAll();
-    });
-
-    expect(result.current.activeMilestoneId).toBeNull();
-  });
-
-  it("activeMilestone becomes null after handleShowAll (filter dismissed)", () => {
-    const milestone = makeActiveMilestone();
-    mockQuery({ data: milestone, isLoading: false });
-
-    const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
+    // Start filtered on the active milestone
+    expect(result.current.selectedMilestoneId).toBe("m-active");
 
     act(() => {
-      result.current.handleShowAll();
+      result.current.handleSelectMilestone(null);
     });
 
-    expect(result.current.activeMilestone).toBeNull();
+    expect(result.current.selectedMilestoneId).toBeNull();
   });
 
-  it("showingAll resets to false when projectId changes", () => {
-    const milestone = makeActiveMilestone();
-    mockQuery({ data: milestone, isLoading: false });
+  it("selectedMilestoneId resets to default when projectId changes", () => {
+    // proj-1 has an active milestone
+    mockQuery([makeMilestone("m-active", "active")]);
 
     const { result, rerender } = renderHook(
-      ({ projectId }: { projectId: string }) => useBoardMilestoneFilter(projectId),
+      ({ projectId }: { projectId: string }) =>
+        useBoardMilestoneFilter(projectId),
       { initialProps: { projectId: "proj-1" } },
     );
 
+    // Manually deselect the filter
     act(() => {
-      result.current.handleShowAll();
+      result.current.handleSelectMilestone(null);
     });
-    expect(result.current.showingAll).toBe(true);
+    expect(result.current.selectedMilestoneId).toBeNull();
 
-    // Simulate navigating to a different project.
+    // Switch to a project with no milestones
+    mockQuery([]);
     rerender({ projectId: "proj-2" });
 
-    expect(result.current.showingAll).toBe(false);
-  });
-
-  it("activeMilestoneId returns null when showingAll is true even if active milestone exists", () => {
-    const milestone = makeActiveMilestone();
-    mockQuery({ data: milestone, isLoading: false });
-
-    const { result } = renderHook(() => useBoardMilestoneFilter("proj-1"));
-
-    act(() => {
-      result.current.handleShowAll();
-    });
-
-    // Even though activeMilestone data exists in the query, the filter is dismissed.
-    expect(result.current.activeMilestoneId).toBeNull();
+    expect(result.current.selectedMilestoneId).toBeNull();
   });
 });

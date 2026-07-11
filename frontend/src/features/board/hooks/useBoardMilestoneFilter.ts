@@ -1,61 +1,59 @@
 /**
- * useBoardMilestoneFilter — manages the Board's active-milestone filter state.
+ * useBoardMilestoneFilter — manages the Board's milestone combobox filter state.
  *
- * Behaviour:
- * - When the project has an active milestone, the Board defaults to showing only
- *   that milestone's stories. The filter is applied automatically on first render.
- * - The user can toggle "show all" to see every project story. This toggle is
- *   stored per project in memory and resets when the user navigates away.
- * - Returns the milestoneId to pass to useBoardStories, and the active milestone
- *   metadata needed for the filter banner.
+ * Fetches all milestones for the project and exposes a selectable milestone ID.
+ * Defaults to the active milestone on mount and on project navigation change.
+ * When no active milestone exists, defaults to null (all stories shown).
  *
  * @param projectId - Owning project ID.
  */
 
 import { useState, useEffect } from "react";
-import { useActiveMilestone } from "@/shared/hooks/useActiveMilestone";
+import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
 import type { Milestone } from "@/api/types";
 
 interface UseBoardMilestoneFilterResult {
-  /** The milestone ID currently filtering stories, or null for unfiltered. */
-  activeMilestoneId: string | null;
-  /** The active milestone data — null when no active milestone or filter dismissed. */
-  activeMilestone: Milestone | null;
-  /** Whether the user explicitly dismissed the filter to show all stories. */
-  showingAll: boolean;
-  /** Called when the user clicks "Show all stories". */
-  handleShowAll: () => void;
+  /** The milestone ID currently selected in the combobox, or null for "All stories". */
+  selectedMilestoneId: string | null;
+  /** All milestones for the project — used to populate the combobox options. */
+  milestones: Milestone[];
+  /** True while the milestone list is being fetched. */
   isLoading: boolean;
+  /** Called when the user picks a different option from the combobox. */
+  handleSelectMilestone: (milestoneId: string | null) => void;
 }
 
 export function useBoardMilestoneFilter(
   projectId: string,
 ): UseBoardMilestoneFilterResult {
-  const { data: activeMilestone, isLoading } = useActiveMilestone(projectId);
+  const { data: envelope, isLoading } = useProjectMilestones(projectId);
+  const milestones = envelope?.data ?? [];
 
-  // Tracks whether the user explicitly chose "show all" for this board session.
-  // Initialized to false — the filter is active by default when a milestone is active.
-  // Resets when projectId changes, mirroring "navigate away" semantics.
-  const [showingAll, setShowingAll] = useState(false);
+  // Derive the default selection — active milestone id or null (all stories).
+  const activeMilestone = milestones.find((m) => m.status === "active") ?? null;
+  const defaultId = activeMilestone?.id ?? null;
 
-  // Reset to filtered view when switching to a different project.
-  // This ensures a fresh navigation always defaults to the milestone filter.
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(
+    defaultId,
+  );
+
+  // Reset selection to the default whenever the project changes or the milestone
+  // list resolves for the first time — ensures fresh navigation always picks the
+  // active milestone automatically.
   useEffect(() => {
-    setShowingAll(false);
-  }, [projectId]);
+    setSelectedMilestoneId(defaultId);
+    // defaultId is derived from milestones, which changes when projectId changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, defaultId]);
 
-  function handleShowAll() {
-    setShowingAll(true);
+  function handleSelectMilestone(milestoneId: string | null) {
+    setSelectedMilestoneId(milestoneId);
   }
 
-  const isFiltered = Boolean(activeMilestone) && !showingAll;
-  const activeMilestoneId = isFiltered ? (activeMilestone?.id ?? null) : null;
-
   return {
-    activeMilestoneId,
-    activeMilestone: isFiltered ? (activeMilestone ?? null) : null,
-    showingAll,
-    handleShowAll,
+    selectedMilestoneId,
+    milestones,
     isLoading,
+    handleSelectMilestone,
   };
 }

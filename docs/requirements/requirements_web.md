@@ -114,13 +114,15 @@ Sub-nav active tab: **Stories**.
 
 ---
 
-### Board View (`/projects/:id/board`) <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
+### Board View (`/projects/:id/board`) <!-- updated: 2026-07-11 (STORY-017 reconcile) -->
 
 Sub-nav active tab: **Board**.
 
 > **As-built notes (STORY-016):** The Board fetches up to 100 stories (the API page limit); projects with more than 100 stories will silently show only the first 100 — a known gap to be addressed in a future story.
 >
 > **As-built notes (STORY-012):** Active-milestone filtering implemented. The Board tab is always enabled regardless of whether an active milestone exists. Per-column "Add story" with active milestone pre-assigned is not implemented (deferred to a future story).
+>
+> **As-built notes (STORY-017):** The binary banner+toggle is replaced by a `<select>` combobox in the board header. The hook contract changed from `showingAll`/`handleShowAll`/`activeMilestone` to `selectedMilestoneId`/`milestones`/`handleSelectMilestone`. The "filtered+empty" early-return guard was removed; the board renders the combobox in the standard header at all times after load.
 
 - One column per effective `story_statuses` dictionary value for the project; columns are derived from the project's effective settings (never hardcoded). Column droppable IDs use the prefix convention `col-<status>` to distinguish them from card IDs (plain story UUIDs).
 - Each column header shows the status name and a count of story cards in that column
@@ -131,11 +133,13 @@ Sub-nav active tab: **Board**.
 - Board canvas is horizontally scrollable; all columns remain accessible regardless of sidebar collapsed state
 - Stories with `status: null` or a status not present in any active column are silently excluded from the board
 
-**Active-milestone filter behaviour:**
-- When the project has an active milestone, the Board loads showing only stories assigned to that milestone. A visible filter label (milestone name) is shown above the board with a "Show all" toggle.
-- When the user activates the "Show all" toggle, the Board displays all project stories regardless of milestone assignment. This toggle state persists only for the current Board session — navigating away resets it.
-- When no active milestone is set for a project, the Board shows all stories without any filter applied and no filter indicator is visible.
-- When the filtered view contains zero stories (no stories in the project are assigned to the active milestone), an empty state is shown with a prompt to assign stories or toggle to all stories.
+**Milestone filter combobox:**
+- A `<select>` combobox is displayed in the board header area. It lists all project milestones with a status hint in parentheses: e.g. `"Sprint 1 (Active)"`, `"Sprint 2 (Planned)"`, `"Sprint 3 (Finished)"`. An "All stories" option always appears at the top of the list.
+- On mount and on project navigation change, the combobox defaults to the active milestone if one exists; otherwise defaults to "All stories".
+- Changing the combobox selection immediately re-filters the board to show only stories assigned to the selected milestone, or all stories when "All stories" is selected.
+- The combobox is not rendered while milestones are still loading.
+- When the project has no milestones, the combobox renders with only the "All stories" option visible.
+- All combobox interactions are keyboard-accessible via the native `<select>` element.
 
 ---
 

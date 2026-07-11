@@ -43,8 +43,8 @@
 | [TC-039](test-cases/TC-039-milestone-delete-nullifies-stories.md) | Delete a milestone — assigned stories lose milestone link, stories not deleted | @smoke @regression | STORY-012 | Active |
 | [TC-040](test-cases/TC-040-lifecycle-activate-finish.md) | Milestone lifecycle — Planned → Active → Finished → Active (re-activate) | @smoke @regression | STORY-012 | Active |
 | [TC-041](test-cases/TC-041-single-active-confirmation.md) | Single-active invariant — confirmation dialog when activating with existing Active milestone | @smoke @regression | STORY-012 | Active |
-| [TC-042](test-cases/TC-042-board-active-milestone-filter.md) | Board — active milestone filter applied on load, toggle to show all | @smoke @regression | STORY-012 | Active |
-| [TC-043](test-cases/TC-043-board-no-active-milestone.md) | Board — no active milestone shows all stories with no filter indicator | @smoke @regression | STORY-012 | Active |
+| [TC-042](test-cases/TC-042-board-active-milestone-filter.md) | Board — milestone combobox defaults to active milestone, re-filters on selection change | @smoke @regression | STORY-012 | Active |
+| [TC-043](test-cases/TC-043-board-no-active-milestone.md) | Board — no active milestone defaults combobox to "All stories" | @smoke @regression | STORY-012 | Active |
 | [TC-044](test-cases/TC-044-board-empty-state-filtered.md) | Board — empty state when active milestone has no stories assigned | @regression | STORY-012 | Active |
 | [TC-045](test-cases/TC-045-board-filter-cleared-on-finish.md) | Board — filter removed when Active milestone is set to Finished | @regression | STORY-012 | Active |
 | [TC-046](test-cases/TC-046-story-assignment-set-and-clear.md) | Story form — assign and clear milestone; only same-project milestones shown | @smoke @regression | STORY-012 | Active |

@@ -17,3 +17,5 @@ waiting_for: none
 - 2026-07-06: Code review conventions established: no Response/Body schema suffixes (backend + frontend), UUID coercion in BaseRepository, field validation in Pydantic schemas, DomainError.to_tool_error()
 - 2026-07-10: STORY-016 (Navigation & UX Redesign) fully reconciled — ADR-014 (app switcher shell), requirements_web.md updated, 30 new frontend tests (140 total), TC-023–TC-034 merged into master QA registry; archived
 - 2026-07-11: STORY-012 (Milestones) accepted and fully reconciled — ADR-015 (single-project model), ADR-016 (single-active service invariant), requirements updated, 350 tests total, TC-035–TC-052 merged; archived
+- 2026-07-11: STORY-017 (Board Milestone Filter Combobox) accepted and fully reconciled — useActiveMilestone hook removed (orphan), TC-042/043 updated, requirements_web.md updated; archived
+- 2026-07-11: STORY-005 Feature Design complete — spec updated, plan approved (useBoardDrag promoted to shared/hooks, no generic KanbanBoard component); 7 tasks ready for implementation
