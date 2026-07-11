@@ -456,18 +456,23 @@ Effective resolution: for each key, use `project_settings.values` if a row exist
 
 <!-- v1.2 (2026-07-10): single-project ownership + lifecycle status. Supersedes the LOCKED v1.0
      M:N (project_ids[]) shape. A milestone belongs to exactly one project and has a status. -->
+<!-- updated: 2026-07-11 (STORY-012 reconcile): request schemas ratified without the `Body` suffix
+     (`CreateMilestone`/`UpdateMilestone`) to match the codebase naming convention, as built. The
+     `GET /milestones/:id/detail` endpoint below is specified but NOT yet implemented — it is deferred
+     until the attachments (STORY-007) and comments (STORY-008) domains exist. See architecture.md
+     § Known Divergences. All other Milestone endpoints are implemented and match this contract. -->
 
 ```typescript
 // POST /milestones                         -> 201 Envelope<Milestone> | 422, 404, 409
-interface CreateMilestoneBody { name: string; project_id: string; description?: string; }
+interface CreateMilestone { name: string; project_id: string; description?: string; }
 //   Created with status "planned". 404 if project_id does not exist.
 //   409 if a milestone with this name already exists in that project.
 
 // GET  /milestones?page&limit&project_id    -> 200 ListEnvelope<Milestone> (incl. project_id, status, story_count)
 //   project_id filters to one project's milestones; omit to list across all projects.
-// GET  /milestones/:id                      -> 200 Envelope<Milestone> | 404
+// GET  /milestones/:id                      -> 200 Envelope<Milestone> | 404  (incl. story_count)
 // PUT  /milestones/:id                      -> 200 Envelope<Milestone> | 404, 409, 422
-interface UpdateMilestoneBody {            // name + description only; project_id is immutable
+interface UpdateMilestone {                 // name + description only; project_id is immutable
   name?: string; description?: string;
 }
 //   Editing project_id is not supported (immutable after create).
@@ -488,6 +493,7 @@ interface UpdateMilestoneBody {            // name + description only; project_i
 // GET  /milestones/:id/stories?page&limit    -> 200 ListEnvelope<Story> (each incl. project_id) | 404
 
 // GET  /milestones/:id/detail                -> 200 Envelope<MilestoneDetail> | 404
+//   NOT YET IMPLEMENTED (deferred until attachments/comments domains exist — STORY-007/008).
 //   Composes the milestone's side collections in one call. Assigned stories are NOT included —
 //   they are paginated via GET /milestones/:id/stories.
 interface MilestoneDetail extends Milestone {

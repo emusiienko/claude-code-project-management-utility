@@ -16,4 +16,4 @@ waiting_for: none
 - 2026-07-06: STORY-015 accepted and fully reconciled — Lucide icons on Projects + Settings, IconButton primitive, Vitest frontend test suite (27 tests)
 - 2026-07-06: Code review conventions established: no Response/Body schema suffixes (backend + frontend), UUID coercion in BaseRepository, field validation in Pydantic schemas, DomainError.to_tool_error()
 - 2026-07-10: STORY-016 (Navigation & UX Redesign) fully reconciled — ADR-014 (app switcher shell), requirements_web.md updated, 30 new frontend tests (140 total), TC-023–TC-034 merged into master QA registry; archived
-- 2026-07-10: STORY-012 Feature Design complete — SESSION-011 (spec-writer, single-project model + lifecycle), SESSION-012 (architect plan review); api-contract.md revised to v1.2; TASK-002 updated: story_count is server-derived (COUNT query, no N+1); plan approved, implementation not yet started
+- 2026-07-11: STORY-012 (Milestones) accepted and fully reconciled — ADR-015 (single-project model), ADR-016 (single-active service invariant), requirements updated, 350 tests total, TC-035–TC-052 merged; archived

@@ -27,7 +27,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | Attachments | Document attachments (Markdown/text files, stored on filesystem, with change history, archivable) and image attachments (binary files on filesystem, archivable) and external-reference attachments (URL + status, detachable) attached to stories or tasks | P1 |
 | Comments | Author + text notes attached to stories or tasks; support labels | P1 |
 | Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
-| Milestones | Named planning markers scoped to a single project; each milestone has a status (`Planned` / `Active` / `Finished`); only one milestone per project may be `Active` at a time; stories are optionally assigned to a milestone (nullable FK) | P1 |
+| Milestones | Named planning markers scoped to exactly one project; each milestone has a lifecycle status (`planned` / `active` / `finished`); at most one milestone per project may be `active` at a time (activate action demotes the previous one atomically); stories are optionally assigned to a milestone via nullable FK; `story_count` is server-derived | P1 |
 | Cross-project Queries | List stories and tasks across all projects in a single query; project-scoped is the default | P2 |
 
 ---
@@ -56,7 +56,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | content | text | No | max 50,000 chars | Markdown |
 | status | string | No | from project's `story_statuses` dictionary if provided; null allowed | e.g. "planned", "in-progress", "accepted" |
 | labels | JSON array | No | array of `{key: string, value: string}`; all keys free-form | arbitrary metadata; status is NOT stored here |
-| milestone_id | UUID | No | nullable; no FK constraint until STORY-012 creates the milestone table | column exists in DB; FK added by STORY-012 migration |
+| milestone_id | UUID | No | FK → Milestone; ON DELETE SET NULL; nullable; story's project must match milestone's project | FK constraint added by migration `0004_milestone` (STORY-012) |
 | created_at | timestamp | Yes | set on create | timezone-aware |
 | updated_at | timestamp | Yes | set on update | timezone-aware |
 
@@ -211,32 +211,27 @@ One row per (project, key) pair. Absent rows fall through to system defaults.
 
 ---
 
-### Milestone
+### Milestone <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
 
-Top-level entity — not bound to a single project. A milestone is associated with one or more projects via a join table.
+A milestone is scoped to exactly one project (single-project model — the M:N design was replaced before implementation; see ADR-013). A project may have many milestones; a milestone belongs to one project.
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
-| name | string | Yes | 1–200 chars; unique within each associated project (enforced at write time) | |
+| project_id | UUID | Yes | FK → Project; CASCADE DELETE; immutable after create | |
+| name | string | Yes | 1–200 chars; unique within project case-insensitively | enforced via functional index on `LOWER(name)` scoped to `project_id` |
 | description | text | No | max 5,000 chars | |
+| status | string | Yes | one of `"planned"`, `"active"`, `"finished"`; server default `"planned"` | at most one milestone per project may be `"active"` at a time |
 | created_at | timestamp | Yes | set on create | |
 | updated_at | timestamp | Yes | set on update | |
 
-**MilestoneProject** (join table — M:N between Milestone and Project):
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| milestone_id | UUID | Yes | FK → Milestone; composite PK |
-| project_id | UUID | Yes | FK → Project; composite PK |
-
-**Story.milestone_id** (nullable FK added to Story entity):
+**story.milestone_id** — nullable FK column (already existed as a bare column since STORY-004; FK constraint added by migration `0004_milestone`):
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
-| milestone_id | UUID | No | FK → Milestone; SET NULL on milestone delete | Story's project must be in Milestone's associated projects |
+| milestone_id | UUID | No | FK → Milestone; ON DELETE SET NULL | story's project must match the milestone's project |
 
-Milestones share the same attachment and comment mechanism as Stories and Tasks (container_type = `"milestone"`).
+**story_count** — computed, not stored. Derived at read time as the count of stories whose `milestone_id` equals the milestone's id. Present on both list items and detail responses. List resolves all counts in a single batched GROUP BY query (no N+1).
 
 ---
 
@@ -255,10 +250,8 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 | Project → ProjectSettings | 1:N | CASCADE |
 | Session → Story (linked_story_id) | N:0-1 | SET NULL |
 | Session → Task (linked_task_id) | N:0-1 | SET NULL |
-| Milestone ↔ Project (MilestoneProject join) | M:N | CASCADE (join row deleted when either side is deleted) |
-| Story → Milestone (milestone_id) | N:0-1 | SET NULL |
-| Milestone → Attachment (container_type = milestone) | 1:N | CASCADE |
-| Milestone → Comment (container_type = milestone) | 1:N | CASCADE |
+| Project → Milestone | 1:N | CASCADE (all project milestones deleted when project deleted) |
+| Story → Milestone (milestone_id) | N:0-1 | SET NULL (story's milestone_id cleared when milestone deleted) |
 
 ---
 
@@ -281,8 +274,9 @@ Milestones share the same attachment and comment mechanism as Stories and Tasks 
 | Session | (linked_story_id) | sessions for a story |
 | Session | (linked_task_id) | sessions for a task |
 | Story | (milestone_id) | stories assigned to a milestone |
-| MilestoneProject | (milestone_id) | projects for a milestone |
-| MilestoneProject | (project_id) | milestones for a project |
+| Milestone | (project_id) | milestones for a project |
+| Milestone | (project_id, status) | find active milestone for a project |
+| Milestone | (project_id, LOWER(name)) unique | case-insensitive name uniqueness within a project |
 
 ---
 
@@ -682,66 +676,67 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 ---
 
-### Milestones
+### Milestones <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
+
+> **As-built notes (STORY-012):** The previously planned M:N (milestone ↔ project) model was replaced with a single-project model before implementation. Each milestone carries a `project_id` FK (not a join table). A `status` lifecycle field was added (`planned` / `active` / `finished`). Lifecycle transitions are exposed as action endpoints (POST activate / POST finish), not via PUT. `story_count` is a server-derived field present on both list and detail responses. `container_type = "milestone"` for attachments/comments was deferred — not implemented in STORY-012.
 
 #### POST /milestones
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** `{ "name": "string (required)", "project_ids": ["uuid (required, min 1)"], "description": "string (optional)" }`
+- **Request body:**
+  ```json
+  { "name": "string (required, 1–200 chars)", "project_id": "uuid (required)", "description": "string (optional)" }
+  ```
 - **Response 201:** `{ "data": { Milestone } }`
 - **Response errors:**
-  - 404: any project_id not found
-  - 409: name already exists within one of the associated projects
-  - 422: name missing or out of range; project_ids missing or empty (Pydantic field validation)
+  - 404: project not found
+  - 409: name already exists within that project → `{ "error": "A milestone named '{name}' already exists in this project.", "code": "CONFLICT" }`
+  - 422: name missing or out of range; project_id missing (Pydantic field validation)
 
 #### GET /milestones
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Query params:** `page`, `limit`, `project_id` (filter by associated project)
-- **Response 200:** paginated Milestone list; each item includes `project_ids` array and `story_count`
+- **Query params:** `page`, `limit`, `project_id` (filter by owning project)
+- **Response 200:** paginated Milestone list; each item includes `project_id`, `status`, and `story_count`
 
 #### GET /milestones/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** `{ "data": { Milestone + project_ids } }`
+- **Response 200:** `{ "data": { Milestone + story_count } }`
 - **Response errors:** 404
 
 #### PUT /milestones/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** `name`, `description`, `project_ids` — all optional; `project_ids` replaces the full set of associated projects
+- **Request body:** `name`, `description` — optional; `project_id` is immutable after create
 - **Response 200:** `{ "data": { Milestone } }`
 - **Response errors:**
-  - 404: milestone or any project_id not found
-  - 409: name conflict within associated projects
-  - 422: empty project_ids array (Pydantic); removing a project that still has stories assigned to this milestone (business)
+  - 404: milestone not found
+  - 409: name conflict within the same project
+  - 422: name out of range (Pydantic)
 
 #### DELETE /milestones/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
+- **Behavior:** sets `milestone_id = null` on all assigned stories; no story is deleted
 - **Response 204**
 - **Response errors:** 404
 
-#### GET /milestones/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile) -->
+#### POST /milestones/:id/activate
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:**
-  ```json
-  {
-    "data": {
-      "...all Milestone fields...",
-      "project_ids": ["uuid"],
-      "attachments": [ active Attachment objects ],
-      "comments": [ Comment objects ordered by created_at ASC ]
-    }
-  }
-  ```
-  Composite read — milestone entity plus its active attachments and comments. The list of assigned stories is excluded and served by `GET /milestones/:id/stories`.
+- **Behavior:** sets the milestone's status to `active`. If another milestone in the same project is currently `active`, it is demoted to `planned` in the same transaction — the project never has two active milestones. Idempotent (already-active → no-op success). Valid from any prior status (`planned` or `finished`).
+- **Response 200:** `{ "data": { Milestone } }` with `status: "active"`
+- **Response errors:** 404
+
+#### POST /milestones/:id/finish
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Behavior:** sets status to `finished`. No side effect on other milestones. Idempotent.
+- **Response 200:** `{ "data": { Milestone } }` with `status: "finished"`
 - **Response errors:** 404
 
 #### GET /milestones/:id/stories
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Query params:** `page`, `limit`
-- **Response 200:** paginated Story list assigned to this milestone; each story includes `project_id`
+- **Response 200:** paginated Story list assigned to this milestone
 - **Response errors:** 404
 
-Milestones also support attachment and comment endpoints using the same patterns as stories and tasks, with `container_type = "milestone"`:
-- `POST /milestones/:id/attachments`, `GET /milestones/:id/attachments`
-- `POST /milestones/:id/comments`, `GET /milestones/:id/comments`
+#### Story list — milestone filter (extension to existing GET /projects/:projectId/stories)
+The story list endpoint accepts an optional `milestone_id` query parameter. An unknown or malformed `milestone_id` yields an empty page (not an error).
 
 ---
 
@@ -785,9 +780,9 @@ Milestones also support attachment and comment endpoints using the same patterns
 | Comment | content | Required; 1–50,000 chars | "Comment content is required." |
 | Session | topic | Required; 1–500 chars | "Session topic is required." |
 | SystemSettings / ProjectSettings | values | Array; min 1 non-empty string | "Dictionary values cannot be empty." |
-| Milestone | name | Required; 1–200 chars; unique within each associated project | "A milestone named '{name}' already exists in project '{project}'." |
-| Milestone | project_ids | Required; min 1 valid project UUID | "At least one project must be associated with a milestone." |
-| Story | milestone_id | Optional; if set, story's project must be in milestone's project set | "Story's project is not associated with this milestone." |
+| Milestone | name | Required; 1–200 chars; unique within the milestone's project (case-insensitive) | "A milestone named '{name}' already exists in this project." |
+| Milestone | project_id | Required; must be an existing project UUID | "Project not found." (404) |
+| Story | milestone_id | Optional; if set, milestone must exist (404) and belong to the story's project (422) | "This milestone does not belong to the story's project." |
 
 ### Business-Level
 
@@ -802,8 +797,8 @@ Milestones also support attachment and comment endpoints using the same patterns
 9. A session without a linked story or task is valid.
 10. `AttachmentVersion` records exist only for `kind = "document"` attachments.
 11. TaskLinks can only be created between tasks in the same project.
-12. Removing a project from a milestone's `project_ids` while stories from that project are still assigned to the milestone is rejected — the story assignments must be cleared first.
-13. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted.
+12. A project can have at most one milestone with status `active` at a time. Activating a milestone when another is already `active` demotes the previous one to `planned` in the same database transaction.
+13. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted. Deleting a project cascades to all its milestones.
 
 ---
 

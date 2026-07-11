@@ -26,8 +26,8 @@ via an MCP server and to the human orchestrator via a web UI.
 
 ## Key Docs
 - Architecture: docs/architecture.md
-- API Contract: docs/api-contract.md  ← **v1.0 LOCKED**
-- Tech Decisions: docs/tech_decisions/ (ADR-001 … ADR-011; ADR-009 superseded by ADR-010)
+- API Contract: docs/api-contract.md  ← **v1.0 LOCKED** (Milestones revised to v1.2 — single-project + lifecycle)
+- Tech Decisions: docs/tech_decisions/ (ADR-001 … ADR-016; ADR-009 superseded by ADR-010)
 - Backend Conventions: docs/backend-coding-conventions.md  ← owned by backend-developer (TBD)
 - Frontend Conventions: docs/frontend-coding-conventions.md ← owned by frontend-developer (TBD)
 - DevOps Strategy: docs/devops-strategy.md ← owned by devops (TBD)

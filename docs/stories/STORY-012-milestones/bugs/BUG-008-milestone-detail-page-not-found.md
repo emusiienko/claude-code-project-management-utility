@@ -2,7 +2,7 @@
 id: BUG-008
 story: STORY-012
 severity: major
-status: open
+status: resolved
 assignee: frontend-developer
 ---
 

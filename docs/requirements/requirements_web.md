@@ -106,7 +106,7 @@ Sub-nav active tab: **Stories**.
 
 - Lists stories as a table: title, status (badge), labels (tag chips), task aggregate (e.g. "3/5 done")
 - **Filter bar** above the list: status dropdown (populated from project's effective `story_statuses`), label key text input + label value text input
-- **Create story** button → form panel: title (required), content (Markdown textarea, optional), status (dropdown, optional), labels editor
+- **Create story** button → form panel: title (required), content (Markdown textarea, optional), status (dropdown, optional), labels editor, milestone dropdown (optional; populated from project's milestones)
 - **Edit** button per story row → same form pre-filled
 - **Delete** button per story row → confirmation dialog
 - Clicking a story title opens the Story Detail slide-over; URL updates to `/projects/:id/stories/:storyId`
@@ -114,13 +114,13 @@ Sub-nav active tab: **Stories**.
 
 ---
 
-### Board View (`/projects/:id/board`) <!-- updated: 2026-07-10 (STORY-016 reconcile) -->
+### Board View (`/projects/:id/board`) <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
 
 Sub-nav active tab: **Board**.
 
-> **As-built notes (STORY-016):** The Board tab is always enabled and shows **all** project stories (no milestone filter). The milestone-based enabling/disabling and filtering behaviour described below in the "Deferred" note is deferred to STORY-012. The Board fetches up to 100 stories (the API page limit); projects with more than 100 stories will silently show only the first 100 — a known gap to be addressed in a future story.
+> **As-built notes (STORY-016):** The Board fetches up to 100 stories (the API page limit); projects with more than 100 stories will silently show only the first 100 — a known gap to be addressed in a future story.
 >
-> **Deferred to STORY-012:** The `Board` tab being disabled when no active milestone exists; milestone-scoped story display; per-column "Add story" with active milestone pre-assigned.
+> **As-built notes (STORY-012):** Active-milestone filtering implemented. The Board tab is always enabled regardless of whether an active milestone exists. Per-column "Add story" with active milestone pre-assigned is not implemented (deferred to a future story).
 
 - One column per effective `story_statuses` dictionary value for the project; columns are derived from the project's effective settings (never hardcoded). Column droppable IDs use the prefix convention `col-<status>` to distinguish them from card IDs (plain story UUIDs).
 - Each column header shows the status name and a count of story cards in that column
@@ -131,11 +131,19 @@ Sub-nav active tab: **Board**.
 - Board canvas is horizontally scrollable; all columns remain accessible regardless of sidebar collapsed state
 - Stories with `status: null` or a status not present in any active column are silently excluded from the board
 
+**Active-milestone filter behaviour:**
+- When the project has an active milestone, the Board loads showing only stories assigned to that milestone. A visible filter label (milestone name) is shown above the board with a "Show all" toggle.
+- When the user activates the "Show all" toggle, the Board displays all project stories regardless of milestone assignment. This toggle state persists only for the current Board session — navigating away resets it.
+- When no active milestone is set for a project, the Board shows all stories without any filter applied and no filter indicator is visible.
+- When the filtered view contains zero stories (no stories in the project are assigned to the active milestone), an empty state is shown with a prompt to assign stories or toggle to all stories.
+
 ---
 
-### Story Detail slide-over (`/projects/:id/stories/:storyId`) <!-- updated: 2026-07-10 (STORY-016 reconcile) -->
+### Story Detail slide-over (`/projects/:id/stories/:storyId`) <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
 
 > **As-built notes (STORY-016):** The slide-over is implemented as a nested child route of `/projects/:id/stories`. The slide-in animation uses a custom `slide-in-from-right` keyframe defined in `tailwind.config.ts` (no `tailwindcss-animate` dependency). The task kanban inside the slide-over is a placeholder (`TaskKanbanPlaceholder`) that derives column names from the project's effective `task_statuses` dictionary but contains no live task data — live tasks are delivered by STORY-005. Story description is rendered via `react-markdown` using Tailwind arbitrary-property selectors (no `@tailwindcss/typography` dependency). Attachments and comments sections inside the right panel are static placeholders pending STORY-007 and STORY-008. The right panel persists open/closed state per story in browser local storage keyed by story ID via the shared `useLocalStorage` hook.
+>
+> **As-built notes (STORY-012):** A Milestone section has been added to the right panel between Description and Attachments. It shows the story's current milestone assignment and provides an inline control (native `<select>`) to set or clear it. The mutation calls `PUT /stories/:id` with only `milestone_id` set. Milestone options show `(Active)` or `(Finished)` suffixes for non-planned milestones; planned milestones have no suffix. A status hint below the select indicates the active milestone in an accent color. Errors from a failed milestone update surface via the shared mutation error banner in the slide-over.
 
 **Opening:** clicking a story title (from Stories list or Board) triggers a slide-over panel that animates in from the right, covering the sidebar and sub-navigation. The background content is dimmed but not unmounted. The URL updates for deep-linking. Navigating directly to the story URL renders the project view with the slide-over already open.
 
@@ -176,6 +184,14 @@ Sub-nav active tab: **Board**.
 
 **Right panel — Story Description:**
 - Renders story content as Markdown (truncated with "Show more" if long)
+
+**Right panel — Story Milestone:** <!-- updated: 2026-07-11 (STORY-012) -->
+- Displays the story's current milestone assignment (milestone name, or "None")
+- Native `<select>` control populated with all milestones belonging to the story's project: "None" option first, then each milestone with its status suffix (`(Active)`, `(Finished)`, or no suffix for `Planned`)
+- Selecting an option immediately calls `PUT /stories/:id` with only `{ "milestone_id": <value_or_null> }` — no other story field is changed
+- A status hint below the select shows the selected milestone's status (accent color for `Active`, muted for `Planned`/`Finished`)
+- The control is populated from `GET /milestones?project_id=<projectId>` scoped to the story's project
+- Only milestones belonging to the story's project are eligible — milestones from other projects are never shown
 
 **Right panel — Story Attachments:**
 
@@ -323,6 +339,11 @@ Sub-nav active tab: **Settings**.
 ---
 
 ## Form Behaviours
+
+### Story Form <!-- updated: 2026-07-11 (STORY-012) -->
+Fields: title (text, required), content (Markdown textarea, optional), status (dropdown, optional), labels editor, milestone (dropdown, optional).
+
+The milestone dropdown is populated from `GET /milestones?project_id=<projectId>` scoped to the current project. Options include "None" (to clear the assignment) followed by each milestone name with its status suffix (`(Active)`, `(Finished)`, or no suffix for `Planned`). The pre-filled value for Edit is the story's current `milestone_id`.
 
 ### Task Form
 Fields: title (text, required), content (Markdown textarea, optional), type (dropdown, required), status (dropdown, required), assignee_role (dropdown, optional), creator_role (dropdown, optional), labels editor.

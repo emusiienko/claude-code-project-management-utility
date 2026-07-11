@@ -85,7 +85,7 @@ of business logic and the only layer that touches the data layer.
 - `backend/app/attachments/` — document/image/external-ref attachments + version history; filesystem-backed
 - `backend/app/comments/` — comments on stories/tasks/milestones
 - `backend/app/sessions/` — session records + incomplete-session query
-- `backend/app/milestones/` — milestones (single owning project) + lifecycle status + story assignment <!-- updated: 2026-07-10 (STORY-012 feature design): single-project ownership + lifecycle (planned/active/finished) supersedes the M:N project-association design; see api-contract v1.2 and Planned ADR-015. -->
+- `backend/app/milestones/` — milestones (single owning project) + lifecycle status + story assignment <!-- updated: 2026-07-11 (STORY-012 reconcile): full domain slice built — model, repository (`get_active_for_project`, `get_story_counts` batched GROUP BY, `clear_story_links`), service (single-project ownership, name uniqueness, atomic activate/finish per ADR-016), schema, REST controller, and mirrored MCP tools. Single-project ownership + lifecycle (planned/active/finished) supersedes the M:N project-association design; see api-contract v1.2, ADR-015, ADR-016. `GET /milestones/:id/detail` (attachments+comments composition) is deferred until STORY-007/008 build those domains — see Known Divergences. -->
 - `backend/app/settings/` — system + project dictionaries; effective-dictionary resolution
 - `backend/app/api/` — resolving and uniting separate routers, managing API versions, starting from V1, a lightweight component
 - `backend/app/mcp/` — resolving mcp protocol
@@ -165,10 +165,10 @@ Aggregation / composition (a service reads another app's data to assemble a deri
 > `stories → projects`); the projects service derives nothing from stories. Project→Story containment
 > is expressed by the FK + `ON DELETE CASCADE` in the schema, not by a runtime service dependency.
 
-Milestones: <!-- updated: 2026-07-10 (STORY-012 feature design): single-project + lifecycle model -->
+Milestones: <!-- updated: 2026-07-11 (STORY-012 reconcile): single-project + lifecycle model, as built -->
 - `milestones service → projects data`: validates the single owning project exists and enforces name uniqueness within that project.
-- `milestones service → stories data`: reads assigned stories (`story_count`, milestone story list); on delete, clears `milestone_id` on assigned stories (no story deleted).
-- `stories service → milestones data`: assigning `milestone_id` validates the milestone exists (404) and belongs to the story's project (422).
+- `milestones service → stories data`: reads assigned stories (`story_count` via a batched `GROUP BY` over `story.milestone_id` — no per-milestone query; milestone story list); on delete, clears `milestone_id` on assigned stories via a bulk UPDATE (no story deleted).
+- `stories service → milestones data`: assigning `milestone_id` validates the milestone exists (404) and belongs to the story's project (422). To avoid a circular import, the stories service depends on milestones through a runtime-checkable `MilestoneRepositoryProtocol` (duck-typed) rather than importing the concrete repository.
 
 Storage & client:
 - `attachments service → core.storage`: file read/write/snapshot on the attachments volume.
@@ -228,17 +228,18 @@ are normative constraints for the backend implementor (see ADR-002).
 - **session** — `id`, `topic`, `context`, `result_decisions`, `result_summary`, `status` (free-form), `participant_role`, `linked_story_id` (FK→story, SET NULL), `linked_task_id` (FK→task, SET NULL), `archived_at`, `created_at`, `updated_at`
 - **system_settings** — `key` (PK, one of six dictionary keys), `values` (JSON array, ≥1), `updated_at`
 - **project_settings** — composite PK (`project_id` FK→project CASCADE, `key`), `values` (JSON array, ≥1 — fully replaces system default; replace-never-merge per ADR-008), `updated_at`
-- **milestone** — `id`, `project_id` (FK→project, CASCADE), `name` (unique within its project, case-insensitive, 1–200), `description`, `status` (`planned`|`active`|`finished`, default `planned`), `created_at`, `updated_at` <!-- updated: 2026-07-10 (STORY-012 feature design): single owning project (nullable-less FK) + lifecycle status replace the former M:N `milestone_project` join. At most one `active` per project — enforced by the service in the same transaction as activate, not by a DB constraint. -->
-  - Indexes: `(project_id)`, `(project_id, status)`.
+- **milestone** — `id`, `project_id` (FK→project, CASCADE), `name` (unique within its project, case-insensitive, 1–200), `description`, `status` (`planned`|`active`|`finished`, DDL `server_default 'planned'`), `created_at`, `updated_at` <!-- updated: 2026-07-11 (STORY-012 reconcile): built by `0004_milestone`. Single owning project (non-null FK) + lifecycle status replace the former M:N `milestone_project` join (ADR-015). At most one `active` per project — enforced by the service in the same transaction as activate, not by a DB constraint (ADR-016). -->
+  - Three indexes: `ix_milestone_project_id` `(project_id)`, `ix_milestone_project_status` `(project_id, status)`, and `ix_milestone_project_name_lower` `(project_id, LOWER(name))` unique (case-insensitive name uniqueness within a project).
 
 ### Relations & cascade
 
-Project → Story → Task all CASCADE; Story/Task/Milestone → Attachment/Comment CASCADE; Attachment(document) → AttachmentVersion CASCADE; Task → TaskLink CASCADE (either side); Session → Story/Task SET NULL; Project → Milestone CASCADE; Story → Milestone SET NULL. <!-- updated: 2026-07-10 (STORY-012 feature design): Milestone now belongs to one Project (Project → Milestone CASCADE), replacing the Milestone ↔ Project M:N join. -->
-- **STORY-012 migration also adds the deferred `story.milestone_id` FK** (`ON DELETE SET NULL`) at the point the `milestone` table is created, resolving ADR-013. On SQLite this requires `batch_alter_table` (table rebuild) since SQLite cannot `ALTER TABLE ADD CONSTRAINT`; the migration must do this portably.
+Project → Story → Task all CASCADE; Story/Task/Milestone → Attachment/Comment CASCADE; Attachment(document) → AttachmentVersion CASCADE; Task → TaskLink CASCADE (either side); Session → Story/Task SET NULL; Project → Milestone CASCADE; Story → Milestone SET NULL. <!-- updated: 2026-07-11 (STORY-012 reconcile): Milestone belongs to one Project (Project → Milestone CASCADE), replacing the Milestone ↔ Project M:N join (ADR-015). -->
+- **`0004_milestone` (STORY-012) also adds the deferred `story.milestone_id` FK** (`ON DELETE SET NULL`) at the point the `milestone` table is created, resolving ADR-013. On SQLite this uses `batch_alter_table` (table rebuild, constraint named `fk_story_milestone_id`) since SQLite cannot `ALTER TABLE ADD CONSTRAINT`; on PostgreSQL it emits a plain `ADD CONSTRAINT`. Verified portable on both dialects.
+- **Cascade/SET NULL is not FK-enforced under SQLite as built** — `PRAGMA foreign_keys = ON` is not set on the SQLite connection, so `ON DELETE CASCADE` and `ON DELETE SET NULL` are inert on SQLite (they are enforced on PostgreSQL). Application-level clearing covers the milestone case: milestone delete explicitly bulk-clears `story.milestone_id` in the service, so deleting a milestone works correctly regardless of dialect. See Known Divergences.
 
 ### Indexes
 
-As specified in the backend requirements: story `(project_id, created_at DESC)` and `(project_id, status)` and `(milestone_id)`; task `(story_id, status)`, `(story_id, type)`, `(assignee_role)`, `(creator_role)`; task_link `(source_task_id, link_type)` and `(target_task_id, link_type)`; attachment `(container_type, container_id, type, archived_at)`; attachment_version `(attachment_id, created_at DESC)`; comment `(container_type, container_id, created_at ASC)`; session `(archived_at, result_decisions)`, `(linked_story_id)`, `(linked_task_id)`; milestone `(project_id)` and `(project_id, status)`. <!-- updated: 2026-07-10 (STORY-012 feature design): milestone indexes replace the former milestone_project join indexes. -->
+As specified in the backend requirements: story `(project_id, created_at DESC)` and `(project_id, status)` and `(milestone_id)`; task `(story_id, status)`, `(story_id, type)`, `(assignee_role)`, `(creator_role)`; task_link `(source_task_id, link_type)` and `(target_task_id, link_type)`; attachment `(container_type, container_id, type, archived_at)`; attachment_version `(attachment_id, created_at DESC)`; comment `(container_type, container_id, created_at ASC)`; session `(archived_at, result_decisions)`, `(linked_story_id)`, `(linked_task_id)`; milestone `(project_id)`, `(project_id, status)`, and unique `(project_id, LOWER(name))`. <!-- updated: 2026-07-11 (STORY-012 reconcile): milestone indexes as built by `0004_milestone`; the functional unique `LOWER(name)` index enforces case-insensitive name uniqueness within a project. -->
 
 ### Portability constraints (SQLite ⇄ PostgreSQL)
 
@@ -359,6 +360,30 @@ with SQLite there is no `db` container.
 ## Known Divergences (reconcile log)
 
 <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+
+- **`GET /milestones/:id/detail` is deferred (STORY-012).** <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
+  The v1.2 contract defines `GET /milestones/:id/detail` returning `MilestoneDetail` (the milestone
+  plus its active attachments and comments). It is **not implemented** — the attachments (STORY-007)
+  and comments (STORY-008) domains do not exist yet, so there is nothing to compose. The milestone
+  slice ships CRUD, `activate`, `finish`, and `GET /milestones/:id/stories`, with `story_count` on the
+  list and single-get responses. The `/detail` endpoint (and the `MilestoneDetail` shape) remain in the
+  contract as forward specification and are expected to be wired up when attachments/comments land, the
+  same way story/task detail composition is staged. No fix needed now; tracked so a later story adds it.
+
+- **SQLite FK actions (`CASCADE`/`SET NULL`) are inert as built.** <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
+  The SQLite connection does not enable `PRAGMA foreign_keys = ON` (neither `build_engine()` nor the
+  test `conftest.py` sets it), so every `ON DELETE CASCADE` / `ON DELETE SET NULL` declared in the
+  schema is **not enforced by SQLite at runtime or in tests**; on PostgreSQL they are enforced. This is
+  a pre-existing, cross-domain gap surfaced (not introduced) by STORY-012's cascade tests. For
+  milestones specifically it is benign: milestone delete clears `story.milestone_id` in the service via
+  an explicit bulk UPDATE, so the "delete milestone → stories keep, link cleared" behaviour holds on
+  both dialects. The exposure is elsewhere (e.g. deleting a project relies on cascade to remove child
+  rows on SQLite).
+  - **Resolution path (out of architect reconcile scope — needs a follow-up):** add a SQLite
+    `connect` event that issues `PRAGMA foreign_keys = ON` in `build_engine()` and mirror it in the
+    test engine setup, then restore the cascade tests that were downgraded to weaker contract checks in
+    STORY-012's qa-automation task. Tracked here; not fixed during this documentation reconcile.
+
 
 - **Settings surfaces are split by scope (STORY-016).** <!-- updated: 2026-07-10 (STORY-016 reconcile) -->
   Global `/settings` now shows **only** system-level dictionary defaults; its former "Project
