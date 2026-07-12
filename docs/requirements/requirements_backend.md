@@ -23,7 +23,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | Tasks | Atomic work items within a story; `type`, `status`, `assignee_role`, `creator_role` from per-project dictionaries; validated at write | P0 |
 | Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, attachment types, link types, participant roles); system defaults; project-level overrides | P0 |
 | MCP Server | Full MCP protocol access surface exposing all operations for AI agents | P0 |
-| Task Links | Typed directed links between tasks; on-demand computation of inbound dependency data | P1 |
+| Work Item Linking | Typed directed links between tasks (`task_links`) and between stories (`story_links`); same semantic model — typed, directed, same-project-only, passive; detail endpoints return enriched link lists with id, title, and status of the linked item | P1 |
 | Attachments | Document attachments (Markdown/text files, stored on filesystem, with change history, archivable) and image attachments (binary files on filesystem, archivable) and external-reference attachments (URL + status, detachable) attached to stories or tasks | P1 |
 | Comments | Author + text notes attached to stories or tasks; support labels | P1 |
 | Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
@@ -89,10 +89,26 @@ The following assumptions were made where the validated idea or conceptual docum
 | id | UUID | Yes | PK, immutable | |
 | source_task_id | UUID | Yes | FK → Task | |
 | target_task_id | UUID | Yes | FK → Task; must differ from source_task_id | |
-| link_type | string | Yes | from source task's project's `link_types` dictionary | e.g. "depends-on", "context" |
+| link_type | string | Yes | from the parent story's project's `link_types` dictionary | e.g. "depends-on", "context" |
 | created_at | timestamp | Yes | set on create | |
 
 Unique constraint: (source_task_id, target_task_id, link_type).
+
+---
+
+### StoryLink
+
+Typed directed links between stories in the same project. Same semantic model as TaskLink.
+
+| Field | Type | Required | Constraints | Notes |
+|-------|------|----------|-------------|-------|
+| id | UUID | Yes | PK, immutable | |
+| source_story_id | UUID | Yes | FK → Story; CASCADE DELETE | |
+| target_story_id | UUID | Yes | FK → Story; CASCADE DELETE; must differ from source_story_id | |
+| link_type | string | Yes | from source story's project's `link_types` dictionary | e.g. "depends-on", "context" |
+| created_at | timestamp | Yes | set on create | |
+
+Unique constraint: (source_story_id, target_story_id, link_type).
 
 ---
 
@@ -246,6 +262,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | Task → Attachment (container_type = task) | 1:N | CASCADE |
 | Task → Comment (container_type = task) | 1:N | CASCADE |
 | Task → TaskLink (source or target) | 1:N | CASCADE (link deleted when either task is deleted) |
+| Story → StoryLink (source or target) | 1:N | CASCADE (link deleted when either story is deleted) |
 | Attachment (document) → AttachmentVersion | 1:N | CASCADE |
 | Project → ProjectSettings | 1:N | CASCADE |
 | Session → Story (linked_story_id) | N:0-1 | SET NULL |
@@ -267,6 +284,8 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | Task | (creator_role) | cross-project filter by creator |
 | TaskLink | (source_task_id, link_type) | outbound links per task |
 | TaskLink | (target_task_id, link_type) | inbound links per task (for blocked computation) |
+| StoryLink | (source_story_id, link_type) | outbound links per story |
+| StoryLink | (target_story_id, link_type) | inbound links per story |
 | Attachment | (container_type, container_id, type, archived_at) | attachments per container filtered by type and active/archived |
 | AttachmentVersion | (attachment_id, created_at DESC) | history of a document attachment |
 | Comment | (container_type, container_id, created_at ASC) | comment thread per container |
@@ -399,19 +418,20 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 > **As-built notes (STORY-005):** Implemented via `TaskCounterProtocol` injected into `StoryService`. The protocol is duck-typed against `TaskRepository.get_status_counts(story_id)` — the stories service never imports the concrete task service. `total_tasks` is computed as `sum(by_status.values())` to avoid a second DB round-trip. The `get_story_aggregate` MCP tool mirrors the REST endpoint exactly. Container declaration order: `task_repository` must be declared before `story_service` in `AppContainer` because Python evaluates class-body assignments in order.
 
-#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile) -->
+#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile); updated: 2026-07-12 (STORY-006: links added) -->
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:**
   ```json
   {
     "data": {
       "...all Story fields...",
+      "links": [ StoryLink objects enriched with linked story id/title/status ],
       "attachments": [ active Attachment objects ],
       "comments": [ Comment objects ordered by created_at ASC ]
     }
   }
   ```
-  Composite read — story entity plus its active attachments and comments. Large child collections (tasks) are excluded and served by their own paginated endpoint.
+  Composite read — story entity plus its outbound and inbound story links (enriched), active attachments, and comments. Large child collections (tasks) are excluded and served by their own paginated endpoint.
 - **Response errors:** 404
 
 ---
@@ -502,7 +522,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 - **Response errors:**
   - 404: source or target not found
   - 409: duplicate link
-  - 422: missing fields (Pydantic); link_type not in dict; source = target
+  - 422: missing fields (Pydantic); link_type not in dict; source = target; tasks from different stories → `{ "error": "Linked tasks must belong to the same story.", "code": "UNPROCESSABLE" }`
 
 #### GET /tasks/:taskId/links
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -511,6 +531,32 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 - **Response errors:** 404
 
 #### DELETE /task-links/:id
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 204**
+- **Response errors:** 404
+
+---
+
+### Story Links
+
+Same semantic model as Task Links — typed directed links between stories in the same project.
+
+#### POST /stories/:storyId/links
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Request body:** `{ "target_story_id": "uuid (required)", "link_type": "string (required, from link_types dict)" }`
+- **Response 201:** `{ "data": { StoryLink } }`
+- **Response errors:**
+  - 404: source or target story not found
+  - 409: duplicate link → `{ "error": "This link already exists.", "code": "CONFLICT" }`
+  - 422: missing fields (Pydantic); link_type not in dict → `{ "error": "Value '{v}' is not in link_types.", "code": "UNPROCESSABLE" }`; source = target → `{ "error": "A story cannot link to itself.", "code": "UNPROCESSABLE" }`; stories from different projects → `{ "error": "Linked stories must belong to the same project.", "code": "UNPROCESSABLE" }`
+
+#### GET /stories/:storyId/links
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Query params:** `page`, `limit`, `direction` (outbound \| inbound \| both; default: both), `link_type`
+- **Response 200:** paginated StoryLink list enriched with linked story `id`, `title`, `status`
+- **Response errors:** 404
+
+#### DELETE /story-links/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 204**
 - **Response errors:** 404
@@ -782,6 +828,7 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 | Task | creator_role | Optional; if set, in `participant_roles` dict | "Role '{v}' is not in the allowed list: {list}." |
 | TaskLink | link_type | Required; in `link_types` dict | "Link type '{v}' is not allowed. Allowed: {list}." |
 | TaskLink | target_task_id | Must differ from source | "A task cannot link to itself." |
+| TaskLink | target_task_id | Must share the same `story_id` as source | "Linked tasks must belong to the same story." |
 | TaskLink | (source, target, type) | Unique | "This link already exists." |
 | Attachment | type | Required; in `attachment_types` dict | "Attachment type '{v}' is not allowed. Allowed: {list}." |
 | Attachment | kind | Required; one of the three enum values | "Attachment kind must be 'document', 'image', or 'external-ref'." |
@@ -807,7 +854,7 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 8. ProjectSettings for a given key completely replace (not merge with) the system default.
 9. A session without a linked story or task is valid.
 10. `AttachmentVersion` records exist only for `kind = "document"` attachments.
-11. TaskLinks can only be created between tasks in the same project.
+11. TaskLinks can only be created between tasks that share the same `story_id`. Both `source_task_id` and `target_task_id` must belong to the same parent story; cross-story task links are rejected (422).
 12. A project can have at most one milestone with status `active` at a time. Activating a milestone when another is already `active` demotes the previous one to `planned` in the same database transaction.
 13. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted. Deleting a project cascades to all its milestones.
 

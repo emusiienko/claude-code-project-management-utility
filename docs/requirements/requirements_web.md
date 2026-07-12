@@ -19,7 +19,7 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 | Milestones View | List, create, edit, delete milestones within a project | P1 |
 | Attachments Management | Upload documents (text or file) and images; view, archive, browse history | P1 |
 | Comments Management | Create, edit, delete comments on stories and tasks | P1 |
-| Task Links Management | Create and delete typed directed links between tasks | P1 |
+| Work Item Linking | Create and delete typed directed links between tasks (in Task Detail Modal) and between stories (in Story slide-over); linked item titles are clickable navigation targets | P1 |
 
 ---
 
@@ -155,13 +155,17 @@ Sub-nav active tab: **Board**.
 
 **Closing:** the `✕` button or `Escape` key closes the slide-over and restores the previous URL (Stories list or Board). The `← Stories` breadcrumb in the slide-over header also closes it and navigates to the Stories list.
 
-**Layout:** two-column inside the slide-over. The main area (left) contains the story header and the task kanban. A collapsible right panel contains the story description (rendered Markdown), story-level attachments, and story-level comments. A toggle button (`‹`/`›` chevron anchored to the panel edge) expands or collapses it. The panel's open/closed state is persisted in browser local storage per story.
+**Layout:** two-column inside the slide-over. The main area (left) contains the story header and the task kanban. A collapsible right panel contains the story description (rendered Markdown), story milestone assignment, story links, story-level attachments, and story-level comments. A toggle button (`‹`/`›` chevron anchored to the panel edge) expands or collapses it. The panel's open/closed state is persisted in browser local storage per story.
 
 ```
 ┌──────────────────────────────────────────┬─────────────────────┐
 │  ← Stories / Story Title      ✏  [✕]    │ ›  Right panel      │
 │  ─────────────────────────────────────   │                     │
 │  Task kanban                             │  Description        │
+│                                          │  ──────────────     │
+│                                          │  Milestone          │
+│                                          │  ──────────────     │
+│                                          │  Links              │
 │                                          │  ──────────────     │
 │                                          │  Attachments        │
 │                                          │  ──────────────     │
@@ -196,6 +200,16 @@ Sub-nav active tab: **Board**.
 - A status hint below the select shows the selected milestone's status (accent color for `Active`, muted for `Planned`/`Finished`)
 - The control is populated from `GET /milestones?project_id=<projectId>` scoped to the story's project
 - Only milestones belonging to the story's project are eligible — milestones from other projects are never shown
+
+**Right panel — Story Links:** <!-- added: 2026-07-12 (STORY-006) -->
+
+> **As-built (STORY-005/016):** Static placeholder section (no link endpoint calls). Live implementation delivered by STORY-006.
+
+- Heading "Links" with a count badge
+- Single list showing both outbound and inbound story links; each row displays: direction indicator (→ / ←), `link_type` badge, linked story title
+- The linked story title is a clickable link: clicking navigates to that story's Story slide-over (URL updates to `/projects/:id/stories/:linkedStoryId`)
+- **Add link** button → inline form: search-by-title input for target story (within the same project), `link_type` dropdown populated from project's effective `link_types`
+- **Delete** button per link row → confirmation dialog; on confirm the link is removed and the list refreshes
 
 **Right panel — Story Attachments:**
 
@@ -255,10 +269,14 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 - Displays: title, type badge, status badge, assignee_role, creator_role, labels, rendered Markdown content
 - **Edit task** button → inline edit form replacing the metadata block (not a separate panel)
 
-**Links section:**
+**Links section:** <!-- updated: 2026-07-12 (STORY-006) -->
+
+> **As-built (STORY-005):** Static placeholder section (no link endpoint calls). Live implementation delivered by STORY-006.
+
 - Heading "Links" with count badge
-- Single list showing both outbound and inbound links; each row: direction indicator (→ / ←), link_type badge, linked task title (clicking opens that task's modal), linked task status badge
-- **Add link** button → inline form below the list: search-by-title input for target task, link_type dropdown
+- Single list showing both outbound and inbound task links; each row: direction indicator (→ / ←), `link_type` badge, linked task title, linked task status badge
+- The linked task title is a clickable link: clicking navigates to that task's Task Detail Modal (URL updates to `/projects/:id/stories/:storyId/tasks/:linkedTaskId`)
+- **Add link** button → inline form below the list: search-by-title input for target task (within the same project), `link_type` dropdown populated from project's effective `link_types`
 - **Delete** button per link row → confirmation dialog
 
 **Attachments section:**
