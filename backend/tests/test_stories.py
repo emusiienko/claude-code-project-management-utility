@@ -12,7 +12,8 @@ Coverage zones (per TASK-007):
                                     (omitted fields unchanged), labels replace entirely,
                                     empty labels array clears, null status removes status
 - DELETE /v1/stories/:id            happy path, unknown id (404)
-- GET  /v1/stories/:id/aggregate    returns 404 (not yet implemented)
+- GET  /v1/stories/:id/aggregate    200 + shape, empty story → zeros, counts match tasks,
+                                    unknown id → 404, malformed id → 404
 - Cross-project isolation           story from project A is not visible via project B list
 - Labels                            create with labels, update replaces entirely, empty array clears
 - Cascade delete                    deleting the parent project removes its stories
@@ -889,24 +890,100 @@ class TestDeleteStory:
 # ===========================================================================
 
 
-class TestStoryAggregate:
-    async def test_aggregate_endpoint_returns_404(self, client: AsyncClient) -> None:
-        """GET /v1/stories/:id/aggregate is out of scope for STORY-004.
+TASKS_URL = "/v1/stories"
+VALID_TASK_TYPE = "task"
+VALID_TASK_STATUS = "todo"
 
-        The route is not registered; any request to it must return 404 so the
-        test will need updating once the endpoint is implemented (STORY-005 area).
-        """
-        proj = await _create_project(client, "Aggregate Test Project")
+
+async def _create_task(
+    client: AsyncClient,
+    story_id: str,
+    title: str = "Test Task",
+    *,
+    task_type: str = VALID_TASK_TYPE,
+    task_status: str = VALID_TASK_STATUS,
+) -> dict:
+    resp = await client.post(
+        f"{TASKS_URL}/{story_id}/tasks",
+        json={"title": title, "type": task_type, "status": task_status},
+    )
+    assert resp.status_code == 201, (
+        f"Helper _create_task: expected 201, got {resp.status_code} — {resp.text}"
+    )
+    return resp.json()["data"]
+
+
+class TestStoryAggregate:
+    async def test_returns_200_for_existing_story(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Aggregate Test Project 1")
         try:
-            data = await _create_story(client, proj["id"], "Aggregate Story")
-            resp = await client.get(f"{STORIES_URL}/{data['id']}/aggregate")
-            assert resp.status_code == 404, (
-                f"Aggregate endpoint (not yet implemented) should return 404, "
-                f"got {resp.status_code}"
+            story = await _create_story(client, proj["id"], "Aggregate Story 1")
+            resp = await client.get(f"{STORIES_URL}/{story['id']}/aggregate")
+            assert resp.status_code == 200, (
+                f"Expected 200, got {resp.status_code}"
             )
-            await _delete_story(client, data["id"])
+            await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
+
+    async def test_empty_story_returns_zero_aggregate(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Aggregate Test Project 2")
+        try:
+            story = await _create_story(client, proj["id"], "Aggregate Story 2")
+            resp = await client.get(f"{STORIES_URL}/{story['id']}/aggregate")
+            assert resp.status_code == 200
+            body = resp.json()["data"]
+            assert body["total_tasks"] == 0
+            assert body["by_status"] == {}
+            assert body["story_id"] == story["id"]
+            await _delete_story(client, story["id"])
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_aggregate_counts_match_created_tasks(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Aggregate Test Project 3")
+        try:
+            story = await _create_story(client, proj["id"], "Aggregate Story 3")
+            task1 = await _create_task(
+                client, story["id"], "Task 1", task_status="todo"
+            )
+            task2 = await _create_task(
+                client, story["id"], "Task 2", task_status="todo"
+            )
+            task3 = await _create_task(
+                client, story["id"], "Task 3", task_status="in-progress"
+            )
+            resp = await client.get(f"{STORIES_URL}/{story['id']}/aggregate")
+            assert resp.status_code == 200
+            body = resp.json()["data"]
+            assert body["total_tasks"] == 3
+            assert body["by_status"]["todo"] == 2
+            assert body["by_status"]["in-progress"] == 1
+            assert body["story_id"] == story["id"]
+            for task_id in (task1["id"], task2["id"], task3["id"]):
+                await client.delete(f"/v1/tasks/{task_id}")
+            await _delete_story(client, story["id"])
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_unknown_story_returns_404(
+        self, client: AsyncClient
+    ) -> None:
+        unknown_id = str(uuid.uuid4())
+        resp = await client.get(f"{STORIES_URL}/{unknown_id}/aggregate")
+        assert resp.status_code == 404
+
+    async def test_malformed_story_id_returns_404(
+        self, client: AsyncClient
+    ) -> None:
+        resp = await client.get(f"{STORIES_URL}/not-a-uuid/aggregate")
+        assert resp.status_code == 404
 
 
 # ===========================================================================

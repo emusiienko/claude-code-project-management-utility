@@ -12,6 +12,7 @@ import type { Story } from "@/api/types";
 import { IconButton } from "@/shared/components/IconButton";
 import { PageLoader } from "@/shared/components/PageLoader";
 import { extractErrorMessage } from "@/features/stories/utils/errorMessages";
+import { useStoryAggregate } from "@/shared/hooks/useStoryAggregate";
 
 interface StoryListProps {
   stories: Story[] | undefined;
@@ -33,6 +34,33 @@ function StatusBadge({ status }: { status: string | null }) {
   return (
     <span className="inline-block rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
       {status}
+    </span>
+  );
+}
+
+/**
+ * AggregateCell — fetches and displays the "N/M done" task aggregate for one story.
+ *
+ * Each story row owns its own query instance; they share the TanStack Query cache
+ * keyed by story ID, so a task mutation in the Kanban automatically refreshes all
+ * visible rows without extra coordination here.
+ */
+function AggregateCell({ storyId }: { storyId: string }) {
+  const { data, isLoading } = useStoryAggregate(storyId);
+
+  if (isLoading || !data) {
+    return <span className="text-xs text-text-muted" aria-label="Loading task count">—</span>;
+  }
+
+  if (data.total_tasks === 0) {
+    return <span className="text-xs text-text-muted">—</span>;
+  }
+
+  const doneCount = data.by_status["done"] ?? 0;
+
+  return (
+    <span className="text-xs text-text-secondary">
+      {doneCount}/{data.total_tasks} done
     </span>
   );
 }
@@ -174,9 +202,9 @@ export function StoryList({
                   </div>
                 )}
               </td>
-              {/* Task aggregate — N/A until STORY-005 */}
-              <td className="hidden px-4 py-3 text-text-muted sm:table-cell" data-testid="task-aggregate">
-                N/A
+              {/* Task aggregate — live "N/M done" counter per story row */}
+              <td className="hidden px-4 py-3 sm:table-cell" data-testid="task-aggregate">
+                <AggregateCell storyId={story.id} />
               </td>
               {/* Row actions */}
               <td className="px-4 py-3 text-right">

@@ -13,6 +13,8 @@
  *      └─ ProjectShell
  *         ├─ index         → redirect to /stories
  *         ├─ /stories      → StoriesPage
+ *         │  └─ :storyId  → StorySlideOver
+ *         │     └─ tasks/:taskId → TaskDetailModal (TASK-005)
  *         ├─ /board        → BoardPage (TASK-007)
  *         ├─ /milestones   → MilestonesPage (placeholder)
  *         └─ /settings     → ProjectSettingsPage (TASK-009)
@@ -59,6 +61,12 @@ const StorySlideOver = React.lazy(
   () =>
     import("@/features/stories/components/StorySlideOver").then((m) => ({
       default: m.StorySlideOver,
+    })),
+);
+const TaskDetailModal = React.lazy(
+  () =>
+    import("@/features/tasks/components/TaskDetailModal").then((m) => ({
+      default: m.TaskDetailModal,
     })),
 );
 
@@ -158,6 +166,19 @@ export const router = createBrowserRouter([
                         <StorySlideOver />
                       </SuspendedPage>
                     ),
+                    children: [
+                      // Task Detail modal — nested under the slide-over so both
+                      // render simultaneously; direct navigation to this URL
+                      // renders the slide-over already open with the modal on top.
+                      {
+                        path: "tasks/:taskId",
+                        element: (
+                          <SuspendedPage>
+                            <TaskDetailModal />
+                          </SuspendedPage>
+                        ),
+                      },
+                    ],
                   },
                 ],
               },

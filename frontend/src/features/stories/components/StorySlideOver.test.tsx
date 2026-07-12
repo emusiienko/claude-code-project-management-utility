@@ -34,14 +34,35 @@ vi.mock("@/features/milestones/hooks/useMilestones", () => ({
   useProjectMilestones: vi.fn(),
 }));
 
+// TaskKanban uses TanStack Query hooks — mock them to avoid requiring a QueryClientProvider.
+vi.mock("@/features/tasks/hooks/useTasks", () => ({
+  useTaskList: vi.fn(),
+  useStoryAggregate: vi.fn(),
+  useCreateTask: vi.fn(),
+  useUpdateTask: vi.fn(),
+  useDeleteTask: vi.fn(),
+}));
+
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
+import {
+  useTaskList,
+  useStoryAggregate,
+  useCreateTask,
+  useUpdateTask,
+  useDeleteTask,
+} from "@/features/tasks/hooks/useTasks";
 
 const mockUseStory = vi.mocked(useStory);
 const mockUseUpdateStory = vi.mocked(useUpdateStory);
 const mockUseProjectSettingsEffective = vi.mocked(useProjectSettingsEffective);
 const mockUseProjectMilestones = vi.mocked(useProjectMilestones);
+const mockUseTaskList = vi.mocked(useTaskList);
+const mockUseStoryAggregate = vi.mocked(useStoryAggregate);
+const mockUseCreateTask = vi.mocked(useCreateTask);
+const mockUseUpdateTask = vi.mocked(useUpdateTask);
+const mockUseDeleteTask = vi.mocked(useDeleteTask);
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -105,13 +126,26 @@ beforeEach(() => {
     isPending: false,
   } as never);
   mockUseProjectSettingsEffective.mockReturnValue({
-    data: { story_statuses: ["Planned", "In Progress", "Done"], task_statuses: [] },
+    data: { story_statuses: ["Planned", "In Progress", "Done"], task_statuses: [], task_types: [], participant_roles: [] },
   } as never);
   // MilestoneAssignment inside StoryRightPanel needs a milestone list
   mockUseProjectMilestones.mockReturnValue({
     data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } },
     isLoading: false,
   } as never);
+  // TaskKanban hooks — return empty data so the board renders without errors
+  mockUseTaskList.mockReturnValue({
+    data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } },
+    isLoading: false,
+    isError: false,
+  } as never);
+  mockUseStoryAggregate.mockReturnValue({
+    data: { story_id: "story-001", total_tasks: 0, by_status: {} },
+    isLoading: false,
+  } as never);
+  mockUseCreateTask.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  mockUseUpdateTask.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  mockUseDeleteTask.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
 });
 
 // ---------------------------------------------------------------------------

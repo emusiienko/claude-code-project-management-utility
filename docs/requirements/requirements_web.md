@@ -110,7 +110,7 @@ Sub-nav active tab: **Stories**.
 - **Edit** button per story row → same form pre-filled
 - **Delete** button per story row → confirmation dialog
 - Clicking a story title opens the Story Detail slide-over; URL updates to `/projects/:id/stories/:storyId`
-- Task aggregate ("3/5 done") is fetched from `GET /stories/:id/aggregate`; "N/A" shown if story has no tasks
+- Task aggregate ("3/5 done") is fetched from `GET /stories/:id/aggregate` per visible story row (one independent TanStack Query instance per row); "—" (em-dash) shown when `total_tasks === 0` or while loading; updates live after every task create, update, or delete without a page refresh <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 
 ---
 
@@ -143,9 +143,11 @@ Sub-nav active tab: **Board**.
 
 ---
 
-### Story Detail slide-over (`/projects/:id/stories/:storyId`) <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
+### Story Detail slide-over (`/projects/:id/stories/:storyId`) <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 
-> **As-built notes (STORY-016):** The slide-over is implemented as a nested child route of `/projects/:id/stories`. The slide-in animation uses a custom `slide-in-from-right` keyframe defined in `tailwind.config.ts` (no `tailwindcss-animate` dependency). The task kanban inside the slide-over is a placeholder (`TaskKanbanPlaceholder`) that derives column names from the project's effective `task_statuses` dictionary but contains no live task data — live tasks are delivered by STORY-005. Story description is rendered via `react-markdown` using Tailwind arbitrary-property selectors (no `@tailwindcss/typography` dependency). Attachments and comments sections inside the right panel are static placeholders pending STORY-007 and STORY-008. The right panel persists open/closed state per story in browser local storage keyed by story ID via the shared `useLocalStorage` hook.
+> **As-built notes (STORY-016):** The slide-over is implemented as a nested child route of `/projects/:id/stories`. The slide-in animation uses a custom `slide-in-from-right` keyframe defined in `tailwind.config.ts` (no `tailwindcss-animate` dependency). Story description is rendered via `react-markdown` using Tailwind arbitrary-property selectors (no `@tailwindcss/typography` dependency). Attachments and comments sections inside the right panel are static placeholders pending STORY-007 and STORY-008. The right panel persists open/closed state per story in browser local storage keyed by story ID via the shared `useLocalStorage` hook.
+>
+> **As-built notes (STORY-005):** The task kanban placeholder (`TaskKanbanPlaceholder`) has been replaced with a fully functional, dictionary-driven `TaskKanban` component. The slide-over now renders an `<Outlet />` at the bottom of its fragment so the nested `tasks/:taskId` child route can mount the Task Detail modal on top without unmounting the slide-over. `TaskKanbanPlaceholder` in `src/features/stories/components/TaskKanbanPlaceholder.tsx` is now dead code — it will be deleted once QA confirms no test references it.
 >
 > **As-built notes (STORY-012):** A Milestone section has been added to the right panel between Description and Attachments. It shows the story's current milestone assignment and provides an inline control (native `<select>`) to set or clear it. The mutation calls `PUT /stories/:id` with only `milestone_id` set. Milestone options show `(Active)` or `(Finished)` suffixes for non-planned milestones; planned milestones have no suffix. A status hint below the select indicates the active milestone in an accent color. Errors from a failed milestone update surface via the shared mutation error banner in the slide-over.
 
@@ -172,9 +174,7 @@ Sub-nav active tab: **Board**.
 - Displays title, status badge, labels
 - **Edit story** button → form panel
 
-**Task kanban — main area:**
-
-> **As-built (STORY-016):** Rendered as a placeholder (`TaskKanbanPlaceholder`). Column names are derived from the project's effective `task_statuses` dictionary (fallback: `["To Do", "In Progress", "Done"]`). No task endpoint calls are made; each column shows an empty-state placeholder. The full live implementation is delivered by STORY-005.
+**Task kanban — main area:** <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 
 - One column per status value in the project's effective `task_statuses` dictionary, ordered as defined in the dictionary
 - Each column header shows the status name and a count of cards in that column
@@ -219,7 +219,9 @@ Sub-nav active tab: **Board**.
 
 ---
 
-### Task Detail View (`/projects/:id/stories/:storyId/tasks/:taskId`)
+### Task Detail View (`/projects/:id/stories/:storyId/tasks/:taskId`) <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
+
+> **As-built notes (STORY-005):** The Task Detail modal is a full-screen modal (z-index 60/70) rendered above the slide-over (z-50). Data is fetched from `GET /tasks/:id/detail` via `useTaskDetail`. Effective settings (`task_types`, `task_statuses`, `participant_roles`) are loaded via `useProjectSettingsEffective(projectId)` — the data is already in the TanStack Query cache from StorySlideOver, so no extra network request is made at runtime. The Escape key is registered in the **capture phase** to intercept it before the slide-over's bubble-phase listener, preventing the slide-over from closing when the user dismisses the modal. The modal backdrop has no `onClick` handler — clicking the dimmed slide-over behind the modal does not close it. The inline Edit toggle replaces the metadata block with `TaskForm`; saving returns to the metadata view without a full remount. Links, Attachments, and Comments sections are static placeholders pending STORY-006, STORY-007, and STORY-008 respectively.
 
 **Layout:** full-screen modal overlay on top of the Story Detail slide-over. The slide-over behind it is dimmed but not unmounted. The modal has a fixed header (task title + close button) and a single vertically scrollable body containing all sections.
 

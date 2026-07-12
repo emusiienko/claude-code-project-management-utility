@@ -70,4 +70,37 @@ export const API_PATHS = {
 
   /** GET /v1/milestones/:id/stories — paginated list of stories assigned to this milestone. */
   MILESTONE_STORIES: (id: string) => `/v1/milestones/${id}/stories`,
+
+  // ---------------------------------------------------------------------------
+  // Tasks
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /v1/stories/:storyId/tasks — create a task under a story.
+   * GET  /v1/stories/:storyId/tasks?page&limit&status&type&assignee_role&creator_role — paginated, filtered list.
+   */
+  STORY_TASKS: (storyId: string) => `/v1/stories/${storyId}/tasks`,
+
+  /**
+   * GET    /v1/tasks/:id — fetch a single task.
+   * PUT    /v1/tasks/:id — update a task (story_id immutable).
+   * DELETE /v1/tasks/:id — permanently delete a task.
+   */
+  TASK: (id: string) => `/v1/tasks/${id}`,
+
+  /**
+   * GET /v1/tasks/:id/detail — fetch a task with its links, attachments, and comments.
+   * Returns empty arrays for links/attachments/comments until STORY-006/007/008.
+   */
+  TASK_DETAIL: (id: string) => `/v1/tasks/${id}/detail`,
+
+  // ---------------------------------------------------------------------------
+  // Story aggregate
+  // ---------------------------------------------------------------------------
+
+  /**
+   * GET /v1/stories/:id/aggregate — on-demand per-status task count for a story.
+   * Returns { story_id, total_tasks, by_status }.
+   */
+  STORY_AGGREGATE: (id: string) => `/v1/stories/${id}/aggregate`,
 } as const;

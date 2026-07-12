@@ -286,6 +286,8 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 | `frontend/src/features/settings/SettingsPage.test.tsx` | STORY-016 | Heading present, SystemSettings renders, no Project Overrides tab, no System Defaults tab (flat page), copy mentions project context |
 | `frontend/src/features/settings/ProjectSettingsPage.test.tsx` | STORY-016 | Project Settings heading, EffectiveSettingsPanel renders, project ID passed from route, override descriptive copy |
 | `frontend/src/features/board/hooks/useBoardMilestoneFilter.test.ts` | STORY-012 / STORY-017 | no milestones → null id + empty array; milestones with no active → null id; active milestone → defaults to its id; milestones array populated; isLoading forwarded; handleSelectMilestone changes id; accepts null (show all); projectId change resets to new default |
+| `frontend/src/features/tasks/hooks/useTasks.test.ts` | STORY-005 | useTaskList: disabled when empty, enabled, story-scoped cache key, distinct cache per storyId, filters forwarded; useCreateTask: calls endpoint, invalidates task list + aggregate; useUpdateTask: calls endpoint, applies optimistic update, rollback on error, invalidates list + aggregate + richDetail; useDeleteTask: calls endpoint, invalidates list + aggregate |
+| `frontend/src/features/tasks/utils/errorMessages.test.ts` | STORY-005 | extractErrorMessage: ApiRequestError → server message, unknown error → generic fallback; extractFieldErrors: field map when details present, empty object when no details, empty object for non-ApiRequestError |
 
 ### Run Commands
 

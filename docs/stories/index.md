@@ -2,7 +2,6 @@
 
 | ID | Title | Type | Priority | Status | Auto ✓ | QA ✓ | Arch ✓ | Spec ✓ | Auto Rec ✓ | QA Rec ✓ |
 |----|-------|------|----------|--------|--------|------|--------|--------|------------|----------|
-| [STORY-005](STORY-005-task-management/description.md) | Task Management | feature | P0 | Planned | | | | | | |
 | [STORY-006](STORY-006-task-linking/description.md) | Task Linking | feature | P1 | Planned | | | | | | |
 | [STORY-007](STORY-007-attachments/description.md) | Work Item Attachments | feature | P1 | Planned | | | | | | |
 | [STORY-008](STORY-008-comments/description.md) | Work Item Comments | feature | P1 | Planned | | | | | | |

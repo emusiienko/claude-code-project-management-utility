@@ -25,6 +25,11 @@ export const PAGINATION = {
    * Fetches all milestones in one request so the Board can find the active one.
    */
   MILESTONES: 100,
+  /**
+   * Task list per story — fetches all tasks in one request for the Kanban board.
+   * The API max is 100; stories are unlikely to exceed this in a single session.
+   */
+  TASKS: 100,
 } as const;
 
 /**
@@ -47,4 +52,11 @@ export const DATA_FRESHNESS = {
    * 30 s avoids redundant refetches when the Board polls for the active milestone.
    */
   MILESTONES: 30 * 1000,
+  /** Task list — user-generated content; always fresh to reflect board changes. */
+  TASKS: 0,
+  /**
+   * Story aggregate — recomputed on every task mutation; always refetch to keep
+   * the "N/M done" counter in lockstep with the Kanban board.
+   */
+  STORY_AGGREGATE: 0,
 } as const;

@@ -9,7 +9,7 @@ from app.settings.schema import DICT_KEY_STORY_STATUSES
 from app.settings.service import EffectiveDictionary
 from app.stories.model import Story
 from app.stories.repository import StoryRepository
-from app.stories.schema import CreateStory, UpdateStory
+from app.stories.schema import CreateStory, StoryAggregate, UpdateStory
 
 if TYPE_CHECKING:
     from app.milestones.model import Milestone as MilestoneModel
@@ -33,11 +33,13 @@ class StoryService:
         project_repo: ProjectRepository,
         effective_dict: EffectiveDictionary,
         milestone_repo: "MilestoneRepositoryProtocol | None" = None,
+        task_counter: "TaskCounterProtocol | None" = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
         self._effective_dict = effective_dict
         self._milestone_repo = milestone_repo
+        self._task_counter = task_counter
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -162,6 +164,24 @@ class StoryService:
         story = self.get(story_id, project_id)
         self._repo.delete(story)
 
+    def get_aggregate(self, story_id: str) -> StoryAggregate:
+        story = self.get_by_id(story_id)
+
+        if self._task_counter is None:
+            return StoryAggregate(
+                story_id=story.id,
+                total_tasks=0,
+                by_status={},
+            )
+
+        by_status = self._task_counter.get_status_counts(story.id)
+        total = sum(by_status.values())
+        return StoryAggregate(
+            story_id=story.id,
+            total_tasks=total,
+            by_status=by_status,
+        )
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -197,3 +217,8 @@ class StoryService:
 @runtime_checkable
 class MilestoneRepositoryProtocol(Protocol):
     def get_by_id(self, milestone_id: str) -> "MilestoneModel | None": ...
+
+
+@runtime_checkable
+class TaskCounterProtocol(Protocol):
+    def get_status_counts(self, story_id: uuid.UUID) -> dict[str, int]: ...

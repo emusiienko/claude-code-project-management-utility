@@ -8,6 +8,7 @@ from app.milestones.service import MilestoneService
 from app.projects.service import ProjectService
 from app.settings.service import SettingsService
 from app.stories.service import StoryService
+from app.tasks.service import TaskService
 
 
 @asynccontextmanager
@@ -47,5 +48,14 @@ async def provide_story_service(
 async def provide_milestone_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: MilestoneService = Provide[AppContainer.milestone_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_task_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: TaskService = Provide[AppContainer.task_service],
 ):
     yield service

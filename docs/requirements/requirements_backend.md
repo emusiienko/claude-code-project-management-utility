@@ -348,7 +348,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 > - `PUT /stories/:id` omitting `status` in the request body leaves the current status **unchanged**. To explicitly remove a previously-set status, send `"status": null`. This applies to `content` as well.
 > - `PUT /stories/:id` omitting `labels` in the request body leaves the current labels **unchanged**. Sending `"labels": []` clears all labels (valid).
 > - The `delete_story` MCP tool returns `{"success": true}` (MCP tools must return a value; void return is not valid in the MCP tool schema).
-> - `GET /stories/:id/aggregate` is **not yet implemented** — it requires the tasks domain (STORY-005). The endpoint is defined in the contract; implementation is deferred.
+> - `GET /stories/:id/aggregate` is implemented — see the Tasks section for as-built notes (STORY-005).
 
 #### POST /projects/:projectId/stories
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -388,14 +388,16 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 - **Response 204**
 - **Response errors:** 404
 
-#### GET /stories/:id/aggregate
+#### GET /stories/:id/aggregate <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:**
   ```json
   { "data": { "story_id": "uuid", "total_tasks": 5, "by_status": { "todo": 2, "in-progress": 1, "done": 2 } } }
   ```
-  Computed on demand — never stored.
+  Computed on demand — never stored. A story with no tasks returns `{ "total_tasks": 0, "by_status": {} }` — HTTP 200, not an error.
 - **Response errors:** 404
+
+> **As-built notes (STORY-005):** Implemented via `TaskCounterProtocol` injected into `StoryService`. The protocol is duck-typed against `TaskRepository.get_status_counts(story_id)` — the stories service never imports the concrete task service. `total_tasks` is computed as `sum(by_status.values())` to avoid a second DB round-trip. The `get_story_aggregate` MCP tool mirrors the REST endpoint exactly. Container declaration order: `task_repository` must be declared before `story_service` in `AppContainer` because Python evaluates class-body assignments in order.
 
 #### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile) -->
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -414,7 +416,16 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 ---
 
-### Tasks
+### Tasks <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
+
+> **As-built notes (STORY-005):**
+> - Invalid UUID path params (`:storyId`, `:id`) return 404 (string→UUID coercion via ADR-011 — consistent with projects and stories domains).
+> - The controller uses two separate routers: `stories_router` for `POST /stories/{story_id}/tasks` and `GET /stories/{story_id}/tasks`; `tasks_router` for `GET/PUT/DELETE /tasks/{task_id}` and `GET /tasks/{task_id}/detail`.
+> - `PUT /tasks/:id` omitting `assignee_role` or `creator_role` leaves the current value unchanged. Sending `null` clears the field (always allowed — not dictionary-validated when clearing). The `"field" in data.model_fields_set` guard ensures null-clearing and omission remain distinct.
+> - `PUT /tasks/:id` with `story_id` in the body is silently ignored (`UpdateTask` schema does not declare it). The owning story never changes.
+> - `GET /tasks/:id/detail` currently returns `links: []`, `attachments: []`, `comments: []` as empty arrays. These will be populated by STORY-006 (links), STORY-007 (attachments), and STORY-008 (comments).
+> - The `delete_task` MCP tool (and all task MCP tools) return appropriate values; the MCP protocol does not support void returns.
+> - Cascade delete (`task ON DELETE CASCADE`) is implemented in migration `0005_task` at the DB schema level. SQLite WAL mode requires `PRAGMA foreign_keys = ON` at connection time to enforce FK cascade; the conftest engine setup does not yet set this pragma — the cascade test is marked `xfail(strict=True)` pending that fix.
 
 #### POST /stories/:storyId/tasks
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -819,7 +830,7 @@ Standard error shape:
 
 ---
 
-## Known Gaps <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+## Known Gaps <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 
 The following requirements are **partially implemented** as of STORY-002. They are retained as requirements but noted so future stories can close the gap.
 
@@ -840,6 +851,20 @@ The following requirements are **partially implemented** as of STORY-002. They a
 **Net effect:** the UI "Clear override" button fails at runtime with a 404/405. There is no contract-blessed path for agents or the UI to clear an override.
 
 **Resolution path:** contract revision to add `DELETE /projects/:projectId/settings/:key → 204 | 404`, a backend REST route, and an MCP tool — wiring the existing service method. See `docs/architecture.md` § Known Divergences.
+
+### SQLite FK cascade enforcement (partial)
+
+**Requirement:** When a story is deleted all its tasks must be permanently removed; no orphan task records may remain.
+
+**What is implemented:**
+- Migration `0005_task` declares `task.story_id` with `ON DELETE CASCADE` in the SQLite schema.
+- The cascade works correctly under PostgreSQL (the opt-in dialect).
+
+**What is missing:**
+- The test conftest engine setup does not issue `PRAGMA foreign_keys = ON` at connection time. Without this pragma, SQLite does not enforce FK constraints, so cascade deletes are not exercised in the automated test suite.
+- `TestTaskCascadeDelete` and the equivalent `TestCascadeDelete` for stories are both marked `xfail(strict=True)` pending this fix.
+
+**Resolution path:** add `PRAGMA foreign_keys = ON` to the conftest SQLite engine setup; remove the `xfail` markers from both cascade tests. Assign to `backend-developer`.
 
 ---
 

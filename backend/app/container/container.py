@@ -11,6 +11,8 @@ from app.settings.repository import ProjectSettingsRepository, SystemSettingsRep
 from app.settings.service import SettingsService
 from app.stories.repository import StoryRepository
 from app.stories.service import StoryService
+from app.tasks.repository import TaskRepository
+from app.tasks.service import TaskService
 
 
 class AppContainer(containers.DeclarativeContainer):
@@ -96,6 +98,17 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
+    # --------------------------------------------------------------------------
+    # Tasks domain — Factories (resolved per injection)
+    # --------------------------------------------------------------------------
+    # Declared before story_service because story_service takes task_repository
+    # as the TaskCounterProtocol dependency for the on-demand aggregate.
+
+    task_repository = providers.Factory(
+        TaskRepository,
+        session=db_session,
+    )
+
     story_service = providers.Factory(
         StoryService,
         repo=story_repository,
@@ -103,6 +116,8 @@ class AppContainer(containers.DeclarativeContainer):
         effective_dict=settings_service,
         # Cross-domain: stories service validates milestone existence + project.
         milestone_repo=milestone_repository,
+        # Cross-domain: stories service computes on-demand task aggregate via Protocol.
+        task_counter=task_repository,
     )
 
     milestone_service = providers.Factory(
@@ -110,4 +125,11 @@ class AppContainer(containers.DeclarativeContainer):
         repo=milestone_repository,
         project_repo=project_repository,
         story_repo=story_repository,
+    )
+
+    task_service = providers.Factory(
+        TaskService,
+        repo=task_repository,
+        story_repo=story_repository,
+        effective_dict=settings_service,
     )

@@ -14,3 +14,4 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-016](STORY-016-navigation-ux-redesign/description.md) | Navigation & UX Redesign | feature | P0 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-012](STORY-012-milestones/description.md) | Milestones | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-017](STORY-017-board-milestone-combobox/description.md) | Board Milestone Filter — Combobox | fix | P2 | Accepted | | | ✓ | ✓ | ✓ | ✓ |
+| [STORY-005](STORY-005-task-management/description.md) | Task Management | feature | P0 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |

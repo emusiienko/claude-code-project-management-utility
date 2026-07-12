@@ -54,3 +54,20 @@
 | [TC-050](test-cases/TC-050-delete-project-removes-milestones.md) | Edge case — deleting a project removes all its milestones; affected stories lose milestone link | @regression | STORY-012 | Active |
 | [TC-051](test-cases/TC-051-milestones-tab-visual.md) | Milestones tab — visual layout at all breakpoints | @smoke @regression | STORY-012 | Active |
 | [TC-052](test-cases/TC-052-milestone-detail-visual.md) | Milestone Detail page — visual layout at all breakpoints | @smoke @regression | STORY-012 | Active |
+| [TC-053](test-cases/TC-053-kanban-board-visual.md) | Task Kanban Board — Visual Layout | @smoke @regression | STORY-005 | Active |
+| [TC-054](test-cases/TC-054-create-task.md) | Create Task via Column Footer Button | @smoke @regression | STORY-005 | Active |
+| [TC-055](test-cases/TC-055-create-task-full-form.md) | Create Task with All Optional Fields | @regression | STORY-005 | Active |
+| [TC-056](test-cases/TC-056-edit-task.md) | Edit Task via Context Menu | @smoke @regression | STORY-005 | Active |
+| [TC-057](test-cases/TC-057-delete-task.md) | Delete Task via Context Menu | @smoke @regression | STORY-005 | Active |
+| [TC-058](test-cases/TC-058-drag-to-change-status.md) | Drag a Task Card to Change Status | @smoke @regression | STORY-005 | Active |
+| [TC-059](test-cases/TC-059-task-detail-modal-open-close.md) | Task Detail Modal — Open, Display, and Close | @smoke @regression | STORY-005 | Active |
+| [TC-060](test-cases/TC-060-task-detail-modal-edit-inline.md) | Task Detail Modal — Edit Task Inline | @regression | STORY-005 | Active |
+| [TC-061](test-cases/TC-061-task-detail-modal-direct-url.md) | Task Detail Modal — Direct URL Navigation | @regression | STORY-005 | Active |
+| [TC-062](test-cases/TC-062-filter-bar-dims-cards.md) | Filter Bar Dims Non-Matching Cards Without API Calls | @regression | STORY-005 | Active |
+| [TC-063](test-cases/TC-063-stories-list-aggregate-counter.md) | Stories List Shows Live "N/M Done" Aggregate Counter | @smoke @regression | STORY-005 | Active |
+| [TC-064](test-cases/TC-064-not-found-task-url.md) | Non-Existent Task ID in Modal URL Shows "Not Found" | @regression | STORY-005 | Active |
+| [TC-065](test-cases/TC-065-empty-kanban.md) | Kanban Board with No Tasks (Empty State) | @regression | STORY-005 | Active |
+| [TC-066](test-cases/TC-066-create-task-required-field-validation.md) | Create Task — Required Field Validation (Title and Type) | @regression | STORY-005 | Active |
+| [TC-067](test-cases/TC-067-dictionary-dropdowns-populated.md) | Form Dropdowns Populated from Project Effective Settings | @regression | STORY-005 | Active |
+| [TC-068](test-cases/TC-068-slideover-panel-width.md) | StorySlideOver Panel Width Is Approximately 90% of Viewport | @regression | STORY-005 | Active |
+| [TC-069](test-cases/TC-069-kanban-expands-when-description-hidden.md) | Tasks Kanban Board Expands When Story Description Is Hidden | @regression | STORY-005 | Active |

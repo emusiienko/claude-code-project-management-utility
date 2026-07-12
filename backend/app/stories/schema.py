@@ -117,3 +117,9 @@ class PaginationMeta(BaseModel):
     page: int
     limit: int
     totalPages: int
+
+
+class StoryAggregate(BaseModel):
+    story_id: uuid.UUID
+    total_tasks: int
+    by_status: dict[str, int]

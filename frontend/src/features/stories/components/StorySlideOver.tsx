@@ -16,13 +16,13 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Outlet } from "react-router-dom";
 import { X, ChevronLeft, Pencil } from "lucide-react";
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
-import { TaskKanbanPlaceholder } from "./TaskKanbanPlaceholder";
+import { TaskKanban } from "@/features/tasks/components/TaskKanban";
 import { StoryRightPanel } from "./StoryRightPanel";
 import { StoryModal } from "./StoryModal";
 import type { Story } from "@/api/types";
@@ -67,6 +67,8 @@ export function StorySlideOver() {
 
   const storyStatusOptions = effectiveSettings?.story_statuses ?? [];
   const taskStatusOptions = effectiveSettings?.task_statuses ?? [];
+  const taskTypeOptions = effectiveSettings?.task_types ?? [];
+  const participantRoleOptions = effectiveSettings?.participant_roles ?? [];
   const milestoneOptions = milestonesEnvelope?.data ?? [];
 
   // Close navigates back to the parent stories list
@@ -141,7 +143,7 @@ export function StorySlideOver() {
         role="dialog"
         aria-modal="true"
         aria-label={story?.title ?? "Story detail"}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-4xl flex-col bg-surface shadow-2xl animate-slide-in-from-right"
+        className="fixed inset-y-0 right-0 z-50 flex w-[90vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
       >
         {/* ------------------------------------------------------------------ */}
         {/* Fixed header                                                         */}
@@ -245,11 +247,14 @@ export function StorySlideOver() {
           {/* Main content — only when story loaded */}
           {!isLoading && story && (
             <>
-              {/* Main scrollable area: task kanban placeholder */}
+              {/* Main scrollable area: task kanban */}
               <main className="min-w-0 flex-1 overflow-y-auto p-6">
-                <TaskKanbanPlaceholder
-                  statusOptions={taskStatusOptions}
+                <TaskKanban
                   storyId={story.id}
+                  projectId={projectId}
+                  taskStatuses={taskStatusOptions}
+                  taskTypes={taskTypeOptions}
+                  roleOptions={participantRoleOptions}
                 />
               </main>
 
@@ -278,6 +283,14 @@ export function StorySlideOver() {
           errorMessage={mutationError}
         />
       )}
+
+      {/*
+       * Task Detail modal mount point — renders the tasks/:taskId child route
+       * on top of the slide-over panel. The Outlet is empty when no task route
+       * is active; the TaskDetailModal component provides its own backdrop and
+       * panel so the slide-over behind stays dimmed but mounted.
+       */}
+      <Outlet />
     </>
   );
 }
