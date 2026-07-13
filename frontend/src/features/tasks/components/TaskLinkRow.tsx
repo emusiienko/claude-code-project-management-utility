@@ -5,22 +5,26 @@
  * and the linked task's title as a clickable link navigating to that task's
  * Task Detail Modal. A delete button triggers the onDelete callback.
  *
- * @param link     - The enriched task link to display.
- * @param storyId  - Owning story ID — required to build the navigation URL.
- * @param projectId - Owning project ID — required to build the navigation URL.
- * @param onDelete - Called when the user clicks the delete button for this row.
+ * @param link            - The enriched task link to display.
+ * @param storyId         - Owning story ID — required to build the navigation URL.
+ * @param projectId       - Owning project ID — required to build the navigation URL.
+ * @param linkTypeEntries - Structured link_types from the effective project settings;
+ *                          used to resolve the human-readable badge label.
+ * @param onDelete        - Called when the user clicks the delete button for this row.
  */
 
 import { Link } from "react-router-dom";
 import { Trash2 } from "lucide-react";
 import { IconButton } from "@/shared/components/IconButton";
 import { getLinkLabel } from "@/shared/utils/linkLabels";
-import type { EnrichedTaskLink } from "@/api/types";
+import type { EnrichedTaskLink, LinkTypeEntry } from "@/api/types";
 
 interface TaskLinkRowProps {
   link: EnrichedTaskLink;
   projectId: string;
   storyId: string;
+  /** Structured link_types entries from the effective project settings. */
+  linkTypeEntries: LinkTypeEntry[];
   onDelete: (link: EnrichedTaskLink) => void;
 }
 
@@ -29,12 +33,13 @@ export function TaskLinkRow({
   link,
   projectId,
   storyId,
+  linkTypeEntries,
   onDelete,
 }: TaskLinkRowProps) {
   const directionLabel = link.direction === "outbound" ? "→" : "←";
   const directionTitle =
     link.direction === "outbound" ? "Outbound link" : "Inbound link";
-  const typeLabel = getLinkLabel(link.link_type, link.direction);
+  const typeLabel = getLinkLabel(linkTypeEntries, link.link_type, link.direction);
   const taskDetailUrl = `/projects/${projectId}/stories/${storyId}/tasks/${link.linked_task.id}`;
 
   return (

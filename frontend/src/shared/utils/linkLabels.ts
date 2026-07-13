@@ -1,39 +1,37 @@
 /**
  * Link label utilities — shared by task-links and story-links features.
  *
- * getLinkLabel: maps a link_type + direction pair to a human-readable badge label.
- * getLinkOptions: expands a list of link_type keys into picker options (outbound + inbound).
+ * getLinkLabel: looks up a link_type + direction pair in the structured entries
+ *   returned by the effective settings API. No hardcoded map.
+ * getLinkOptions: expands a list of LinkTypeEntry objects into picker options
+ *   (outbound + inbound) for the "Add link" form dropdown.
  */
+
+import type { LinkTypeEntry } from "@/api/types";
 
 export type Direction = "outbound" | "inbound";
 
-interface DirectionLabels {
-  outbound: string;
-  inbound: string;
-}
-
-const LINK_TYPE_LABELS: Record<string, DirectionLabels> = {
-  "depends-on": { outbound: "depends on", inbound: "dependent" },
-  "created-by": { outbound: "created by", inbound: "creates" },
-  context: { outbound: "context", inbound: "context for" },
-};
-
 /**
- * Maps a link_type + direction pair to a human-readable label.
+ * Looks up a human-readable badge label for a link_type + direction pair.
  *
- * Used by TaskLinkRow and StoryLinksSection to show direction-aware text in the
- * link type badge instead of the raw slug.
+ * The entries are passed in from the caller, which reads them from the
+ * effective project settings already in the TanStack Query cache.
  *
- * @param linkType  - The raw link_type value from the API (e.g. "depends-on").
+ * @param entries   - Structured link_types from the effective settings API.
+ * @param value     - The raw link_type value stored in the link record (e.g. "depends-on").
  * @param direction - The direction relative to the current item: "outbound" | "inbound".
- * @returns A human-readable label. Falls back to the raw linkType for unknown types.
+ * @returns A human-readable label. Falls back to the raw value for unknown types or
+ *          undefined direction — no crash.
  */
 export function getLinkLabel(
-  linkType: string,
+  entries: LinkTypeEntry[],
+  value: string,
   direction: Direction | undefined,
 ): string {
-  if (!direction) return linkType;
-  return LINK_TYPE_LABELS[linkType]?.[direction] ?? linkType;
+  if (!direction) return value;
+  const entry = entries.find((e) => e.value === value);
+  if (!entry) return value;
+  return entry[direction];
 }
 
 /** A single option in the "Add link" type picker. */
@@ -47,21 +45,19 @@ export interface LinkOption {
 }
 
 /**
- * Expands a list of link_type keys from the effective dictionary into picker
- * options for the "Add link" form dropdown.
+ * Expands a list of structured link_types entries into picker options for the
+ * "Add link" form dropdown.
  *
- * Each key produces two entries: one outbound, one inbound. Unknown keys fall
- * back to the raw key string as the label for both directions.
+ * Each entry produces two options: one outbound (using entry.outbound as label)
+ * and one inbound (using entry.inbound as label). The raw entry.value is used
+ * as the linkType field in both options.
  *
- * @param linkTypes - Raw link_type keys from the effective project settings.
- * @returns Flat list of `LinkOption` objects ordered outbound then inbound per key.
+ * @param entries - Structured link_types from the effective project settings.
+ * @returns Flat list of `LinkOption` objects ordered outbound then inbound per entry.
  */
-export function getLinkOptions(linkTypes: string[]): LinkOption[] {
-  return linkTypes.flatMap((lt) => {
-    const labels = LINK_TYPE_LABELS[lt];
-    return [
-      { label: labels?.outbound ?? lt, linkType: lt, direction: "outbound" as const },
-      { label: labels?.inbound ?? lt, linkType: lt, direction: "inbound" as const },
-    ];
-  });
+export function getLinkOptions(entries: LinkTypeEntry[]): LinkOption[] {
+  return entries.flatMap((entry) => [
+    { label: entry.outbound, linkType: entry.value, direction: "outbound" as const },
+    { label: entry.inbound, linkType: entry.value, direction: "inbound" as const },
+  ]);
 }

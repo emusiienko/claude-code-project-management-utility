@@ -89,7 +89,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | id | UUID | Yes | PK, immutable | |
 | source_task_id | UUID | Yes | FK → Task | |
 | target_task_id | UUID | Yes | FK → Task; must differ from source_task_id | |
-| link_type | string | Yes | from the parent story's project's `link_types` dictionary | e.g. "depends-on", "context" |
+| link_type | string | Yes | must match the `value` field of an entry in the parent story's project's effective `link_types` array | e.g. "depends-on", "context" |
 | created_at | timestamp | Yes | set on create | |
 
 Unique constraint: (source_task_id, target_task_id, link_type).
@@ -105,7 +105,7 @@ Typed directed links between stories in the same project. Same semantic model as
 | id | UUID | Yes | PK, immutable | |
 | source_story_id | UUID | Yes | FK → Story; CASCADE DELETE | |
 | target_story_id | UUID | Yes | FK → Story; CASCADE DELETE; must differ from source_story_id | |
-| link_type | string | Yes | from source story's project's `link_types` dictionary | e.g. "depends-on", "context" |
+| link_type | string | Yes | must match the `value` field of an entry in the source story's project's effective `link_types` array | e.g. "depends-on", "context" |
 | created_at | timestamp | Yes | set on create | |
 
 Unique constraint: (source_story_id, target_story_id, link_type).
@@ -189,15 +189,25 @@ Sessions do not belong to a project. A project may be mentioned in `topic` or `c
 
 ---
 
-### SystemSettings
+### SystemSettings <!-- updated: 2026-07-13 (STORY-020 reconcile) -->
 
 One row per dictionary key. Pre-seeded at install time; updatable.
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | key | string | Yes | PK; one of the six keys below | |
-| values | JSON array | Yes | array of non-empty strings; min 1 item | |
+| values | JSON array | Yes | see per-key format below; min 1 item | format is heterogeneous: `link_types` is `LinkTypeEntry[]`; the other five keys are `string[]` |
 | updated_at | timestamp | Yes | set on update | |
+
+**LinkTypeEntry** — the structured format used exclusively for `link_types` values:
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| value | string | Yes | 1–200 chars; non-empty; used as the machine key everywhere a `link_type` is stored or validated |
+| outbound | string | Yes | 1–200 chars; non-empty; display label shown when the viewed item is the source |
+| inbound | string | Yes | 1–200 chars; non-empty; display label shown when the viewed item is the target |
+
+Symmetric entries (`outbound == inbound`, e.g. `"context"`) are valid.
 
 **Pre-seeded system defaults:**
 
@@ -207,12 +217,14 @@ One row per dictionary key. Pre-seeded at install time; updatable.
 | task_types | `["task", "bug", "testing-task"]` |
 | story_statuses | `["planned", "in-progress", "pending-approval", "accepted"]` |
 | attachment_types | `["plan", "document", "image", "implementation-report", "test-result", "external-ref"]` |
-| link_types | `["depends-on", "context"]` |
+| link_types | `[{"value":"depends-on","outbound":"depends on","inbound":"dependent"},{"value":"dependent","outbound":"dependent","inbound":"depends on"},{"value":"created-by","outbound":"created by","inbound":"creates"},{"value":"creates","outbound":"creates","inbound":"created by"},{"value":"context","outbound":"context","inbound":"context for"}]` |
 | participant_roles | `["orchestrator", "architect", "backend-developer", "frontend-developer", "devops", "spec-writer", "qa-automation", "manual-qa"]` |
+
+> **As-built notes (STORY-020):** `link_types` changed from a flat string array to a `LinkTypeEntry[]` array in migration `0008_link_types_structured`. The migration converts existing flat-string entries to structured objects (best-effort: `"depends-on"` → `{"value":"depends-on","outbound":"depends-on","inbound":"depends-on"}`); the five canonical slugs receive their correct directional labels. Migration seed in `0002_settings` was updated so fresh installs start with the five canonical structured defaults. The migration is reversible: downgrade converts structured objects back to flat strings using only the `value` field. See ADR-019.
 
 ---
 
-### ProjectSettings
+### ProjectSettings <!-- updated: 2026-07-13 (STORY-020 reconcile) -->
 
 One row per (project, key) pair. Absent rows fall through to system defaults.
 
@@ -220,10 +232,12 @@ One row per (project, key) pair. Absent rows fall through to system defaults.
 |-------|------|----------|-------------|-------|
 | project_id | UUID | Yes | FK → Project; composite PK (project_id, key) | |
 | key | string | Yes | same six keys as SystemSettings; composite PK | |
-| values | JSON array | Yes | array of non-empty strings; min 1 item | completely replaces (does not merge with) the system default for that key |
+| values | JSON array | Yes | see per-key format (same heterogeneous rule as SystemSettings); min 1 item | completely replaces (does not merge with) the system default for that key |
 | updated_at | timestamp | Yes | set on update | |
 
 **Effective dictionary resolution:** for each key, if a ProjectSettings row exists for `(project_id, key)`, its `values` is used; otherwise the SystemSettings row for that `key` is used.
+
+For `link_types`, the `EffectiveDictionary.resolve()` Protocol returns only the extracted `value` strings (not the full `LinkTypeEntry` objects) so that `TaskLinkService` and `StoryLinkService` can compare `link_type` against a plain `list[str]` — behavior unchanged from their perspective. The structured data is exposed only through settings response schemas.
 
 ---
 
@@ -720,33 +734,35 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 ---
 
-### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile) -->
+### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile); updated: 2026-07-13 (STORY-020: link_types structured) -->
+
+> **As-built notes (STORY-020):** Settings responses are now **heterogeneous** — `link_types` is returned and accepted as `LinkTypeEntry[]`; the other five keys remain plain `string[]`. The MCP tools (`get_system_settings`, `set_system_settings`, `get_project_effective_settings`, `set_project_settings`, `clear_project_setting`) mirror this shape; validation for `link_types` delegates entirely to the service layer. See ADR-019.
 
 #### GET /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** `{ "data": { task_statuses, task_types, story_statuses, attachment_types, link_types, participant_roles } }`
+- **Response 200:** `{ "data": { task_statuses: string[], task_types: string[], story_statuses: string[], attachment_types: string[], link_types: LinkTypeEntry[], participant_roles: string[] } }`
 
 #### PUT /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** partial — only provided keys updated
+- **Request body:** partial — only provided keys updated; `link_types` must be `LinkTypeEntry[]` (plain strings → 422); other keys must be `string[]`
 - **Response 200:** `{ "data": { all system settings } }`
-- **Response errors:** 400 (unknown key; empty values array)
+- **Response errors:** 400 (unknown key; empty values array; duplicate `link_types` value); 422 (Pydantic validation: plain string in `link_types`; missing/blank `LinkTypeEntry` field)
 
 #### GET /projects/:projectId/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** project-level overrides only; `{}` if none set
+- **Response 200:** project-level overrides only; `{}` if none set; `link_types` override (if set) is `LinkTypeEntry[]`
 - **Response errors:** 404
 
 #### GET /projects/:projectId/settings/effective
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** merged effective dictionaries for all six keys
+- **Response 200:** merged effective dictionaries for all six keys; `link_types` is `LinkTypeEntry[]`
 - **Response errors:** 404
 
 #### PUT /projects/:projectId/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** partial settings object
+- **Request body:** partial settings object; same heterogeneous format as PUT /system/settings
 - **Response 200:** `{ "data": { effective settings after update } }`
-- **Response errors:** 400 (unknown key; empty values), 404
+- **Response errors:** 400 (unknown key; empty values; duplicate `link_types` value), 404; 422 (Pydantic validation on `link_types`)
 
 #### DELETE /projects/:projectId/settings/:key *(not yet implemented — see Known Gaps)*
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -850,7 +866,7 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 | Task | status | Required; in `task_statuses` dict | "Task status '{v}' is not allowed. Allowed: {list}." |
 | Task | assignee_role | Optional; if set, in `participant_roles` dict | "Role '{v}' is not in the allowed list: {list}." |
 | Task | creator_role | Optional; if set, in `participant_roles` dict | "Role '{v}' is not in the allowed list: {list}." |
-| TaskLink | link_type | Required; in `link_types` dict | "Link type '{v}' is not allowed. Allowed: {list}." |
+| TaskLink | link_type | Required; must match the `value` field of an entry in the effective `link_types` array | "Link type '{v}' is not allowed. Allowed: {list}." |
 | TaskLink | target_task_id | Must differ from source | "A task cannot link to itself." |
 | TaskLink | target_task_id | Must share the same `story_id` as source | "Linked tasks must belong to the same story." |
 | TaskLink | (source, target, type) | Unique | "This link already exists." |
@@ -861,7 +877,10 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 | Attachment | external_url | Required when kind = external-ref; valid URI | "A valid URL is required for external reference attachments." |
 | Comment | content | Required; 1–50,000 chars | "Comment content is required." |
 | Session | topic | Required; 1–500 chars | "Session topic is required." |
-| SystemSettings / ProjectSettings | values | Array; min 1 non-empty string | "Dictionary values cannot be empty." |
+| SystemSettings / ProjectSettings | values (non-link_types keys) | Array; min 1 non-empty string | "Dictionary values cannot be empty." |
+| SystemSettings / ProjectSettings | values (link_types key) | Array of `LinkTypeEntry` objects; min 1 entry; plain strings rejected | "link_types entries must be objects with 'value', 'outbound', and 'inbound' fields" (422) |
+| SystemSettings / ProjectSettings | values (link_types, per entry) | Each of `value`, `outbound`, `inbound` required; 1–200 chars; non-empty | 422 (Pydantic field validation) |
+| SystemSettings / ProjectSettings | values (link_types, uniqueness) | `value` fields within the array must be unique | "link_types values must be unique" (400 — domain ValidationError) |
 | Milestone | name | Required; 1–200 chars; unique within the milestone's project (case-insensitive) | "A milestone named '{name}' already exists in this project." |
 | Milestone | project_id | Required; must be an existing project UUID | "Project not found." (404) |
 | Story | milestone_id | Optional; if set, milestone must exist (404) and belong to the story's project (422) | "This milestone does not belong to the story's project." |
@@ -881,6 +900,9 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 11. TaskLinks can only be created between tasks that share the same `story_id`. Both `source_task_id` and `target_task_id` must belong to the same parent story; cross-story task links are rejected (422).
 12. A project can have at most one milestone with status `active` at a time. Activating a milestone when another is already `active` demotes the previous one to `planned` in the same database transaction.
 13. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted. Deleting a project cascades to all its milestones.
+14. `link_types` is the only dictionary key with a structured entry format (`LinkTypeEntry[]`). All other five dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `participant_roles`) remain plain `string[]`. Sending a plain string in `link_types` is rejected with 422. Duplicate `value` fields within the same `link_types` array are rejected with 400.
+15. `link_type` validation on TaskLink and StoryLink creation checks against the `value` fields extracted from the effective `link_types` entries. The stored `link_type` column on `task_link` and `story_link` tables continues to hold the plain value string; existing rows are not back-filled when entries are updated.
+16. A `link_types` entry where `outbound` and `inbound` are the same string (symmetric relationship) is valid and stored as-is.
 
 ---
 
@@ -901,7 +923,7 @@ Standard error shape:
 
 ---
 
-## Known Gaps <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
+## Known Gaps <!-- updated: 2026-07-13 (STORY-020 reconcile) -->
 
 The following requirements are **partially implemented** as of STORY-002. They are retained as requirements but noted so future stories can close the gap.
 

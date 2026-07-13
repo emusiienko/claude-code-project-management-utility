@@ -18,3 +18,5 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-006](STORY-006-task-linking/description.md) | Work Item Linking | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-018](STORY-018-link-type-labels/description.md) | Direction-aware link type labels | fix | P2 | Accepted | | | ✓ | ✓ | ✓ | ✓ |
 | [STORY-019](STORY-019-directional-link-creation/description.md) | Directional link creation in Add Link forms | fix | P2 | Accepted | | | ✓ | ✓ | ✓ | ✓ |
+| [STORY-011](STORY-011-fix-link-types-defaults/description.md) | Fix link_types Default Dictionary Values | fix | P2 | Accepted | | | | | | |
+| [STORY-020](STORY-020-link-types-structured-entries/description.md) | Structured Directional Labels for link_types Dictionary | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |

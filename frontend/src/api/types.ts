@@ -196,11 +196,31 @@ export type DictionaryKey =
   | "link_types"
   | "participant_roles";
 
-/** Full set of six system dictionaries. */
-export type Settings = Record<DictionaryKey, string[]>;
+/**
+ * A single structured entry in the link_types dictionary.
+ * Carries both directional display labels alongside the machine key.
+ */
+export interface LinkTypeEntry {
+  /** Machine key stored in TaskLink.link_type / StoryLink.link_type columns. */
+  value: string;
+  /** Human-readable label when the viewed item is the source of the relationship. */
+  outbound: string;
+  /** Human-readable label when the viewed item is the target of the relationship. */
+  inbound: string;
+}
+
+/** The five plain-string dictionary keys (all except link_types). */
+type PlainStringDictionaryKey = Exclude<DictionaryKey, "link_types">;
+
+/** Full set of six system dictionaries. link_types entries are structured objects. */
+export interface Settings extends Record<PlainStringDictionaryKey, string[]> {
+  link_types: LinkTypeEntry[];
+}
 
 /** Partial project-level overrides — only provided keys are present. */
-export type SettingsOverrides = Partial<Record<DictionaryKey, string[]>>;
+export interface SettingsOverrides extends Partial<Record<PlainStringDictionaryKey, string[]>> {
+  link_types?: LinkTypeEntry[];
+}
 
 // ---------------------------------------------------------------------------
 // Composed / aggregate types

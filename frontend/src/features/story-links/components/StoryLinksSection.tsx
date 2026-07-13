@@ -3,14 +3,15 @@
  *
  * Renders all outbound and inbound story links with:
  * - Direction indicator (→ outbound, ← inbound)
- * - link_type badge
+ * - link_type badge (label resolved from structured dictionary entries)
  * - Linked story title as a clickable link that opens that story's slide-over
  * - Per-row delete button with confirmation dialog
  * - Add-link form toggled by an "Add link" button
  *
  * @param storyId         - The story whose links are shown.
  * @param projectId       - Owning project; used for target story selector and navigation.
- * @param linkTypeOptions - Effective link_types from the project settings (no extra fetch).
+ * @param linkTypeEntries - Structured link_types entries from the effective project settings
+ *                          (no extra fetch — already in TanStack Query cache).
  */
 
 import { useState } from "react";
@@ -18,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { Trash2, Plus } from "lucide-react";
 import { IconButton } from "@/shared/components/IconButton";
 import { getLinkLabel, getLinkOptions } from "@/shared/utils/linkLabels";
-import type { EnrichedStoryLink } from "@/api/types";
+import type { EnrichedStoryLink, LinkTypeEntry } from "@/api/types";
 import type { Direction } from "@/shared/utils/linkLabels";
 import {
   useStoryLinkList,
@@ -31,7 +32,8 @@ import { DeleteStoryLinkDialog } from "./DeleteStoryLinkDialog";
 interface StoryLinksSectionProps {
   storyId: string;
   projectId: string;
-  linkTypeOptions: string[];
+  /** Structured link_types entries from the effective project settings. */
+  linkTypeEntries: LinkTypeEntry[];
 }
 
 interface DeleteTarget {
@@ -46,7 +48,7 @@ interface DeleteTarget {
 export function StoryLinksSection({
   storyId,
   projectId,
-  linkTypeOptions,
+  linkTypeEntries,
 }: StoryLinksSectionProps) {
   const navigate = useNavigate();
 
@@ -59,7 +61,7 @@ export function StoryLinksSection({
   const deleteMutation = useDeleteStoryLink(storyId);
 
   const links: EnrichedStoryLink[] = linksEnvelope?.data ?? [];
-  const expandedLinkOptions = getLinkOptions(linkTypeOptions);
+  const expandedLinkOptions = getLinkOptions(linkTypeEntries);
 
   function handleNavigateToLinkedStory(linkedStoryId: string) {
     navigate(`/projects/${projectId}/stories/${linkedStoryId}`);
@@ -131,6 +133,7 @@ export function StoryLinksSection({
             const directionSymbol = isOutbound ? "→" : "←";
             const directionLabel = isOutbound ? "outbound" : "inbound";
             const linkedStory = link.linked_story;
+            const typeBadgeLabel = getLinkLabel(linkTypeEntries, link.link_type, link.direction);
 
             return (
               <li
@@ -147,7 +150,7 @@ export function StoryLinksSection({
 
                 {/* Link type badge */}
                 <span className="shrink-0 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700 border border-brand-100">
-                  {getLinkLabel(link.link_type, link.direction)}
+                  {typeBadgeLabel}
                 </span>
 
                 {/* Linked story title — clickable navigation */}
@@ -164,7 +167,7 @@ export function StoryLinksSection({
                 {/* Delete button */}
                 <IconButton
                   Icon={Trash2}
-                  label={`Remove ${getLinkLabel(link.link_type, link.direction)} link to ${linkedStory.title}`}
+                  label={`Remove ${typeBadgeLabel} link to ${linkedStory.title}`}
                   intent="destructive"
                   onClick={() =>
                     setDeleteTarget({

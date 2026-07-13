@@ -219,9 +219,40 @@ type DictionaryKey =
   | "task_statuses" | "task_types" | "story_statuses"
   | "attachment_types" | "link_types" | "participant_roles";
 
-type Settings = Record<DictionaryKey, string[]>;       // full set of six
-type SettingsOverrides = Partial<Record<DictionaryKey, string[]>>; // project-level
+type PlainDictionaryKey = Exclude<DictionaryKey, "link_types">;
+
+// v1.4 (2026-07-13, STORY-020): link_types is the ONLY dictionary that stores structured
+// entries. Each entry carries the machine value plus its directional display labels, so the
+// frontend never needs a hardcoded slug→label map. The other five keys remain plain-string arrays.
+interface LinkTypeEntry {
+  value: string;      // machine key stored on TaskLink.link_type / StoryLink.link_type (1–200 chars)
+  outbound: string;   // label shown on the SOURCE side of the relationship (1–200 chars)
+  inbound: string;    // label shown on the TARGET side of the relationship (1–200 chars)
+}
+
+// Heterogeneous by key: link_types is LinkTypeEntry[], all other keys are string[].
+interface Settings extends Record<PlainDictionaryKey, string[]> {
+  link_types: LinkTypeEntry[];
+}
+interface SettingsOverrides extends Partial<Record<PlainDictionaryKey, string[]>> {
+  link_types?: LinkTypeEntry[];
+}
 ```
+
+**`link_types` validation** (STORY-020): each entry must be an object with all three fields
+(`value`, `outbound`, `inbound`), each a non-empty string 1–200 chars. Plain-string entries are
+rejected. Duplicate `value` fields within the same array are rejected. Symmetric entries
+(`outbound == inbound`) are valid. Stored `TaskLink.link_type` / `StoryLink.link_type` still hold
+only the plain `value` string; link-type validation on link creation continues to check against the
+set of `value` fields of the effective `link_types` — behavior unchanged from the caller's view.
+
+**Validation status codes** (as built, STORY-020): plain-string / missing-field / blank-field /
+over-length entries fail Pydantic request-schema validation → **422** (body carries the
+`"link_types entries must be objects with 'value', 'outbound', and 'inbound' fields"` message with a
+Pydantic `"Value error, "` prefix). Duplicate `value` and empty-list are service-layer domain
+`ValidationError`s → **400** (`"link_types values must be unique"` / `"Dictionary values cannot be
+empty."`). The story anticipated 422 for the duplicate case; as built it is 400 because duplicate
+detection lives in the service layer. See architecture.md § Known Divergences.
 
 ---
 
@@ -503,6 +534,17 @@ interface UpdateSessionBody {            // topic NOT updatable (business rule) 
 
 Effective resolution: for each key, use `project_settings.values` if a row exists for
 `(project_id, key)`, else `system_settings.values`.
+
+<!-- updated: 2026-07-13 (STORY-020 reconcile): `Settings`/`SettingsOverrides` are now heterogeneous —
+     `link_types` returns/accepts `LinkTypeEntry[]`, all other keys stay `string[]` (see the
+     Dictionary types above). Both surfaces (REST + MCP settings tools) honor the structured shape
+     identically. Internally, effective-dictionary resolution used by TaskLink/StoryLink validation
+     still yields `string[]` (the `value` fields) — the structured objects are exposed only through
+     these settings responses. -->
+The MCP settings tools (`get_system_settings`, `set_system_settings`,
+`get_project_effective_settings`, `set_project_settings`, `clear_project_setting`) delegate to the
+same service/schemas and therefore reflect the identical structured `link_types` shape and
+validation.
 
 ---
 

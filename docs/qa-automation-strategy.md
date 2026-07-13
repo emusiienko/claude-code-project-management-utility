@@ -155,6 +155,7 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 | STORY-012 (Milestones) | `test_milestones.py` | CRUD; single-project ownership; name-per-project uniqueness (409); story assignment; story_count; activate/finish lifecycle; single-active invariant + cross-project isolation; delete-clears-assignment; milestone_id filter on story list |
 | STORY-018 (Link type labels) | `linkLabels.test.ts` (frontend) | getLinkLabel: 3 known types × 2 directions; unknown type fallback; undefined direction fallback |
 | STORY-019 (Directional link creation) | `linkLabels.test.ts` (frontend) | getLinkOptions: empty input; 2 entries per key; label correctness; unknown key fallback; linkType preserved |
+| STORY-020 (Structured link_types) | `test_link_types_structured.py` (backend); `linkLabels.test.ts` (frontend) | Settings validation: structured input accepted; plain strings rejected (422); missing fields rejected (422); blank fields rejected (422); duplicate values rejected (400); symmetric entries accepted; GET returns structured objects; 5 canonical seed defaults. link_type resolution: valid value → 201 for TaskLink and StoryLink; invalid → 422; project override accepted; removed-by-override rejected. Migration: _to_structured/_to_flat helpers for 5 canonical slugs + custom + idempotent; upgrade/downgrade fresh DB + flat rows + project_settings rows. Seed: 5 canonical entries after upgrade head. Frontend: getLinkLabel + getLinkOptions with structured LinkTypeEntry[] fixtures |
 
 ### Run Commands
 

@@ -52,7 +52,8 @@ export function TaskLinksSection({
 
   // Effective settings — already in-cache from TaskDetailModal; no extra network call
   const { data: effectiveSettings } = useProjectSettingsEffective(projectId);
-  const linkTypeOptions = getLinkOptions(effectiveSettings?.link_types ?? []);
+  const linkTypeEntries = effectiveSettings?.link_types ?? [];
+  const linkTypeOptions = getLinkOptions(linkTypeEntries);
 
   // Mutations
   const createMutation = useCreateTaskLink(taskId);
@@ -178,6 +179,7 @@ export function TaskLinksSection({
               link={link}
               projectId={projectId}
               storyId={storyId}
+              linkTypeEntries={linkTypeEntries}
               onDelete={(l) => {
                 setPendingDelete(l);
                 setDeleteError(undefined);

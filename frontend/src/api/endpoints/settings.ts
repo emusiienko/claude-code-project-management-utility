@@ -30,7 +30,7 @@ export async function getSystemSettings(): Promise<Settings> {
 
 /** PUT /v1/system/settings — updates one or more system dictionary keys. */
 export async function updateSystemSettings(
-  body: Partial<Record<DictionaryKey, string[]>>,
+  body: SettingsOverrides,
 ): Promise<Settings> {
   const envelope = await apiClient.put<Envelope<Settings>>(API_PATHS.SYSTEM_SETTINGS, body);
   return envelope.data;
@@ -67,7 +67,7 @@ export async function getProjectSettingsEffective(projectId: string): Promise<Se
 /** PUT /v1/projects/:projectId/settings — sets one or more project-level overrides. */
 export async function setProjectOverride(
   projectId: string,
-  body: Partial<Record<DictionaryKey, string[]>>,
+  body: SettingsOverrides,
 ): Promise<Settings> {
   const envelope = await apiClient.put<Envelope<Settings>>(
     API_PATHS.PROJECT_SETTINGS(projectId),

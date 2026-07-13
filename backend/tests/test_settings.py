@@ -26,7 +26,6 @@ Notes:
   Tests that mutate system settings MUST restore them to avoid inter-test
   interference (use try/finally or restore in the test body).
 """
-import pytest
 from httpx import AsyncClient
 
 # ---------------------------------------------------------------------------
@@ -43,7 +42,8 @@ ALL_KEYS = {
 }
 
 # Seed defaults from migration 0003 — used as restore values.
-SEED_DEFAULTS: dict[str, list[str]] = {
+# link_types is stored and returned as structured objects (LinkTypeEntry), not plain strings.
+SEED_DEFAULTS: dict[str, list] = {
     "task_statuses": ["todo", "in-progress", "done"],
     "task_types": ["task", "bug", "testing-task"],
     "story_statuses": ["planned", "in-progress", "pending-approval", "accepted"],
@@ -55,7 +55,13 @@ SEED_DEFAULTS: dict[str, list[str]] = {
         "test-result",
         "external-ref",
     ],
-    "link_types": ["depends-on", "created-by", "context"],
+    "link_types": [
+        {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"},
+        {"value": "dependent", "outbound": "dependent", "inbound": "depends on"},
+        {"value": "created-by", "outbound": "created by", "inbound": "creates"},
+        {"value": "creates", "outbound": "creates", "inbound": "created by"},
+        {"value": "context", "outbound": "context", "inbound": "context for"},
+    ],
     "participant_roles": [
         "orchestrator",
         "architect",
@@ -67,6 +73,21 @@ SEED_DEFAULTS: dict[str, list[str]] = {
         "manual-qa",
     ],
 }
+
+# Restore payload for link_types — canonical structured objects matching the seed migration.
+SEED_LINK_TYPES_PAYLOAD = [
+    {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"},
+    {"value": "dependent", "outbound": "dependent", "inbound": "depends on"},
+    {"value": "created-by", "outbound": "created by", "inbound": "creates"},
+    {"value": "creates", "outbound": "creates", "inbound": "created by"},
+    {"value": "context", "outbound": "context", "inbound": "context for"},
+]
+
+
+def _sort_key(item: object) -> str:
+    if isinstance(item, dict):
+        return item.get("value", "")  # type: ignore[return-value]
+    return str(item)
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +135,7 @@ class TestGetSystemSettings:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
         for key, expected in SEED_DEFAULTS.items():
-            assert sorted(data[key]) == sorted(expected), (
+            assert sorted(data[key], key=_sort_key) == sorted(expected, key=_sort_key), (
                 f"Key '{key}': expected {expected}, got {data[key]}"
             )
 
@@ -156,7 +177,7 @@ class TestUpdateSystemSettings:
         )
         # Other keys remain at seed defaults
         for key in ALL_KEYS - {"task_statuses"}:
-            assert sorted(data[key]) == sorted(SEED_DEFAULTS[key]), (
+            assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
                 f"Unmodified key '{key}' was unexpectedly changed"
             )
 
@@ -167,9 +188,13 @@ class TestUpdateSystemSettings:
         )
 
     async def test_update_returns_all_six_keys(self, client: AsyncClient) -> None:
+        new_link_types = [
+            {"value": "depends-on", "outbound": "depends on", "inbound": "is depended on by"},
+            {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
+        ]
         response = await client.put(
             "/v1/system/settings",
-            json={"link_types": ["depends-on", "blocks"]},
+            json={"link_types": new_link_types},
         )
         data = _settings_data(response.json())
         for key in ALL_KEYS:
@@ -370,7 +395,7 @@ class TestGetEffectiveProjectSettings:
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         data = _settings_data(response.json())
         for key, expected in SEED_DEFAULTS.items():
-            assert sorted(data[key]) == sorted(expected), (
+            assert sorted(data[key], key=_sort_key) == sorted(expected, key=_sort_key), (
                 f"Key '{key}': project with no overrides should return seed default"
             )
 
@@ -394,7 +419,7 @@ class TestGetEffectiveProjectSettings:
         )
         # Other keys still use system defaults
         for key in ALL_KEYS - {"task_statuses"}:
-            assert sorted(data[key]) == sorted(SEED_DEFAULTS[key]), (
+            assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
                 f"Non-overridden key '{key}' should still use system default"
             )
 
@@ -427,7 +452,11 @@ class TestGetEffectiveProjectSettings:
         """Updating a system default immediately changes effective value for
         projects that have no override for that key."""
         project_id = create_project("Propagation Project")
-        new_link_types = ["blocks", "is-blocked-by", "context"]
+        new_link_types = [
+            {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
+            {"value": "is-blocked-by", "outbound": "is blocked by", "inbound": "blocks"},
+            {"value": "context", "outbound": "context", "inbound": "context"},
+        ]
 
         await client.put(
             "/v1/system/settings",
@@ -521,7 +550,7 @@ class TestUpdateProjectSettings:
         )
         # Other keys are system defaults
         for key in ALL_KEYS - {"story_statuses"}:
-            assert sorted(data[key]) == sorted(SEED_DEFAULTS[key]), (
+            assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
                 f"Non-overridden key '{key}' should still be system default"
             )
 
@@ -663,7 +692,7 @@ class TestCrossProjectIsolation:
 
         await client.put(
             f"/v1/projects/{project_a}/settings",
-            json={"link_types": ["custom-link"]},
+            json={"link_types": [{"value": "custom-link", "outbound": "custom-link", "inbound": "custom-link"}]},
         )
 
         response = await client.get(f"/v1/projects/{project_b}/settings")

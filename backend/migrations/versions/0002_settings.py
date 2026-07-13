@@ -51,7 +51,13 @@ _SEED_ROWS = [
     },
     {
         "key": "link_types",
-        "values": ["depends-on", "created-by", "context"],
+        "values": [
+            {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"},
+            {"value": "dependent", "outbound": "dependent", "inbound": "depends on"},
+            {"value": "created-by", "outbound": "created by", "inbound": "creates"},
+            {"value": "creates", "outbound": "creates", "inbound": "created by"},
+            {"value": "context", "outbound": "context", "inbound": "context for"},
+        ],
     },
     {
         "key": "participant_roles",

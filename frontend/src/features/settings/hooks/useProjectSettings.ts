@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CACHE_KEYS } from "@/config/cacheConfig";
 import { DATA_FRESHNESS } from "@/config/apiConfig";
-import type { DictionaryKey } from "@/api/types";
+import type { DictionaryKey, SettingsOverrides } from "@/api/types";
 import {
   clearProjectOverride,
   getProjectSettings,
@@ -36,7 +36,7 @@ export function useProjectSettingsEffective(projectId: string | undefined) {
 
 interface SetProjectOverrideParams {
   projectId: string;
-  body: Partial<Record<DictionaryKey, string[]>>;
+  body: SettingsOverrides;
 }
 
 /** Mutation: set one or more project-level overrides. Invalidates overrides + effective caches. */

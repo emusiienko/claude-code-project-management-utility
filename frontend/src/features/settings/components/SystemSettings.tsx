@@ -10,17 +10,21 @@
 import { useState } from "react";
 import { useSystemSettings, useUpdateSystemSettings } from "@/features/settings/hooks/useSystemSettings";
 import { DictionaryEditor, formatKeyLabel } from "./DictionaryEditor";
+import { LinkTypesEditor } from "./LinkTypesEditor";
 import { PageLoader } from "@/shared/components/PageLoader";
-import type { DictionaryKey } from "@/api/types";
+import type { DictionaryKey, LinkTypeEntry } from "@/api/types";
 import { ApiRequestError } from "@/core/client";
 
-/** The six dictionary keys in display order. */
-const DICT_KEYS: DictionaryKey[] = [
+/**
+ * The five plain-string dictionary keys rendered by the generic DictionaryEditor.
+ * link_types is excluded here — it uses structured objects and will have a
+ * dedicated three-field editor (STORY-020 TASK-005).
+ */
+const PLAIN_DICT_KEYS: Exclude<DictionaryKey, "link_types">[] = [
   "task_statuses",
   "task_types",
   "story_statuses",
   "attachment_types",
-  "link_types",
   "participant_roles",
 ];
 
@@ -48,7 +52,7 @@ export function SystemSettings() {
   // Per-key saving state (in-flight key).
   const [savingKey, setSavingKey] = useState<DictionaryKey | null>(null);
 
-  function handleSave(key: DictionaryKey, newValues: string[]) {
+  function handleSave(key: Exclude<DictionaryKey, "link_types">, newValues: string[]) {
     setSavingKey(key);
     setSaveErrors((prev) => ({ ...prev, [key]: undefined }));
     updateMutation.mutate(
@@ -62,6 +66,26 @@ export function SystemSettings() {
           setSaveErrors((prev) => ({
             ...prev,
             [key]: extractErrorMessage(err),
+          }));
+        },
+      },
+    );
+  }
+
+  function handleSaveLinkTypes(newEntries: LinkTypeEntry[]) {
+    setSavingKey("link_types");
+    setSaveErrors((prev) => ({ ...prev, link_types: undefined }));
+    updateMutation.mutate(
+      { link_types: newEntries },
+      {
+        onSuccess: () => {
+          setSavingKey(null);
+        },
+        onError: (err) => {
+          setSavingKey(null);
+          setSaveErrors((prev) => ({
+            ...prev,
+            link_types: extractErrorMessage(err),
           }));
         },
       },
@@ -96,7 +120,7 @@ export function SystemSettings() {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {DICT_KEYS.map((key) => (
+        {PLAIN_DICT_KEYS.map((key) => (
           <DictionaryEditor
             key={key}
             label={formatKeyLabel(key)}
@@ -106,6 +130,13 @@ export function SystemSettings() {
             errorMessage={saveErrors[key]}
           />
         ))}
+
+        <LinkTypesEditor
+          entries={settings.link_types}
+          onSave={handleSaveLinkTypes}
+          isSaving={savingKey === "link_types"}
+          errorMessage={saveErrors.link_types}
+        />
       </div>
     </section>
   );

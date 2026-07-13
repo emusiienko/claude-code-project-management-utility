@@ -98,3 +98,16 @@
 | [TC-094](test-cases/TC-094-outbound-selection-creates-correct-link.md) | Choosing an outbound label creates the link with the current item as source | @regression | STORY-019 | Active |
 | [TC-095](test-cases/TC-095-inbound-selection-swaps-source-and-target.md) | Choosing an inbound label creates the link with source and target swapped | @regression | STORY-019 | Active |
 | [TC-096](test-cases/TC-096-empty-link-types-shows-placeholder.md) | Add Link form shows placeholder when no link types are configured | @regression | STORY-019 | Active |
+| [TC-097](test-cases/TC-097-link-types-editor-system-settings.md) | System Settings page renders link_types as a three-column editor | @smoke @regression | STORY-020 | Active |
+| [TC-098](test-cases/TC-098-link-types-editor-project-settings.md) | Project Settings page renders link_types as a three-column editor | @smoke @regression | STORY-020 | Active |
+| [TC-099](test-cases/TC-099-add-valid-link-type-entry.md) | Adding a new valid link_types entry with all three fields saves correctly | @smoke @regression | STORY-020 | Active |
+| [TC-100](test-cases/TC-100-blank-field-validation.md) | Saving a link_types entry with one or more blank fields shows a validation error | @regression | STORY-020 | Active |
+| [TC-101](test-cases/TC-101-duplicate-value-validation.md) | Saving a link_types entry whose Value duplicates an existing entry is rejected | @regression | STORY-020 | Active |
+| [TC-102](test-cases/TC-102-remove-link-type-entry.md) | Removing a link_types entry works correctly | @regression | STORY-020 | Active |
+| [TC-103](test-cases/TC-103-task-detail-link-labels-from-api.md) | Task Detail modal shows outbound and inbound link labels from the API — not hardcoded | @smoke @regression | STORY-020 | Active |
+| [TC-104](test-cases/TC-104-story-slideover-link-labels-from-api.md) | Story slide-over shows outbound and inbound link labels from the API — not hardcoded | @smoke @regression | STORY-020 | Active |
+| [TC-105](test-cases/TC-105-add-link-directional-picker.md) | Adding a task or story link — the directional picker populates from structured API data | @smoke @regression | STORY-020 | Active |
+| [TC-106](test-cases/TC-106-deleted-link-type-fallback.md) | A link whose type was deleted after creation shows the raw value — no crash | @regression | STORY-020 | Active |
+| [TC-107](test-cases/TC-107-project-level-override-takes-precedence.md) | Project-level link_types override is used for that project's links — not the system default | @regression | STORY-020 | Active |
+| [TC-108](test-cases/TC-108-symmetric-link-type-valid.md) | A link_types entry with identical outbound and inbound labels is accepted and rendered correctly | @regression | STORY-020 | Active |
+| [TC-109](test-cases/TC-109-other-dictionaries-unaffected.md) | Other dictionary sections in Settings are unaffected and still use single-field rows | @smoke @regression | STORY-020 | Active |

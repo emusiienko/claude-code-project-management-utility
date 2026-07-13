@@ -25,17 +25,21 @@ import {
   useClearProjectOverride,
 } from "@/features/settings/hooks/useProjectSettings";
 import { DictionaryEditor, formatKeyLabel } from "./DictionaryEditor";
+import { LinkTypesEditor } from "./LinkTypesEditor";
 import { PageLoader } from "@/shared/components/PageLoader";
-import type { DictionaryKey } from "@/api/types";
+import type { DictionaryKey, LinkTypeEntry } from "@/api/types";
 import { ApiRequestError } from "@/core/client";
 
-/** The six dictionary keys in display order. */
-const DICT_KEYS: DictionaryKey[] = [
+/**
+ * The five plain-string dictionary keys rendered by the generic DictionaryEditor.
+ * link_types is excluded here — it uses structured objects and will have a
+ * dedicated three-field editor (STORY-020 TASK-005).
+ */
+const PLAIN_DICT_KEYS: Exclude<DictionaryKey, "link_types">[] = [
   "task_statuses",
   "task_types",
   "story_statuses",
   "attachment_types",
-  "link_types",
   "participant_roles",
 ];
 
@@ -105,7 +109,7 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
   const [savingKey, setSavingKey] = useState<DictionaryKey | null>(null);
   const [clearingKey, setClearingKey] = useState<DictionaryKey | null>(null);
 
-  function handleSave(key: DictionaryKey, newValues: string[]) {
+  function handleSave(key: Exclude<DictionaryKey, "link_types">, newValues: string[]) {
     setSavingKey(key);
     setSaveErrors((prev) => ({ ...prev, [key]: undefined }));
     setOverrideMutation.mutate(
@@ -119,6 +123,26 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
           setSaveErrors((prev) => ({
             ...prev,
             [key]: extractErrorMessage(err),
+          }));
+        },
+      },
+    );
+  }
+
+  function handleSaveLinkTypes(newEntries: LinkTypeEntry[]) {
+    setSavingKey("link_types");
+    setSaveErrors((prev) => ({ ...prev, link_types: undefined }));
+    setOverrideMutation.mutate(
+      { projectId, body: { link_types: newEntries } },
+      {
+        onSuccess: () => {
+          setSavingKey(null);
+        },
+        onError: (err) => {
+          setSavingKey(null);
+          setSaveErrors((prev) => ({
+            ...prev,
+            link_types: extractErrorMessage(err),
           }));
         },
       },
@@ -166,7 +190,7 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {DICT_KEYS.map((key) => {
+      {PLAIN_DICT_KEYS.map((key) => {
         const isOverridden = Boolean(
           storedOverrides && key in storedOverrides,
         );
@@ -187,6 +211,22 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
           />
         );
       })}
+
+      <LinkTypesEditor
+        entries={effectiveSettings.link_types}
+        onSave={handleSaveLinkTypes}
+        isSaving={savingKey === "link_types"}
+        errorMessage={saveErrors.link_types}
+        overrideBadge={
+          storedOverrides && "link_types" in storedOverrides ? <OverrideBadge /> : undefined
+        }
+        onClearOverride={
+          storedOverrides && "link_types" in storedOverrides
+            ? () => handleClearOverride("link_types")
+            : undefined
+        }
+        isClearingOverride={clearingKey === "link_types"}
+      />
     </div>
   );
 }

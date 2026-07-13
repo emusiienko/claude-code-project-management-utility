@@ -201,13 +201,15 @@ Sub-nav active tab: **Board**.
 - The control is populated from `GET /milestones?project_id=<projectId>` scoped to the story's project
 - Only milestones belonging to the story's project are eligible — milestones from other projects are never shown
 
-**Right panel — Story Links:** <!-- added: 2026-07-12 (STORY-006); updated: 2026-07-13 (STORY-018, STORY-019) -->
+**Right panel — Story Links:** <!-- added: 2026-07-12 (STORY-006); updated: 2026-07-13 (STORY-018, STORY-019, STORY-020) -->
 
 > **As-built (STORY-005/016):** Static placeholder section (no link endpoint calls). Live implementation delivered by STORY-006.
 >
 > **As-built (STORY-018):** The `link_type` badge in each row shows a human-readable, direction-aware label via `getLinkLabel(linkType, direction)`. Known mappings: `depends-on` outbound → "depends on", inbound → "dependent"; `created-by` outbound → "created by", inbound → "creates"; `context` outbound → "context", inbound → "context for". Unknown types fall back to the raw `link_type` string.
 >
 > **As-built (STORY-019):** The Add link form dropdown shows all directional label options via `getLinkOptions(linkTypes)`, which expands each key into two entries (outbound + inbound). When the user selects an inbound option, the API call swaps source and target so direction semantics are preserved on the backend (`useCreateStoryLink` accepts optional `sourceStoryId` to override the source). An empty `linkTypes` dictionary shows a "No link types configured" placeholder.
+>
+> **As-built (STORY-020):** `getLinkLabel` and `getLinkOptions` now accept `LinkTypeEntry[]` from the API (not a string array and not a hardcoded map). Labels are sourced exclusively from the `outbound` / `inbound` fields of the resolved dictionary entries. Unknown `link_type` values (type deleted after link was created) fall back to the raw value string — no crash.
 
 - Heading "Links" with a count badge
 - Single list showing both outbound and inbound story links; each row displays: direction indicator (→ / ←), `link_type` badge (rendered as direction-aware human-readable label), linked story title
@@ -273,13 +275,15 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 - Displays: title, type badge, status badge, assignee_role, creator_role, labels, rendered Markdown content
 - **Edit task** button → inline edit form replacing the metadata block (not a separate panel)
 
-**Links section:** <!-- updated: 2026-07-13 (STORY-006, STORY-018, STORY-019) -->
+**Links section:** <!-- updated: 2026-07-13 (STORY-006, STORY-018, STORY-019, STORY-020) -->
 
 > **As-built (STORY-005):** Static placeholder section (no link endpoint calls). Live implementation delivered by STORY-006.
 >
 > **As-built (STORY-018):** The `link_type` badge uses `getLinkLabel(linkType, direction)` for direction-aware human-readable labels. `direction` is optional on `EnrichedTaskLink`; when absent the raw `link_type` string is used as fallback.
 >
 > **As-built (STORY-019):** The Add link form dropdown uses `getLinkOptions(linkTypes)` to show all directional options (outbound + inbound per key). Inbound selections trigger source/target swap in `useCreateTaskLink` (optional `sourceTaskId` parameter) before the API call.
+>
+> **As-built (STORY-020):** `getLinkLabel` and `getLinkOptions` accept `LinkTypeEntry[]` (not a string array). Labels are sourced from `entry.outbound` / `entry.inbound`; no hardcoded fallback map remains. Unknown `link_type` values fall back to the raw value string.
 
 - Heading "Links" with count badge
 - Single list showing both outbound and inbound task links; each row: direction indicator (→ / ←), `link_type` badge (direction-aware human-readable label), linked task title, linked task status badge
@@ -340,30 +344,37 @@ No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in
 
 ---
 
-### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign) -->
+### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor) -->
 
 > **As-built notes (STORY-002):** Previously implemented as two tabs (`System Defaults` / `Project Overrides`) at `/settings`. The Project Overrides tab is removed from this view — project overrides now live at `/projects/:id/settings`.
+>
+> **As-built notes (STORY-020):** `link_types` uses a dedicated three-field `LinkTypesEditor` component instead of the generic `DictionaryEditor`. The `LinkTypesEditor` spans both grid columns (`sm:col-span-2`). The generic `DictionaryEditor` is unchanged.
 
 Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only). No sidebar; no sub-navigation bar.
 
 - Six dictionary editors in a 2-column responsive grid (not accordion), one per key: `task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `link_types`, `participant_roles`
-- Each editor shows the current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
-- **Save / Cancel** controls per editor — Save disabled when the value list is empty
+- Five keys (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `participant_roles`) use the generic chip-list editor: shows current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
+- `link_types` uses the **three-field `LinkTypesEditor`**: renders one row per entry with three editable fields — **Value**, **Outbound label**, **Inbound label**; **Add entry** appends a blank row; **Remove** per row; all three fields must be non-empty before Save is enabled (client-side guard); server 422 surfaces above the Save button
+- **Save / Cancel** controls per editor — Save disabled when the value list is empty or any `link_types` field is blank
 - Per-key independent save state and error state (saving one key does not affect others)
 - **Save** calls `PUT /v1/system/settings` with only the changed key (partial body)
-- Server errors (400: unknown key, empty values) surfaced inline below the relevant editor
+- Server errors (400: unknown key, empty values, duplicate `link_types` value; 422: blank `link_types` field) surfaced inline below/above the relevant editor
 
 ---
 
-### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign) -->
+### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor) -->
 
 > **As-built notes (STORY-002):** Previously implemented as the "Project Overrides" tab within `/settings`. Now a dedicated route accessed via the `Settings` tab in the project sub-navigation bar.
+>
+> **As-built notes (STORY-020):** `link_types` uses the same three-field `LinkTypesEditor` as the System Settings page. The Override badge and Clear override action for `link_types` are sourced from the stored overrides, same as all other keys.
 
 Sub-nav active tab: **Settings**.
 
 - Lists all six dictionary keys with their effective values
+- Five plain-string keys use the generic chip-list editor
+- `link_types` uses the **three-field `LinkTypesEditor`** (same behaviour as System Settings — three-column rows, Add/Remove, client-side guard before Save)
 - Each key row shows: key name, current override value (if set) with an `Override` badge, or the inherited system default value
-- **Override / Edit button** per key → activates inline chip list editor for that key
+- **Override / Edit button** per key → activates inline editor for that key
 - **Clear override** button (visible when override is set) → intended to revert to system default; calls `DELETE /v1/projects/:projectId/settings/:key` — **this endpoint does not exist on the backend as of STORY-002; the action fails at runtime** (see Known Gaps in backend requirements)
 - **Save** button per key → calls `PUT /v1/projects/:id/settings` with only the changed key
 - Effective values always visible via `GET /v1/projects/:id/settings/effective`

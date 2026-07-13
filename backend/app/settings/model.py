@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -13,7 +14,8 @@ class SystemSettings(Base):
 
     # key is the PK — one row per dictionary key (e.g. "task_statuses")
     key: Mapped[str] = mapped_column(String(50), primary_key=True)
-    values: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    # list[Any] because link_types stores structured dicts; all other keys store plain strings.
+    values: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -30,7 +32,8 @@ class ProjectSettings(Base):
         primary_key=True,
     )
     key: Mapped[str] = mapped_column(String(50), primary_key=True)
-    values: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    # list[Any] because link_types stores structured dicts; all other keys store plain strings.
+    values: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

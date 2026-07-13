@@ -1,18 +1,26 @@
 import datetime
 import uuid
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 from app.core.errors import NotFoundError, ValidationError
 from app.settings.model import ProjectSettings, SystemSettings
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
-from app.settings.schema import ALL_DICT_KEYS, UpdateSettingsBody, validate_dict_key
+from app.settings.schema import (
+    ALL_DICT_KEYS,
+    DICT_KEY_LINK_TYPES,
+    LinkTypeEntry,
+    UpdateSettingsBody,
+    validate_dict_key,
+)
 
 _EMPTY_VALUES_MSG = "Dictionary values cannot be empty."
+_LINK_TYPE_UNIQUE_MSG = "link_types values must be unique"
 
 
 class EffectiveDictionary(Protocol):
     # Future domain services (stories, tasks, links) depend on this Protocol — never on
-    # SettingsService directly.
+    # SettingsService directly. For link_types, returns the list of value strings extracted
+    # from the structured entries so callers can do plain membership checks.
     def resolve(self, project_id: str, key: str) -> list[str]: ...
 
 
@@ -29,32 +37,48 @@ class SettingsService:
     # System-level operations
     # ------------------------------------------------------------------
 
-    def get_system_settings(self) -> dict[str, list[str]]:
+    def get_system_settings(self) -> dict[str, Any]:
         rows = self._system_repo.get_all()
         return {row.key: row.values for row in rows}
 
-    def update_system_settings(self, body: UpdateSettingsBody) -> dict[str, list[str]]:
+    def update_system_settings(self, body: UpdateSettingsBody) -> dict[str, Any]:
         for key, values in body.to_key_value_pairs():
-            self._validate_values(values)
-            row = self._system_repo.get_by_key(key)
-            if row is None:
-                # Should not happen after seed migration, but guard defensively.
-                row = SystemSettings(
-                    key=key,
-                    values=values,
-                    updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
-                )
+            if key == DICT_KEY_LINK_TYPES:
+                link_entries = self._validate_link_types(cast(list[LinkTypeEntry], values))
+                serialized: list[Any] = [e.model_dump() for e in link_entries]
+                row = self._system_repo.get_by_key(key)
+                if row is None:
+                    row = SystemSettings(
+                        key=key,
+                        values=serialized,
+                        updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                    )
+                else:
+                    row.values = serialized
+                    row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
+                self._system_repo.save(row)
             else:
-                row.values = values
-                row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
-            self._system_repo.save(row)
+                plain_values: list[Any] = values
+                self._validate_plain_values(plain_values)
+                row = self._system_repo.get_by_key(key)
+                if row is None:
+                    # Should not happen after seed migration, but guard defensively.
+                    row = SystemSettings(
+                        key=key,
+                        values=plain_values,
+                        updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                    )
+                else:
+                    row.values = plain_values
+                    row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
+                self._system_repo.save(row)
         return self.get_system_settings()
 
     # ------------------------------------------------------------------
     # Project-level override operations
     # ------------------------------------------------------------------
 
-    def get_project_settings(self, project_id: str) -> dict[str, list[str]]:
+    def get_project_settings(self, project_id: str) -> dict[str, Any]:
         pid = self._assert_project_exists(project_id)
         rows = self._project_repo.get_all_for_project(pid)
         return {row.key: row.values for row in rows}
@@ -63,26 +87,43 @@ class SettingsService:
         self,
         project_id: str,
         body: UpdateSettingsBody,
-    ) -> dict[str, list[str]]:
+    ) -> dict[str, Any]:
         pid = self._assert_project_exists(project_id)
         for key, values in body.to_key_value_pairs():
-            self._validate_values(values)
-            row = self._project_repo.get_by_project_and_key(pid, key)
-            if row is None:
-                row = ProjectSettings(
-                    project_id=pid,
-                    key=key,
-                    values=values,
-                    updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
-                )
+            if key == DICT_KEY_LINK_TYPES:
+                link_entries = self._validate_link_types(cast(list[LinkTypeEntry], values))  # type: ignore[arg-type]
+                serialized: list[Any] = [e.model_dump() for e in link_entries]
+                row = self._project_repo.get_by_project_and_key(pid, key)
+                if row is None:
+                    row = ProjectSettings(
+                        project_id=pid,
+                        key=key,
+                        values=serialized,
+                        updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                    )
+                else:
+                    row.values = serialized
+                    row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
+                self._project_repo.save(row)
             else:
-                row.values = values
-                row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
-            self._project_repo.save(row)
+                plain_values: list[Any] = values
+                self._validate_plain_values(plain_values)
+                row = self._project_repo.get_by_project_and_key(pid, key)
+                if row is None:
+                    row = ProjectSettings(
+                        project_id=pid,
+                        key=key,
+                        values=plain_values,
+                        updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                    )
+                else:
+                    row.values = plain_values
+                    row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
+                self._project_repo.save(row)
         # PUT returns effective settings per the contract, not just the stored override.
         return self.resolve_all(project_id)
 
-    def clear_project_setting(self, project_id: str, key: str) -> dict[str, list[str]]:
+    def clear_project_setting(self, project_id: str, key: str) -> dict[str, Any]:
         pid = self._assert_project_exists(project_id)
         self._validate_key(key)
 
@@ -97,22 +138,28 @@ class SettingsService:
     # ------------------------------------------------------------------
 
     def resolve(self, project_id: str, key: str) -> list[str]:
+        # For link_types, returns only the value strings extracted from structured entries
+        # so that TaskLinkService / StoryLinkService can do plain membership checks.
         pid = uuid.UUID(project_id)
         override = self._project_repo.get_by_project_and_key(pid, key)
         if override is not None:
-            return override.values
+            raw: list[Any] = override.values
+        else:
+            system_row = self._system_repo.get_by_key(key)
+            if system_row is None:
+                # System default missing — data integrity violation; should never happen after seed.
+                return []
+            raw = system_row.values
 
-        system_row = self._system_repo.get_by_key(key)
-        if system_row is None:
-            # System default missing — data integrity violation; should never happen after seed.
-            return []
-        return system_row.values
+        if key == DICT_KEY_LINK_TYPES:
+            return _extract_link_type_values(raw)
+        return raw  # type: ignore[return-value]
 
-    def get_effective_settings(self, project_id: str) -> dict[str, list[str]]:
+    def get_effective_settings(self, project_id: str) -> dict[str, Any]:
         self._assert_project_exists(project_id)
         return self.resolve_all(project_id)
 
-    def resolve_all(self, project_id: str) -> dict[str, list[str]]:
+    def resolve_all(self, project_id: str) -> dict[str, Any]:
         # Derived on demand — never stored.
         pid = uuid.UUID(project_id)
         overrides_by_key = {
@@ -148,6 +195,39 @@ class SettingsService:
             raise ValidationError(str(exc)) from exc
 
     @staticmethod
-    def _validate_values(values: list[str]) -> None:
+    def _validate_plain_values(values: list[Any]) -> None:
         if not values:
             raise ValidationError(_EMPTY_VALUES_MSG)
+
+    @staticmethod
+    def _validate_link_types(values: list[LinkTypeEntry]) -> list[LinkTypeEntry]:
+        # Validates business rules that go beyond Pydantic field-level constraints.
+        # Each entry's field emptiness/length is already enforced by LinkTypeEntry validators.
+        if not values:
+            raise ValidationError(_EMPTY_VALUES_MSG)
+        seen: set[str] = set()
+        for entry in values:
+            if entry.value in seen:
+                raise ValidationError(_LINK_TYPE_UNIQUE_MSG)
+            seen.add(entry.value)
+        return values
+
+
+# ---------------------------------------------------------------------------
+# Module-level helper — pure function, no I/O
+# ---------------------------------------------------------------------------
+
+
+def _extract_link_type_values(raw: list[Any]) -> list[str]:
+    # Extracts the value field from each structured link_types entry.
+    # Entries that are plain strings (pre-migration data) are returned as-is.
+    result: list[str] = []
+    for entry in raw:
+        if isinstance(entry, dict):
+            v = entry.get("value", "")
+            if v:
+                result.append(v)
+        elif isinstance(entry, str):
+            # Defensive: handle legacy flat-string entries that survived a failed migration.
+            result.append(entry)
+    return result

@@ -16,12 +16,12 @@
  * @param onToggle                 - Callback to toggle open/closed state.
  * @param onMilestoneAssign        - Called when the user changes the milestone assignment.
  * @param isMilestoneUpdatePending - True while the parent's update mutation is in flight.
- * @param linkTypeOptions          - Effective link_types from project settings (no extra fetch).
+ * @param linkTypeEntries          - Structured link_types entries from effective project settings (no extra fetch).
  */
 
 import ReactMarkdown from "react-markdown";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { Story } from "@/api/types";
+import type { Story, LinkTypeEntry } from "@/api/types";
 import { MilestoneAssignment } from "./MilestoneAssignment";
 import { StoryLinksSection } from "@/features/story-links/components/StoryLinksSection";
 
@@ -36,8 +36,8 @@ interface StoryRightPanelProps {
   onMilestoneAssign: (milestoneId: string | null) => void;
   /** True while the parent's milestone update mutation is in flight. */
   isMilestoneUpdatePending?: boolean;
-  /** Effective link_types from the project settings — no extra fetch needed. */
-  linkTypeOptions?: string[];
+  /** Structured link_types entries from the effective project settings — no extra fetch needed. */
+  linkTypeEntries?: LinkTypeEntry[];
 }
 
 /**
@@ -50,7 +50,7 @@ export function StoryRightPanel({
   onToggle,
   onMilestoneAssign,
   isMilestoneUpdatePending = false,
-  linkTypeOptions = [],
+  linkTypeEntries = [],
 }: StoryRightPanelProps) {
   return (
     <aside
@@ -121,7 +121,7 @@ export function StoryRightPanel({
             <StoryLinksSection
               storyId={story.id}
               projectId={story.project_id}
-              linkTypeOptions={linkTypeOptions}
+              linkTypeEntries={linkTypeEntries}
             />
           </section>
 
