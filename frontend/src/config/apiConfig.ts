@@ -30,6 +30,15 @@ export const PAGINATION = {
    * The API max is 100; stories are unlikely to exceed this in a single session.
    */
   TASKS: 100,
+  /**
+   * Task links per task — fetches all links in one request for the detail modal.
+   * Links per task are expected to be few in a personal utility session.
+   */
+  TASK_LINKS: 100,
+  /**
+   * Story links per story — fetches all links in one request for the slide-over.
+   */
+  STORY_LINKS: 100,
 } as const;
 
 /**
@@ -59,4 +68,8 @@ export const DATA_FRESHNESS = {
    * the "N/M done" counter in lockstep with the Kanban board.
    */
   STORY_AGGREGATE: 0,
+  /** Task links — always fresh so the detail modal reflects recent link changes. */
+  TASK_LINKS: 0,
+  /** Story links — always fresh so the slide-over reflects recent link changes. */
+  STORY_LINKS: 0,
 } as const;

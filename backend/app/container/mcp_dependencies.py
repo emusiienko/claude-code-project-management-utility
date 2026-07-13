@@ -8,6 +8,8 @@ from app.milestones.service import MilestoneService
 from app.projects.service import ProjectService
 from app.settings.service import SettingsService
 from app.stories.service import StoryService
+from app.story_links.service import StoryLinkService
+from app.task_links.service import TaskLinkService
 from app.tasks.service import TaskService
 
 
@@ -57,5 +59,23 @@ async def provide_milestone_service(
 async def provide_task_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: TaskService = Provide[AppContainer.task_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_task_link_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: TaskLinkService = Provide[AppContainer.task_link_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_story_link_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: StoryLinkService = Provide[AppContainer.story_link_service],
 ):
     yield service

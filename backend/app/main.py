@@ -21,6 +21,8 @@ container.wire(
         "app.projects",
         "app.settings",
         "app.stories",
+        "app.story_links",
+        "app.task_links",
         "app.tasks",
         "app.container",
     ]

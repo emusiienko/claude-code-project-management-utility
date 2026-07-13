@@ -43,6 +43,13 @@ vi.mock("@/features/tasks/hooks/useTasks", () => ({
   useDeleteTask: vi.fn(),
 }));
 
+// StoryLinksSection uses TanStack Query hooks — mock to avoid requiring a QueryClientProvider.
+vi.mock("@/features/story-links/hooks/useStoryLinks", () => ({
+  useStoryLinkList: vi.fn(),
+  useCreateStoryLink: vi.fn(),
+  useDeleteStoryLink: vi.fn(),
+}));
+
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
@@ -53,6 +60,11 @@ import {
   useUpdateTask,
   useDeleteTask,
 } from "@/features/tasks/hooks/useTasks";
+import {
+  useStoryLinkList,
+  useCreateStoryLink,
+  useDeleteStoryLink,
+} from "@/features/story-links/hooks/useStoryLinks";
 
 const mockUseStory = vi.mocked(useStory);
 const mockUseUpdateStory = vi.mocked(useUpdateStory);
@@ -63,6 +75,9 @@ const mockUseStoryAggregate = vi.mocked(useStoryAggregate);
 const mockUseCreateTask = vi.mocked(useCreateTask);
 const mockUseUpdateTask = vi.mocked(useUpdateTask);
 const mockUseDeleteTask = vi.mocked(useDeleteTask);
+const mockUseStoryLinkList = vi.mocked(useStoryLinkList);
+const mockUseCreateStoryLink = vi.mocked(useCreateStoryLink);
+const mockUseDeleteStoryLink = vi.mocked(useDeleteStoryLink);
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -126,7 +141,7 @@ beforeEach(() => {
     isPending: false,
   } as never);
   mockUseProjectSettingsEffective.mockReturnValue({
-    data: { story_statuses: ["Planned", "In Progress", "Done"], task_statuses: [], task_types: [], participant_roles: [] },
+    data: { story_statuses: ["Planned", "In Progress", "Done"], task_statuses: [], task_types: [], participant_roles: [], link_types: [] },
   } as never);
   // MilestoneAssignment inside StoryRightPanel needs a milestone list
   mockUseProjectMilestones.mockReturnValue({
@@ -146,6 +161,14 @@ beforeEach(() => {
   mockUseCreateTask.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseUpdateTask.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseDeleteTask.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  // StoryLinksSection hooks — return empty data so the links section renders without errors
+  mockUseStoryLinkList.mockReturnValue({
+    data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } },
+    isLoading: false,
+    isError: false,
+  } as never);
+  mockUseCreateStoryLink.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  mockUseDeleteStoryLink.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
 });
 
 // ---------------------------------------------------------------------------

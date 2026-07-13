@@ -103,4 +103,34 @@ export const API_PATHS = {
    * Returns { story_id, total_tasks, by_status }.
    */
   STORY_AGGREGATE: (id: string) => `/v1/stories/${id}/aggregate`,
+
+  // ---------------------------------------------------------------------------
+  // Task links
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /v1/tasks/:taskId/links — create a task link.
+   * GET  /v1/tasks/:taskId/links?page&limit&direction&link_type — list enriched task links.
+   */
+  TASK_LINKS: (taskId: string) => `/v1/tasks/${taskId}/links`,
+
+  /**
+   * DELETE /v1/task-links/:id — delete a task link by its own ID.
+   */
+  TASK_LINK: (id: string) => `/v1/task-links/${id}`,
+
+  // ---------------------------------------------------------------------------
+  // Story links
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /v1/stories/:storyId/links — create a story link.
+   * GET  /v1/stories/:storyId/links?page&limit&direction&link_type — list enriched story links.
+   */
+  STORY_LINKS: (storyId: string) => `/v1/stories/${storyId}/links`,
+
+  /**
+   * DELETE /v1/story-links/:id — delete a story link by its own ID.
+   */
+  STORY_LINK: (id: string) => `/v1/story-links/${id}`,
 } as const;

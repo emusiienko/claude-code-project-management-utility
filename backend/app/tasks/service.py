@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from typing import Protocol, runtime_checkable
 
 from app.core.errors import NotFoundError, UnprocessableError
 from app.settings.schema import (
@@ -33,16 +34,25 @@ _LIST_MAX_LIMIT = 100
 _LIST_DEFAULT_PAGE = 1
 
 
+@runtime_checkable
+class TaskLinkReaderProtocol(Protocol):
+    def list_all_enriched_for_task(self, task_id: uuid.UUID) -> list: ...
+
+    def delete_all_for_task(self, task_id: uuid.UUID) -> None: ...
+
+
 class TaskService:
     def __init__(
         self,
         repo: TaskRepository,
         story_repo: StoryRepository,
         effective_dict: EffectiveDictionary,
+        task_link_reader: 'TaskLinkReaderProtocol | None' = None,
     ) -> None:
         self._repo = repo
         self._story_repo = story_repo
         self._effective_dict = effective_dict
+        self._task_link_reader = task_link_reader
 
     def create(self, story_id: str, data: CreateTask) -> Task:
         story = self._assert_story_exists(story_id)
@@ -86,10 +96,12 @@ class TaskService:
             raise NotFoundError(f"Task '{task_id}' not found.")
         return task
 
-    def get_detail(self, task_id: str) -> Task:
-        # Returns the task; links/attachments/comments are empty until
-        # STORY-006/007/008 add their composition wiring.
-        return self.get_by_id(task_id)
+    def get_detail(self, task_id: str) -> tuple[Task, list]:
+        task = self.get_by_id(task_id)
+        links: list = []
+        if self._task_link_reader is not None:
+            links = self._task_link_reader.list_all_enriched_for_task(task.id)
+        return task, links
 
     def list_paginated(
         self,
@@ -162,6 +174,11 @@ class TaskService:
 
     def delete(self, task_id: str) -> None:
         task = self.get_by_id(task_id)
+        # Application-level cascade: remove all task links referencing this task
+        # before deleting it. SQLite's ON DELETE CASCADE is inert without
+        # PRAGMA foreign_keys = ON (Known Divergences — architecture.md).
+        if self._task_link_reader is not None:
+            self._task_link_reader.delete_all_for_task(task.id)
         self._repo.delete(task)
 
     # ------------------------------------------------------------------

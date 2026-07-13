@@ -25,6 +25,18 @@
 > project's previously-active milestone back to `planned`. This supersedes the LOCKED v1.0 Milestones
 > shape. The `Story.milestone_id` field and every other domain are unchanged.
 
+> **v1.3 revision — ratified at STORY-006 reconcile 2026-07-13 (Work Item Linking).** Two changes:
+> (1) **Task-link scope is narrowed from project to story.** The LOCKED v1.0 note read "source and
+> target must be in the same project"; the implemented rule requires both tasks to share the **same
+> `story_id`** (cross-story attempts rejected with 422 "Cannot link tasks from different stories.").
+> Two tasks in one story are always in one project, so the narrower rule strictly satisfies the
+> earlier wording. (2) **The Story Links surface is added** — `story_links` is a net-new domain
+> parallel to `task_links`: `POST /stories/:storyId/links`, `GET /stories/:storyId/links`,
+> `DELETE /story-links/:id`, the `StoryLink` / `EnrichedStoryLink` entities, and a `links` field on
+> `StoryDetail`. Same schema, validation, and enrichment shape as task links, scoped to stories in the
+> **same project**. See ADR-017 (two separate link domains) and ADR-018 (application-level link
+> cleanup). All other domains unchanged.
+
 ---
 
 ## Shared shapes
@@ -120,6 +132,21 @@ interface TaskLink {
 interface EnrichedTaskLink extends TaskLink {
   direction?: "outbound" | "inbound";
   linked_task: { id: string; title: string; status: string; };
+}
+
+// v1.3 — Story links mirror task links, scoped to stories in the same project.
+interface StoryLink {
+  id: string;
+  source_story_id: string;
+  target_story_id: string;
+  link_type: string;         // from link_types
+  created_at: string;
+}
+
+// StoryLink enriched with the linked story's summary (returned by link/detail endpoints)
+interface EnrichedStoryLink extends StoryLink {
+  direction: "outbound" | "inbound";
+  linked_story: { id: string; title: string; status: string | null; };  // status is nullable
 }
 
 type AttachmentKind = "document" | "image" | "external-ref";
@@ -258,8 +285,9 @@ interface StoryAggregate {
 //   Composes the story's side collections in one call. Tasks are NOT included —
 //   they live on the Kanban board via GET /stories/:storyId/tasks + /aggregate.
 interface StoryDetail extends Story {
-  attachments: Attachment[];   // active only
-  comments: Comment[];         // created_at ASC
+  links: EnrichedStoryLink[];  // v1.3 — outbound + inbound, enriched (STORY-006)
+  attachments: Attachment[];   // active only (empty until STORY-007)
+  comments: Comment[];         // created_at ASC (empty until STORY-008)
 }
 ```
 
@@ -321,14 +349,40 @@ interface TaskDependencies {
 ```typescript
 // POST /tasks/:taskId/links              -> 201 Envelope<TaskLink> | 404, 409, 422
 interface CreateTaskLinkBody { target_task_id: string; link_type: string; }
-//   422: link_type not in dict; source == target ("A task cannot link to itself.")
+//   Error precedence: existence (404) -> scope/self/dict (422) -> duplicate (409).
+//   404: source or target task missing.
+//   422: link_type not in effective dict; source == target ("A task cannot link to itself.");
+//        cross-story ("Cannot link tasks from different stories.")
 //   409: duplicate (source, target, link_type) ("This link already exists.")
-//   Constraint: source and target must be in the same project.
+//   Constraint (v1.3): source and target must be in the SAME STORY (narrowed from same-project).
 
 // GET  /tasks/:taskId/links?page&limit&direction&link_type
 //   direction: "outbound" | "inbound" | "both" (default both)
 //                                        -> 200 ListEnvelope<EnrichedTaskLink> | 404
 // DELETE /task-links/:id                 -> 204                    | 404
+```
+
+---
+
+## Story Links
+
+<!-- v1.3 (2026-07-13, STORY-006): net-new surface. Parallel to Task Links, scoped to stories in
+     the same project. Same validation/enrichment shape; separate domain (ADR-017). -->
+
+```typescript
+// POST /stories/:storyId/links           -> 201 Envelope<StoryLink> | 404, 409, 422
+interface CreateStoryLinkBody { target_story_id: string; link_type: string; }
+//   Error precedence: existence (404) -> scope/self/dict (422) -> duplicate (409).
+//   404: source or target story missing.
+//   422: link_type not in effective dict; source == target ("A story cannot link to itself.");
+//        cross-project ("Cannot link stories from different projects.")
+//   409: duplicate (source, target, link_type) ("This link already exists.")
+//   Constraint: source and target must be in the same project.
+
+// GET  /stories/:storyId/links?page&limit&direction&link_type
+//   direction: "outbound" | "inbound" | "both" (default both)
+//                                        -> 200 ListEnvelope<EnrichedStoryLink> | 404
+// DELETE /story-links/:id                -> 204                    | 404
 ```
 
 ---

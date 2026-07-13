@@ -22,6 +22,7 @@ import ReactMarkdown from "react-markdown";
 import { useTaskDetail, useUpdateTask } from "../hooks/useTasks";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { TaskForm } from "./TaskForm";
+import { TaskLinksSection } from "./TaskLinksSection";
 import { extractErrorMessage, extractFieldErrors } from "../utils/errorMessages";
 import type { CreateTask } from "@/api/types";
 
@@ -329,16 +330,13 @@ export function TaskDetailModal() {
               )}
 
               {/* ---------------------------------------------------------- */}
-              {/* Links placeholder (STORY-006)                               */}
+              {/* Links section (STORY-006)                                   */}
               {/* ---------------------------------------------------------- */}
-              <section aria-label="Task links">
-                <h3 className="mb-3 text-sm font-semibold text-text-secondary uppercase tracking-wide">
-                  Links
-                </h3>
-                <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-text-muted">
-                  Task links — coming in STORY-006
-                </p>
-              </section>
+              <TaskLinksSection
+                taskId={taskId}
+                storyId={storyId}
+                projectId={projectId}
+              />
 
               {/* ---------------------------------------------------------- */}
               {/* Attachments placeholder (STORY-007)                         */}

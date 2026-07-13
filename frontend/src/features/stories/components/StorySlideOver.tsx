@@ -69,6 +69,7 @@ export function StorySlideOver() {
   const taskStatusOptions = effectiveSettings?.task_statuses ?? [];
   const taskTypeOptions = effectiveSettings?.task_types ?? [];
   const participantRoleOptions = effectiveSettings?.participant_roles ?? [];
+  const linkTypeOptions = effectiveSettings?.link_types ?? [];
   const milestoneOptions = milestonesEnvelope?.data ?? [];
 
   // Close navigates back to the parent stories list
@@ -265,6 +266,7 @@ export function StorySlideOver() {
                 onToggle={() => setIsPanelOpen((prev) => !prev)}
                 onMilestoneAssign={handleMilestoneAssign}
                 isMilestoneUpdatePending={updateMutation.isPending}
+                linkTypeOptions={linkTypeOptions}
               />
             </>
           )}

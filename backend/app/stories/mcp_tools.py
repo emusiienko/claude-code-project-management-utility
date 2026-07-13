@@ -12,6 +12,7 @@ from app.stories.schema import (
     PaginationMeta,
     Story,
     StoryAggregate,
+    StoryDetail,
     UpdateStory,
 )
 from app.stories.service import StoryService
@@ -126,6 +127,23 @@ async def delete_story(
         raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in delete_story: %s", exc, exc_info=exc)
+        raise ToolError("Internal server error.") from exc
+
+
+@mcp_server_v1.tool()
+async def get_story_detail(
+    id: str,
+    service: StoryService = Depends(provide_story_service),
+) -> dict:
+    try:
+        story, links = service.get_detail(id)
+        detail = StoryDetail.model_validate(story)
+        detail.links = [lnk.model_dump() for lnk in links]
+        return {"data": detail.model_dump()}
+    except DomainError as exc:
+        raise exc.to_tool_error() from exc
+    except Exception as exc:
+        logger.error("Unexpected error in get_story_detail: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
 
 

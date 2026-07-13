@@ -9,7 +9,7 @@ from app.settings.schema import DICT_KEY_STORY_STATUSES
 from app.settings.service import EffectiveDictionary
 from app.stories.model import Story
 from app.stories.repository import StoryRepository
-from app.stories.schema import CreateStory, StoryAggregate, UpdateStory
+from app.stories.schema import CreateStory, StoryAggregate, StoryDetail, UpdateStory
 
 if TYPE_CHECKING:
     from app.milestones.model import Milestone as MilestoneModel
@@ -34,12 +34,14 @@ class StoryService:
         effective_dict: EffectiveDictionary,
         milestone_repo: "MilestoneRepositoryProtocol | None" = None,
         task_counter: "TaskCounterProtocol | None" = None,
+        story_link_reader: "StoryLinkReaderProtocol | None" = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
         self._effective_dict = effective_dict
         self._milestone_repo = milestone_repo
         self._task_counter = task_counter
+        self._story_link_reader = story_link_reader
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -160,8 +162,20 @@ class StoryService:
         story.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
         return self._repo.save(story)
 
+    def get_detail(self, story_id: str) -> tuple[Story, list]:
+        story = self.get_by_id(story_id)
+        links: list = []
+        if self._story_link_reader is not None:
+            links = self._story_link_reader.list_all_enriched_for_story(story.id)
+        return story, links
+
     def delete(self, story_id: str, project_id: str) -> None:
         story = self.get(story_id, project_id)
+        # Application-level cascade: remove all story links referencing this story
+        # before deleting it. SQLite's ON DELETE CASCADE is inert without
+        # PRAGMA foreign_keys = ON (Known Divergences — architecture.md).
+        if self._story_link_reader is not None:
+            self._story_link_reader.delete_all_for_story(story.id)
         self._repo.delete(story)
 
     def get_aggregate(self, story_id: str) -> StoryAggregate:
@@ -222,3 +236,10 @@ class MilestoneRepositoryProtocol(Protocol):
 @runtime_checkable
 class TaskCounterProtocol(Protocol):
     def get_status_counts(self, story_id: uuid.UUID) -> dict[str, int]: ...
+
+
+@runtime_checkable
+class StoryLinkReaderProtocol(Protocol):
+    def list_all_enriched_for_story(self, story_id: uuid.UUID) -> list: ...
+
+    def delete_all_for_story(self, story_id: uuid.UUID) -> None: ...

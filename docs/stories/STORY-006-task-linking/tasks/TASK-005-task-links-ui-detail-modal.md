@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: frontend-developer
 story: STORY-006
 ---
@@ -40,10 +40,29 @@ None.
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-12
+
 **What was done**:
+- Created `TaskLinksSection.tsx` — the orchestrating component for the full Links section. Renders the enriched list, the Add-link form, and the delete-confirmation dialog. Reads link_types from the already-cached effective project settings and the task list from the already-cached story-scoped task query — no extra network calls.
+- Created `TaskLinkRow.tsx` — a single row with a direction indicator (→ / ←), a link_type badge, the linked task title as a `<Link>` to the task's detail modal route, a status chip, and an `IconButton` (destructive) for delete.
+- Created `AddTaskLinkForm.tsx` — inline form with a `<select>` for the target task (same story, current task excluded client-side) and a `<select>` for link_type populated from effective settings. Submits `{ target_task_id, link_type }`. Shows top-level and per-field errors from the API inline.
+- Created `DeleteTaskLinkDialog.tsx` — confirmation dialog (alertdialog role, Escape cancels) for link removal. Shows the linked task title and link type. z-index above the Task Detail Modal (z-80/z-90) so it layers correctly.
+- Updated `TaskDetailModal.tsx` — replaced the "Task links — coming in STORY-006" placeholder section with `<TaskLinksSection taskId storyId projectId />`.
+
 **Deviations from plan**:
+- The task list query for the target-task selector is fetched via `useTaskList(storyId)` (the existing hook used by TaskKanban). Because TaskKanban is rendered in the StorySlideOver (which is mounted behind the modal), this cache entry is typically warm when the user opens the Task Detail Modal. In the rare case where the modal is opened by direct URL navigation (bypassing the Kanban), the query fires and resolves before the user interacts with the form — this is acceptable per the architecture.
+
 **Technical decisions made**:
+- `AddTaskLinkForm` receives the tasks array as a prop (rather than calling `useTaskList` internally) so the component is stateless with respect to server data and trivially testable. The hook call lives in `TaskLinksSection`, which owns all server state for this section.
+- The delete dialog uses z-index z-80/z-90 (above the Task Detail Modal's z-60/z-70) because both can be visible simultaneously — the dialog must fully overlay the modal.
+- `TaskLinkRow` uses React Router's `<Link>` component for the linked-task title so keyboard navigation (Tab + Enter) works without JavaScript event handlers — matches the routing convention and accessibility requirement.
+
 **Code locations**:
-**Technical debt noted**:
+- `frontend/src/features/tasks/components/TaskLinksSection.tsx` — orchestrator: link list, add form, delete dialog
+- `frontend/src/features/tasks/components/TaskLinkRow.tsx` — single link row
+- `frontend/src/features/tasks/components/AddTaskLinkForm.tsx` — add-link form
+- `frontend/src/features/tasks/components/DeleteTaskLinkDialog.tsx` — delete confirmation dialog
+- `frontend/src/features/tasks/components/TaskDetailModal.tsx` — placeholder replaced with TaskLinksSection
+
+**Technical debt noted**: None.

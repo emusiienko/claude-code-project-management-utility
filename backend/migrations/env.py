@@ -14,9 +14,13 @@ from app.core.database.base import Base
 # Import all models here so their metadata is registered on Base before
 # Alembic autogenerates migrations. Add each new domain model import here
 # as it is implemented.
+from app.milestones.model import Milestone  # noqa: F401
 from app.projects.model import Project  # noqa: F401
 from app.settings.model import ProjectSettings, SystemSettings  # noqa: F401
 from app.stories.model import Story  # noqa: F401
+from app.story_links.model import StoryLink  # noqa: F401
+from app.task_links.model import TaskLink  # noqa: F401
+from app.tasks.model import Task  # noqa: F401
 
 config = context.config
 

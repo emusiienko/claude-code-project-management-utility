@@ -55,7 +55,7 @@ SEED_DEFAULTS: dict[str, list[str]] = {
         "test-result",
         "external-ref",
     ],
-    "link_types": ["depends-on", "context"],
+    "link_types": ["depends-on", "created-by", "context"],
     "participant_roles": [
         "orchestrator",
         "architect",

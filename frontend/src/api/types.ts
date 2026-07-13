@@ -103,6 +103,23 @@ export interface EnrichedTaskLink extends TaskLink {
   };
 }
 
+export interface StoryLink {
+  id: string;
+  source_story_id: string;
+  target_story_id: string;
+  link_type: string;
+  created_at: string;
+}
+
+export interface EnrichedStoryLink extends StoryLink {
+  direction?: "outbound" | "inbound";
+  linked_story: {
+    id: string;
+    title: string;
+    status: string | null;
+  };
+}
+
 export type AttachmentKind = "document" | "image" | "external-ref";
 export type ContainerType = "story" | "task" | "milestone";
 
@@ -196,6 +213,7 @@ export interface StoryAggregate {
 }
 
 export interface StoryDetail extends Story {
+  links: EnrichedStoryLink[];
   attachments: Attachment[];
   comments: Comment[];
 }
@@ -273,6 +291,11 @@ export interface UpdateTask {
 
 export interface CreateTaskLink {
   target_task_id: string;
+  link_type: string;
+}
+
+export interface CreateStoryLink {
+  target_story_id: string;
   link_type: string;
 }
 

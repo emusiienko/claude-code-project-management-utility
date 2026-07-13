@@ -51,7 +51,7 @@ _SEED_ROWS = [
     },
     {
         "key": "link_types",
-        "values": ["depends-on", "context"],
+        "values": ["depends-on", "created-by", "context"],
     },
     {
         "key": "participant_roles",

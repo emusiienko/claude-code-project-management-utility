@@ -101,8 +101,9 @@ async def get_task_detail(
     _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
     service: TaskService = Depends(Provide[AppContainer.task_service]),
 ) -> dict:
-    task = service.get_detail(task_id)
+    task, links = service.get_detail(task_id)
     detail = TaskDetail.model_validate(task)
+    detail.links = [lnk.model_dump() for lnk in links]
     return {"data": detail.model_dump()}
 
 

@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-006
 ---
@@ -46,10 +46,48 @@ Record at Reconcile that link cleanup is done application-side (not relying on t
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-12
+
 **What was done**:
+Three pieces of cross-domain wiring were implemented as specified:
+
+1. **TaskLinkReaderProtocol** — added as a `@runtime_checkable` Protocol in `backend/app/tasks/service.py` with two methods: `list_all_enriched_for_task(task_id: UUID) -> list` and `delete_all_for_task(task_id: UUID) -> None`. `TaskService.__init__` now accepts an optional `task_link_reader: TaskLinkReaderProtocol | None` parameter.
+
+2. **TaskService.get_detail** — changed signature from returning `Task` to `tuple[Task, list]`. The service calls `task_link_reader.list_all_enriched_for_task(task.id)` when the reader is injected; returns an empty list when it is not. The controller `get_task_detail` was updated to unpack the tuple and attach the serialized links to `TaskDetail.links`.
+
+3. **TaskService.delete** — calls `task_link_reader.delete_all_for_task(task.id)` before `_repo.delete(task)` when the reader is injected, providing explicit application-level cascade on SQLite (where `ON DELETE CASCADE` is inert without `PRAGMA foreign_keys = ON`).
+
+4. **StoryLinkReaderProtocol** — added as a `@runtime_checkable` Protocol in `backend/app/stories/service.py` with `list_all_enriched_for_story(story_id: UUID) -> list` and `delete_all_for_story(story_id: UUID) -> None`. `StoryService.__init__` now accepts an optional `story_link_reader: StoryLinkReaderProtocol | None` parameter.
+
+5. **StoryDetail schema** — new `StoryDetail(Story)` Pydantic model added to `backend/app/stories/schema.py` with `links: list[dict] = []`, `attachments: list[dict] = []`, `comments: list[dict] = []`.
+
+6. **StoryService.get_detail** — new method returning `tuple[Story, list]`, parallel to the tasks pattern.
+
+7. **StoryService.delete** — calls `story_link_reader.delete_all_for_story(story.id)` before `_repo.delete(story)` when the reader is injected.
+
+8. **GET /stories/:id/detail endpoint** — new route handler `get_story_detail` added to `backend/app/stories/controller.py`, registered before the existing `/aggregate` route.
+
+9. **get_story_detail MCP tool** — added to `backend/app/stories/mcp_tools.py` mirroring the REST handler.
+
+10. **Container wiring** — `AppContainer` in `backend/app/container/container.py` was reorganised to declare `task_link_service` and `story_link_service` before `task_service` and `story_service` respectively, then pass them as `task_link_reader` and `story_link_reader` named arguments. Declaration order was cleaned up to reflect dependency order.
+
 **Deviations from plan**:
+None. The plan was followed exactly. Migrations were already created in TASK-001/TASK-002 (0006_task_link and 0007_story_link), so no new migration was needed for TASK-003.
+
 **Technical decisions made**:
+- `get_detail` returns `tuple[Task | Story, list]` rather than a new domain object, keeping the service boundary identical to the existing pattern (the controller assembles the response schema). The enriched links are serialized to `list[dict]` at the controller boundary.
+- `TaskLinkReaderProtocol` and `StoryLinkReaderProtocol` are declared in the **consuming** service modules (tasks/service.py and stories/service.py respectively), not in the link packages. This keeps the dependency direction one-way: work-item services depend on their own Protocols; link services satisfy them structurally without any explicit import from the consuming side.
+- `@runtime_checkable` allows the `issubclass` structural check to be verified in tests without instantiating the concrete services.
+
 **Code locations**:
+- `backend/app/tasks/service.py` — `TaskLinkReaderProtocol`, `TaskService.__init__`, `get_detail`, `delete`
+- `backend/app/stories/service.py` — `StoryLinkReaderProtocol`, `StoryService.__init__`, `get_detail`, `delete`
+- `backend/app/stories/schema.py` — `StoryDetail`
+- `backend/app/tasks/controller.py` — updated `get_task_detail`
+- `backend/app/stories/controller.py` — new `get_story_detail`, updated `StoryDetail` import
+- `backend/app/stories/mcp_tools.py` — new `get_story_detail` MCP tool
+- `backend/app/container/container.py` — provider declaration order + `task_link_reader` / `story_link_reader` wiring
+
 **Technical debt noted**:
+None.

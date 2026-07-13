@@ -15,3 +15,6 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-012](STORY-012-milestones/description.md) | Milestones | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-017](STORY-017-board-milestone-combobox/description.md) | Board Milestone Filter — Combobox | fix | P2 | Accepted | | | ✓ | ✓ | ✓ | ✓ |
 | [STORY-005](STORY-005-task-management/description.md) | Task Management | feature | P0 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| [STORY-006](STORY-006-task-linking/description.md) | Work Item Linking | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| [STORY-018](STORY-018-link-type-labels/description.md) | Direction-aware link type labels | fix | P2 | Accepted | | | ✓ | ✓ | ✓ | ✓ |
+| [STORY-019](STORY-019-directional-link-creation/description.md) | Directional link creation in Add Link forms | fix | P2 | Accepted | | | ✓ | ✓ | ✓ | ✓ |

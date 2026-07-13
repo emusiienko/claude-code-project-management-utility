@@ -71,3 +71,30 @@
 | [TC-067](test-cases/TC-067-dictionary-dropdowns-populated.md) | Form Dropdowns Populated from Project Effective Settings | @regression | STORY-005 | Active |
 | [TC-068](test-cases/TC-068-slideover-panel-width.md) | StorySlideOver Panel Width Is Approximately 90% of Viewport | @regression | STORY-005 | Active |
 | [TC-069](test-cases/TC-069-kanban-expands-when-description-hidden.md) | Tasks Kanban Board Expands When Story Description Is Hidden | @regression | STORY-005 | Active |
+| [TC-070](test-cases/TC-070-task-links-section-renders.md) | Task Detail Modal — Links section renders correctly | @smoke @regression | STORY-006 | Active |
+| [TC-071](test-cases/TC-071-task-link-add-and-display.md) | Task Detail Modal — Add a link between two tasks and verify display | @smoke @regression | STORY-006 | Active |
+| [TC-072](test-cases/TC-072-task-link-direction-indicators.md) | Task Detail Modal — Outbound and inbound direction indicators display correctly | @regression | STORY-006 | Active |
+| [TC-073](test-cases/TC-073-task-link-title-navigation.md) | Task Detail Modal — Clicking a linked task title navigates to that task's modal | @smoke @regression | STORY-006 | Active |
+| [TC-074](test-cases/TC-074-task-link-delete.md) | Task Detail Modal — Delete a task link via confirmation dialog | @smoke @regression | STORY-006 | Active |
+| [TC-075](test-cases/TC-075-task-link-delete-cancel.md) | Task Detail Modal — Cancel delete does not remove the task link | @regression | STORY-006 | Active |
+| [TC-076](test-cases/TC-076-task-link-self-link-rejected.md) | Task Detail Modal — Self-link attempt shows an error | @regression | STORY-006 | Active |
+| [TC-077](test-cases/TC-077-task-link-duplicate-rejected.md) | Task Detail Modal — Duplicate task link attempt shows a conflict error | @regression | STORY-006 | Active |
+| [TC-078](test-cases/TC-078-task-links-cascade-delete.md) | Task links disappear after the linked task is deleted | @regression | STORY-006 | Active |
+| [TC-079](test-cases/TC-079-story-links-section-renders.md) | Story slide-over — Links section renders correctly | @smoke @regression | STORY-006 | Active |
+| [TC-080](test-cases/TC-080-story-link-add-and-display.md) | Story slide-over — Add a story link and verify display | @smoke @regression | STORY-006 | Active |
+| [TC-081](test-cases/TC-081-story-link-direction-indicators.md) | Story slide-over — Outbound and inbound direction indicators display correctly | @regression | STORY-006 | Active |
+| [TC-082](test-cases/TC-082-story-link-title-navigation.md) | Story slide-over — Clicking a linked story title opens that story's slide-over | @smoke @regression | STORY-006 | Active |
+| [TC-083](test-cases/TC-083-story-link-delete.md) | Story slide-over — Delete a story link via confirmation dialog | @smoke @regression | STORY-006 | Active |
+| [TC-084](test-cases/TC-084-story-link-self-link-rejected.md) | Story slide-over — Self-link attempt shows an error | @regression | STORY-006 | Active |
+| [TC-085](test-cases/TC-085-story-link-duplicate-rejected.md) | Story slide-over — Duplicate story link attempt shows a conflict error | @regression | STORY-006 | Active |
+| [TC-086](test-cases/TC-086-story-links-cascade-delete.md) | Story links disappear after the linked story is deleted | @regression | STORY-006 | Active |
+| [TC-087](test-cases/TC-087-link-type-dropdown-populated.md) | Add link form — directional dropdown populated from project's effective link_types dictionary | @regression | STORY-006 | Active |
+| [TC-088](test-cases/TC-088-task-link-cross-story-not-shown.md) | Task Add link form — tasks from other stories do not appear in search results | @regression | STORY-006 | Active |
+| [TC-089](test-cases/TC-089-story-link-cross-project-not-shown.md) | Story Add link form — stories from other projects do not appear in search results | @regression | STORY-006 | Active |
+| [TC-090](test-cases/TC-090-outbound-label-display.md) | Task and story link badges show correct outbound labels | @regression | STORY-018 | Active |
+| [TC-091](test-cases/TC-091-inbound-label-display.md) | Task and story link badges show correct inbound labels | @regression | STORY-018 | Active |
+| [TC-092](test-cases/TC-092-unknown-link-type-fallback.md) | Link badge falls back to raw link_type value for unknown types | @regression | STORY-018 | Active |
+| [TC-093](test-cases/TC-093-add-link-dropdown-shows-all-options.md) | Add Link dropdown shows all 6 directional options for known link types | @regression | STORY-019 | Active |
+| [TC-094](test-cases/TC-094-outbound-selection-creates-correct-link.md) | Choosing an outbound label creates the link with the current item as source | @regression | STORY-019 | Active |
+| [TC-095](test-cases/TC-095-inbound-selection-swaps-source-and-target.md) | Choosing an inbound label creates the link with source and target swapped | @regression | STORY-019 | Active |
+| [TC-096](test-cases/TC-096-empty-link-types-shows-placeholder.md) | Add Link form shows placeholder when no link types are configured | @regression | STORY-019 | Active |

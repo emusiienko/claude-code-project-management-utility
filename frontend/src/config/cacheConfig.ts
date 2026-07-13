@@ -47,6 +47,12 @@ export const CACHE_KEYS = {
     detail: (id: string) => ["task-links", "detail", id] as const,
   },
 
+  storyLinks: {
+    list: (storyId: string, params?: Record<string, unknown>) =>
+      ["story-links", "list", storyId, params ?? {}] as const,
+    detail: (id: string) => ["story-links", "detail", id] as const,
+  },
+
   attachments: {
     list: (
       containerType: string,

@@ -147,12 +147,14 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 | STORY-003 (Projects) | `test_projects.py` | CRUD happy path; name conflict 409; case-insensitive uniqueness; pagination |
 | STORY-004 (Stories) | `test_stories.py` | CRUD; status dictionary validation 422; label filtering; aggregate endpoint |
 | STORY-005 (Tasks) | `test_tasks.py` | CRUD; type/status dict validation; detail composition (links+attachments+comments); dependency endpoint |
-| STORY-006 (Task Linking) | `test_task_links.py` | Create link; self-link 400; cross-project link 400; duplicate 409; delete |
+| STORY-006 (Task Linking) | `test_task_links.py`, `test_story_links.py` | Task links: create; self-link 422; cross-story 422; invalid link_type 422; duplicate 409; missing source/target 404; direction=outbound/inbound/both; link_type filter; enrichment; pagination; delete 204; cascade delete (source + target side); detail endpoint links field. Story links: same coverage mapped to story domain; cross-project 422; null-status enrichment 200 |
 | STORY-007 (Attachments) | `test_attachments.py` | Upload doc/image; external-ref create; archive; version history; file download; 10 MB limit |
 | STORY-008 (Comments) | `test_comments.py` | CRUD on story/task/milestone; label filtering; author_role optional |
 | STORY-009 (Sessions) | `test_sessions.py` | CRUD; linked_story/task validation; archive; incomplete-session query |
 | STORY-010 (MCP) | skip | MCP tools are REST-equivalent; REST coverage is sufficient; MCP smoke only if requested |
 | STORY-012 (Milestones) | `test_milestones.py` | CRUD; single-project ownership; name-per-project uniqueness (409); story assignment; story_count; activate/finish lifecycle; single-active invariant + cross-project isolation; delete-clears-assignment; milestone_id filter on story list |
+| STORY-018 (Link type labels) | `linkLabels.test.ts` (frontend) | getLinkLabel: 3 known types × 2 directions; unknown type fallback; undefined direction fallback |
+| STORY-019 (Directional link creation) | `linkLabels.test.ts` (frontend) | getLinkOptions: empty input; 2 entries per key; label correctness; unknown key fallback; linkType preserved |
 
 ### Run Commands
 
@@ -288,11 +290,12 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 | `frontend/src/features/board/hooks/useBoardMilestoneFilter.test.ts` | STORY-012 / STORY-017 | no milestones → null id + empty array; milestones with no active → null id; active milestone → defaults to its id; milestones array populated; isLoading forwarded; handleSelectMilestone changes id; accepts null (show all); projectId change resets to new default |
 | `frontend/src/features/tasks/hooks/useTasks.test.ts` | STORY-005 | useTaskList: disabled when empty, enabled, story-scoped cache key, distinct cache per storyId, filters forwarded; useCreateTask: calls endpoint, invalidates task list + aggregate; useUpdateTask: calls endpoint, applies optimistic update, rollback on error, invalidates list + aggregate + richDetail; useDeleteTask: calls endpoint, invalidates list + aggregate |
 | `frontend/src/features/tasks/utils/errorMessages.test.ts` | STORY-005 | extractErrorMessage: ApiRequestError → server message, unknown error → generic fallback; extractFieldErrors: field map when details present, empty object when no details, empty object for non-ApiRequestError |
+| `frontend/src/shared/utils/linkLabels.test.ts` | STORY-018 + STORY-019 | getLinkLabel: all 3 known types × 2 directions; unknown type fallback; undefined direction fallback. getLinkOptions: empty input → []; 2 entries per key (outbound first, inbound second); known labels; unknown key fallback; linkType preserved on all entries |
 
 ### Run Commands
 
 ```bash
-# Full frontend unit suite (confirmed working — 27 tests, ~1.4s)
+# Full frontend unit suite (confirmed working — 194 tests, ~4.6s)
 cd frontend
 npx vitest run
 

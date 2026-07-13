@@ -13,6 +13,8 @@ class AppPath(str, Enum):
     STORIES = "stories"
     MILESTONES = "milestones"
     TASKS = "tasks"
+    TASK_LINKS = "task-links"
+    STORY_LINKS = "story-links"
     # Future domains: add one entry per top-level URL path segment.
 
     def __str__(self) -> str:

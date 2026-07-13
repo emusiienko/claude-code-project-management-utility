@@ -4,6 +4,7 @@
  * Shows:
  *   - Story description rendered as Markdown (via react-markdown)
  *   - Milestone assignment control (inline set/clear)
+ *   - Story links section (list + add + delete) — STORY-006
  *   - Attachments placeholder (STORY-007)
  *   - Comments placeholder (STORY-008)
  *
@@ -15,12 +16,14 @@
  * @param onToggle                 - Callback to toggle open/closed state.
  * @param onMilestoneAssign        - Called when the user changes the milestone assignment.
  * @param isMilestoneUpdatePending - True while the parent's update mutation is in flight.
+ * @param linkTypeOptions          - Effective link_types from project settings (no extra fetch).
  */
 
 import ReactMarkdown from "react-markdown";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Story } from "@/api/types";
 import { MilestoneAssignment } from "./MilestoneAssignment";
+import { StoryLinksSection } from "@/features/story-links/components/StoryLinksSection";
 
 interface StoryRightPanelProps {
   /** Story data to display. */
@@ -33,11 +36,13 @@ interface StoryRightPanelProps {
   onMilestoneAssign: (milestoneId: string | null) => void;
   /** True while the parent's milestone update mutation is in flight. */
   isMilestoneUpdatePending?: boolean;
+  /** Effective link_types from the project settings — no extra fetch needed. */
+  linkTypeOptions?: string[];
 }
 
 /**
  * Collapsible right panel with story description (Markdown), milestone assignment,
- * attachments placeholder, and comments placeholder.
+ * story links (STORY-006), attachments placeholder, and comments placeholder.
  */
 export function StoryRightPanel({
   story,
@@ -45,6 +50,7 @@ export function StoryRightPanel({
   onToggle,
   onMilestoneAssign,
   isMilestoneUpdatePending = false,
+  linkTypeOptions = [],
 }: StoryRightPanelProps) {
   return (
     <aside
@@ -101,6 +107,21 @@ export function StoryRightPanel({
               milestoneId={story.milestone_id}
               isPending={isMilestoneUpdatePending}
               onAssign={onMilestoneAssign}
+            />
+          </section>
+
+          {/* Links section — STORY-006 */}
+          <section aria-labelledby="story-links-heading">
+            <h3
+              id="story-links-heading"
+              className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary"
+            >
+              Links
+            </h3>
+            <StoryLinksSection
+              storyId={story.id}
+              projectId={story.project_id}
+              linkTypeOptions={linkTypeOptions}
             />
           </section>
 

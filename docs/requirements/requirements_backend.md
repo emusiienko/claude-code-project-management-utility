@@ -418,20 +418,33 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 > **As-built notes (STORY-005):** Implemented via `TaskCounterProtocol` injected into `StoryService`. The protocol is duck-typed against `TaskRepository.get_status_counts(story_id)` — the stories service never imports the concrete task service. `total_tasks` is computed as `sum(by_status.values())` to avoid a second DB round-trip. The `get_story_aggregate` MCP tool mirrors the REST endpoint exactly. Container declaration order: `task_repository` must be declared before `story_service` in `AppContainer` because Python evaluates class-body assignments in order.
 
-#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile); updated: 2026-07-12 (STORY-006: links added) -->
+#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile); updated: 2026-07-13 (STORY-006: links added) -->
+
+> **As-built notes (STORY-006):**
+> - The route was added in STORY-006 TASK-003 alongside the `StoryDetail` schema (`StoryDetail(Story)` Pydantic model in `stories/schema.py`). The endpoint is registered in `stories/controller.py` before the existing `/aggregate` route, and mirrored as the `get_story_detail` MCP tool.
+> - `links` is populated by `StoryService.get_detail` via the injected `StoryLinkReaderProtocol`; returns `[]` when the reader is not wired.
+> - **BUG-001 fix (2026-07-13):** `LinkedStorySummary.status` is declared `str | None` (nullable). The original spec described `status` as a string; however `story.status` is nullable, causing a 500 when any linked story has no status. The fix is a one-line type change in `story_links/schema.py`. All enriched story-link responses must tolerate `null` in the `status` field.
+
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:**
   ```json
   {
     "data": {
       "...all Story fields...",
-      "links": [ StoryLink objects enriched with linked story id/title/status ],
+      "links": [
+        {
+          "id": "uuid",
+          "direction": "outbound | inbound",
+          "link_type": "string",
+          "linked_story": { "id": "uuid", "title": "string", "status": "string | null" }
+        }
+      ],
       "attachments": [ active Attachment objects ],
       "comments": [ Comment objects ordered by created_at ASC ]
     }
   }
   ```
-  Composite read — story entity plus its outbound and inbound story links (enriched), active attachments, and comments. Large child collections (tasks) are excluded and served by their own paginated endpoint.
+  Composite read — story entity plus its outbound and inbound story links (enriched with `id`, `title`, and nullable `status` of the linked story), active attachments, and comments. Large child collections (tasks) are excluded and served by their own paginated endpoint.
 - **Response errors:** 404
 
 ---
@@ -443,7 +456,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 > - The controller uses two separate routers: `stories_router` for `POST /stories/{story_id}/tasks` and `GET /stories/{story_id}/tasks`; `tasks_router` for `GET/PUT/DELETE /tasks/{task_id}` and `GET /tasks/{task_id}/detail`.
 > - `PUT /tasks/:id` omitting `assignee_role` or `creator_role` leaves the current value unchanged. Sending `null` clears the field (always allowed — not dictionary-validated when clearing). The `"field" in data.model_fields_set` guard ensures null-clearing and omission remain distinct.
 > - `PUT /tasks/:id` with `story_id` in the body is silently ignored (`UpdateTask` schema does not declare it). The owning story never changes.
-> - `GET /tasks/:id/detail` currently returns `links: []`, `attachments: []`, `comments: []` as empty arrays. These will be populated by STORY-006 (links), STORY-007 (attachments), and STORY-008 (comments).
+> - `GET /tasks/:id/detail` `links` field is populated by STORY-006 (TASK-003) via the injected `TaskLinkReaderProtocol`; `attachments` and `comments` remain `[]` pending STORY-007 and STORY-008.
 > - The `delete_task` MCP tool (and all task MCP tools) return appropriate values; the MCP protocol does not support void returns.
 > - Cascade delete (`task ON DELETE CASCADE`) is implemented in migration `0005_task` at the DB schema level. SQLite WAL mode requires `PRAGMA foreign_keys = ON` at connection time to enforce FK cascade; the conftest engine setup does not yet set this pragma — the cascade test is marked `xfail(strict=True)` pending that fix.
 
@@ -513,7 +526,14 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 ---
 
-### Task Links
+### Task Links <!-- updated: 2026-07-13 (STORY-006 reconcile) -->
+
+> **As-built notes (STORY-006):**
+> - `task_link` table created in migration `0006_task_link`. Two separate packages (`task_links`, `story_links`) — not a polymorphic table (see ADR-017/018).
+> - Cascade delete is handled **application-side** via `TaskLinkReaderProtocol` injected into `TaskService.delete`. FK `ON DELETE CASCADE` clauses retained as defence-in-depth for PostgreSQL.
+> - Enrichment is batched (one query per direction over the counterpart id set). `LinkedTaskSummary.status` is declared `str` (story `status` is optional — task `status` is always required, so this is safe for task links).
+> - The controller uses two routers: `task_links_router` (POST/GET `/tasks/:taskId/links`) and `task_links_top_router` (DELETE `/task-links/:id`).
+> - MCP tools (`create_task_link`, `list_task_links`, `delete_task_link`) mirror the REST surface.
 
 #### POST /tasks/:taskId/links
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -537,9 +557,13 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 ---
 
-### Story Links
+### Story Links <!-- updated: 2026-07-13 (STORY-006 reconcile) -->
 
-Same semantic model as Task Links — typed directed links between stories in the same project.
+> **As-built notes (STORY-006):**
+> - Same semantic model as `task_links` — two separate domain packages; not a polymorphic table. `story_link` table created in migration `0007_story_link`.
+> - Cascade delete is handled **application-side** via `StoryLinkReaderProtocol` injected into `StoryService.delete`. FK `ON DELETE CASCADE` clauses retained as defence-in-depth for PostgreSQL.
+> - Enrichment is batched (one query per direction over the counterpart id set). `LinkedStorySummary.status` is declared `str | None` (nullable) — BUG-001 fix.
+> - MCP tools (`create_story_link`, `list_story_links`, `delete_story_link`) mirror the REST surface.
 
 #### POST /stories/:storyId/links
 - **Auth:** none  **Rate limit:** 1,000 req/min

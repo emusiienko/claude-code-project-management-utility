@@ -112,6 +112,12 @@ class Story(BaseModel):
     updated_at: datetime.datetime
 
 
+class StoryDetail(Story):
+    links: list[dict] = []
+    attachments: list[dict] = []
+    comments: list[dict] = []
+
+
 class PaginationMeta(BaseModel):
     total: int
     page: int

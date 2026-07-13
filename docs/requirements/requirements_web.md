@@ -201,14 +201,18 @@ Sub-nav active tab: **Board**.
 - The control is populated from `GET /milestones?project_id=<projectId>` scoped to the story's project
 - Only milestones belonging to the story's project are eligible — milestones from other projects are never shown
 
-**Right panel — Story Links:** <!-- added: 2026-07-12 (STORY-006) -->
+**Right panel — Story Links:** <!-- added: 2026-07-12 (STORY-006); updated: 2026-07-13 (STORY-018, STORY-019) -->
 
 > **As-built (STORY-005/016):** Static placeholder section (no link endpoint calls). Live implementation delivered by STORY-006.
+>
+> **As-built (STORY-018):** The `link_type` badge in each row shows a human-readable, direction-aware label via `getLinkLabel(linkType, direction)`. Known mappings: `depends-on` outbound → "depends on", inbound → "dependent"; `created-by` outbound → "created by", inbound → "creates"; `context` outbound → "context", inbound → "context for". Unknown types fall back to the raw `link_type` string.
+>
+> **As-built (STORY-019):** The Add link form dropdown shows all directional label options via `getLinkOptions(linkTypes)`, which expands each key into two entries (outbound + inbound). When the user selects an inbound option, the API call swaps source and target so direction semantics are preserved on the backend (`useCreateStoryLink` accepts optional `sourceStoryId` to override the source). An empty `linkTypes` dictionary shows a "No link types configured" placeholder.
 
 - Heading "Links" with a count badge
-- Single list showing both outbound and inbound story links; each row displays: direction indicator (→ / ←), `link_type` badge, linked story title
+- Single list showing both outbound and inbound story links; each row displays: direction indicator (→ / ←), `link_type` badge (rendered as direction-aware human-readable label), linked story title
 - The linked story title is a clickable link: clicking navigates to that story's Story slide-over (URL updates to `/projects/:id/stories/:linkedStoryId`)
-- **Add link** button → inline form: search-by-title input for target story (within the same project), `link_type` dropdown populated from project's effective `link_types`
+- **Add link** button → inline form: search-by-title input for target story (within the same project), `link_type` dropdown showing all directional label options (outbound + inbound for each key) populated from project's effective `link_types`; selecting an inbound option swaps source and target before the API call
 - **Delete** button per link row → confirmation dialog; on confirm the link is removed and the list refreshes
 
 **Right panel — Story Attachments:**
@@ -269,14 +273,18 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 - Displays: title, type badge, status badge, assignee_role, creator_role, labels, rendered Markdown content
 - **Edit task** button → inline edit form replacing the metadata block (not a separate panel)
 
-**Links section:** <!-- updated: 2026-07-12 (STORY-006) -->
+**Links section:** <!-- updated: 2026-07-13 (STORY-006, STORY-018, STORY-019) -->
 
 > **As-built (STORY-005):** Static placeholder section (no link endpoint calls). Live implementation delivered by STORY-006.
+>
+> **As-built (STORY-018):** The `link_type` badge uses `getLinkLabel(linkType, direction)` for direction-aware human-readable labels. `direction` is optional on `EnrichedTaskLink`; when absent the raw `link_type` string is used as fallback.
+>
+> **As-built (STORY-019):** The Add link form dropdown uses `getLinkOptions(linkTypes)` to show all directional options (outbound + inbound per key). Inbound selections trigger source/target swap in `useCreateTaskLink` (optional `sourceTaskId` parameter) before the API call.
 
 - Heading "Links" with count badge
-- Single list showing both outbound and inbound task links; each row: direction indicator (→ / ←), `link_type` badge, linked task title, linked task status badge
+- Single list showing both outbound and inbound task links; each row: direction indicator (→ / ←), `link_type` badge (direction-aware human-readable label), linked task title, linked task status badge
 - The linked task title is a clickable link: clicking navigates to that task's Task Detail Modal (URL updates to `/projects/:id/stories/:storyId/tasks/:linkedTaskId`)
-- **Add link** button → inline form below the list: search-by-title input for target task (within the same project), `link_type` dropdown populated from project's effective `link_types`
+- **Add link** button → inline form below the list: search-by-title input for target task (scoped to the same story), `link_type` dropdown showing all directional label options (outbound + inbound for each key) populated from project's effective `link_types`; selecting an inbound option swaps source and target before the API call
 - **Delete** button per link row → confirmation dialog
 
 **Attachments section:**

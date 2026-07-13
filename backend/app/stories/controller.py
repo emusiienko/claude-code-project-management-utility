@@ -10,6 +10,7 @@ from app.stories.schema import (
     PaginationMeta,
     Story,
     StoryAggregate,
+    StoryDetail,
     UpdateStory,
 )
 from app.stories.service import StoryService
@@ -122,6 +123,23 @@ async def delete_story(
         story_id=story_id,
         project_id=str(existing.project_id),
     )
+
+
+@router.get(
+    "/{story_id}/detail",
+    status_code=status.HTTP_200_OK,
+    response_model=dict,
+)
+@inject
+async def get_story_detail(
+    story_id: str,
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: StoryService = Depends(Provide[AppContainer.story_service]),
+) -> dict:
+    story, links = service.get_detail(story_id)
+    detail = StoryDetail.model_validate(story)
+    detail.links = [lnk.model_dump() for lnk in links]
+    return {"data": detail.model_dump()}
 
 
 @router.get(

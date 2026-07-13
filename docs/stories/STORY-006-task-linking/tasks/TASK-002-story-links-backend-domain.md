@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-006
 ---
@@ -62,10 +62,28 @@ Same as TASK-001 — recorded once at Reconcile for both link domains.
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-12
+
 **What was done**:
+New `backend/app/story_links/` domain package created with the full vertical slice: model, repository, service, schema, controller, and MCP tools. The package is wired into the DI container, the app router, the MCP server, and the Alembic migration chain. All five validation rules are enforced in the service in the correct precedence order (404 → 422/scope → 422/self → 422/dict → 409/dup). Enrichment is batched (one query per direction over the counterpart ID set). The repository exposes `delete_all_for_story` and `list_all_for_story` for TASK-003.
+
 **Deviations from plan**:
+None. Implementation mirrors `task_links` (TASK-001) exactly, with the scope constraint changed from `story_id` to `project_id` as specified.
+
 **Technical decisions made**:
+- Used `source_story.project_id` directly (available from the ORM row already loaded for rule 1) to resolve the project for the dictionary validation — no extra query needed, unlike `task_links` which required `task → story → project` traversal.
+- The `story_link_service` provider is declared in the container after `story_repository` and `settings_service` (its dependencies) but before `task_service`; this satisfies the ordering constraint noted in the implementation plan for the future TASK-003 Protocol injection.
+
 **Code locations**:
+- `backend/app/story_links/` — model, repository, service, schema, controller, mcp_tools, __init__
+- `backend/migrations/versions/0007_story_link.py` — Alembic migration creating `story_link` table with FKs, uniqueness constraint, and two directional indexes
+- `backend/app/container/container.py` — `story_link_repository` and `story_link_service` providers
+- `backend/app/container/mcp_dependencies.py` — `provide_story_link_service` bridge
+- `backend/app/api/routes.py` — `AppPath.STORY_LINKS = "story-links"`
+- `backend/app/api/router.py` — two new `include_router` calls (stories prefix + top-level story-links prefix)
+- `backend/app/main.py` — `"app.story_links"` added to `container.wire(packages=[...])`
+- `backend/migrations/env.py` — `StoryLink` model import registered
+
 **Technical debt noted**:
+None.

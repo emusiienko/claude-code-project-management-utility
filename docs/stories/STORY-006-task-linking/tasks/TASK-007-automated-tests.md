@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: qa-automation
 story: STORY-006
 ---
@@ -62,10 +62,31 @@ None.
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-12
+
 **What was done**:
+Wrote two new backend test files covering the full task_links and story_links domains:
+- `backend/tests/test_task_links.py` — 25 tests: POST create (happy path, self-link, cross-story, invalid link_type, duplicate, missing source/target, empty field validation, error precedence); GET list (outbound/inbound/both directions, default=both, link_type filter, enrichment with linked_task summary, pagination meta, unknown task 404); DELETE (204 + gone, non-existent 404, malformed UUID 404); GET detail (links populated with outbound + inbound enriched rows, empty when no links); cascade delete (source and target side).
+- `backend/tests/test_story_links.py` — 26 tests (including 1 xfail): same coverage as task_links mapped to the story domain; cross-project rejection instead of cross-story; xfail test documenting BUG-001 (null story status crash in enrichment).
+
+Full suite run: **302 passed, 3 xfailed** (the existing xfail for task cascade delete SQLite + the new story-link null-status xfail). Zero regressions across all 305 tests.
+
 **Deviations from plan**:
+- MCP tool tests omitted per the QA strategy ("MCP tools are thin wrappers over the same service layer as REST; REST coverage is sufficient"). The task file listed MCP as a coverage zone but the strategy document explicitly excludes it.
+- Frontend link section tests (TaskDetailModal Links, StorySlideOver Links) not implemented. The task description requested these, but the QA strategy explicitly excludes frontend E2E and visual rendering tests. The frontend logic for STORY-006 lives in React components that require browser rendering, not unit-testable hooks or pure utilities. Adding these would require E2E infrastructure not present in the project.
+- `GET /stories/:id/detail` for null-status crash documented as xfail + BUG-001 rather than patching the backend schema (that is a backend-developer fix).
+
 **Technical decisions made**:
+- All stories used in enrichment/direction tests are created with an explicit `status` value to work around BUG-001 (null-status crash). The bug is separately documented and tracked as an xfail regression test.
+- Each test uses the `try/finally + _delete_project` pattern consistent with the existing test suite so cleanup runs even on assertion failure.
+- Used `strict=True` on the xfail so the test will fail loudly if the backend is fixed without removing the xfail marker.
+
 **Code locations**:
+- `backend/tests/test_task_links.py` — new file (25 tests)
+- `backend/tests/test_story_links.py` — new file (26 tests, 1 xfail)
+- `docs/stories/STORY-006-task-linking/bugs/index.md` — new bugs index
+- `docs/stories/STORY-006-task-linking/bugs/BUG-001-story-link-enrichment-crash-null-status.md` — new bug file
+
 **Technical debt noted**:
+- BUG-001: `LinkedStorySummary.status` declared `str` but `story.status` is nullable — causes 500 when any linked story has no status. Fix is a one-line type change in `backend/app/story_links/schema.py`. Tracked in `bugs/BUG-001-story-link-enrichment-crash-null-status.md`.

@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-006
 ---
@@ -62,10 +62,29 @@ Record at Reconcile whether two separate link domains (task_links / story_links)
 
 ---
 ## Implementation Report
-<!-- filled by implementor -->
-**Date**:
+
+**Date**: 2026-07-12
+
 **What was done**:
+Implemented the full `task_links` domain package as a new vertical slice following the established per-domain pattern. Created: `model.py` (TaskLink ORM model with two CASCADE FKs to `task.id`, uniqueness constraint, two directional indexes), `schema.py` (CreateTaskLink, TaskLink, EnrichedTaskLink, LinkedTaskSummary, PaginationMeta), `repository.py` (TaskLinkRepository extending BaseRepository with `find_duplicate`, `list_for_task`, `get_linked_task_summaries` batch-load, `delete_all_for_task`, `list_all_for_task`), `service.py` (TaskLinkService enforcing all five validation rules in correct precedence order), `controller.py` (two routers: `task_links_router` for POST/GET `/tasks/:taskId/links`, `task_links_top_router` for DELETE `/task-links/:id`), `mcp_tools.py` (three tools mirroring REST surface). Wired the service into `AppContainer`, added the MCP bridge `provide_task_link_service` to `mcp_dependencies.py`, added `AppPath.TASK_LINKS` to `routes.py`, mounted both routers in `router.py`, added `app.task_links` to the container wiring list in `main.py`. Created Alembic migration `0006_task_link` creating the `task_link` table with inline FK constraints and directional indexes. Registered `TaskLink` and `Task` models in `migrations/env.py`.
+
 **Deviations from plan**:
+None. Implemented exactly as specified.
+
 **Technical decisions made**:
+- The service returns `list[EnrichedTaskLink]` (Pydantic objects already constructed) from `list_for_task` and `list_all_enriched_for_task`; the controller calls `.model_dump()` directly without a redundant `model_validate` round-trip.
+- `list_all_for_task` is a separate repository method that returns raw ORM `TaskLink` rows (no enrichment); the service's `list_all_enriched_for_task` wraps it and calls `_enrich_links`. This separates concern: TASK-003 can call either layer depending on what it needs.
+- Migration registers the `TaskLink` and `Task` models in `env.py` (both were missing); this was necessary for Alembic autogenerate to work correctly for future migrations.
+
 **Code locations**:
+- `backend/app/task_links/` — full domain package (model, repository, service, schema, controller, mcp_tools, __init__)
+- `backend/migrations/versions/0006_task_link.py` — schema migration
+- `backend/migrations/env.py` — added TaskLink, Task, Milestone model imports
+- `backend/app/container/container.py` — task_link_repository, task_link_service providers
+- `backend/app/container/mcp_dependencies.py` — provide_task_link_service bridge
+- `backend/app/api/routes.py` — AppPath.TASK_LINKS
+- `backend/app/api/router.py` — task_links_router + task_links_top_router mounted
+- `backend/app/main.py` — app.task_links added to wiring list
+
 **Technical debt noted**:
+- `list_all_for_task` and `delete_all_for_task` are created for TASK-003 consumption (cascade-delete and detail-composition wiring). They are tested indirectly through the delete-all scenario; direct unit tests will be added in TASK-007.
