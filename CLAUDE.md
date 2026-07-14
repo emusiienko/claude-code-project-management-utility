@@ -26,7 +26,7 @@ via an MCP server and to the human orchestrator via a web UI.
 
 ## Key Docs
 - Architecture: docs/architecture.md
-- API Contract: docs/api-contract.md  ← **v1.0 LOCKED** (v1.2 Milestones single-project + lifecycle; v1.3 Work Item Linking — story_links + StoryDetail.links + task-link scope narrowed to same-story; v1.4 structured `link_types` — dictionary entries are `{value, outbound, inbound}`, other five keys stay `string[]`)
+- API Contract: docs/api-contract.md  ← **v1.0 LOCKED** (v1.2 Milestones single-project + lifecycle; v1.3 Work Item Linking — story_links + StoryDetail.links + task-link scope narrowed to same-story; v1.4 structured `link_types` — dictionary entries are `{value, outbound, inbound}`, other five keys stay `string[]`; v1.5 Attachments — pre-implementation: one file per attachment, **immutable** (no `PUT` update); **create + delete only, no archive** (no `archived_at`/`include_archived`; `DELETE` works for every kind); no `AttachmentVersion`/history endpoints; added `file` kind (opaque binary, curated MIME allow-list); MCP base64 create + `get_attachment_file` read; `author_role` moved onto the `Attachment` entity)
 - Tech Decisions: docs/tech_decisions/ (ADR-001 … ADR-019; ADR-009 superseded by ADR-010)
 - Backend Conventions: docs/backend-coding-conventions.md  ← owned by backend-developer (TBD)
 - Frontend Conventions: docs/frontend-coding-conventions.md ← owned by frontend-developer (TBD)
@@ -120,7 +120,7 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 
 **Config**: all via env vars (`.env`, git-ignored; copy from `.env.example`). No application secrets (no auth, local-only); the only credential is the local Postgres password, used between containers only.
 
-**Volumes** (survive `down`; wiped only by `docker compose down -v`): `sqlite_data` (SQLite file), `pg_data` (Postgres data), `attachments` (attachment files + version snapshots).
+**Volumes** (survive `down`; wiped only by `docker compose down -v`): `sqlite_data` (SQLite file), `pg_data` (Postgres data), `attachments` (attachment files).
 
 **IaC files**: `docker-compose.yml`, `deploy.sh`, `backend/Dockerfile` (+ `docker-entrypoint.sh`), `frontend/Dockerfile` (+ `nginx.conf`), `.env.example`.
 
@@ -130,7 +130,7 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 - **No auth, by design.** Docker localhost port mapping is the only access boundary. Never add login/roles/RBAC. `*_role` fields are descriptive metadata, not access control.
 - **DB is configurable (SQLite default | PostgreSQL) via `DATABASE_URL`.** Keep all code DB-agnostic; dialect-specific logic (JSON `labels` filters, UUID type, case-insensitive uniqueness) stays inside the data layer. SQLite must run in WAL mode.
 - **REST and MCP share one service layer.** Put business logic in the app `service`, never in a controller or MCP tool. Both surfaces must stay behavior-identical.
-- **Attachment content lives on the filesystem** (attachments Docker volume), not in the DB. `file_path` is server-internal and must never appear in API responses. Documents/images are archived, never deleted; only external-ref is deletable.
+- **Attachment content lives on the filesystem** (attachments Docker volume), not in the DB. `file_path` is server-internal and must never appear in API responses. Attachments are immutable (no update) and not archived — lifecycle is create + delete only; `DELETE /attachments/:id` works for every kind and removes the row plus, for document/image/file, the stored file. Four kinds: document, image, `file` (opaque binary, curated MIME allow-list), external-ref. `author_role` is a stored descriptive field on the attachment (set at create). Agents upload/read binary over MCP as base64 (`get_attachment_file` reads; base64 create tools upload); the UI uploads via multipart and downloads via `GET /attachments/:id/file`.
 - **The utility stores facts; it never enforces process** — no blocking on dependencies, no workflow automation, no status transition rules.
 - **API contract is LOCKED at v1.0** — do not change shapes without an architect-approved revision.
 - **Top-level nav is exactly 3 items** (Projects `/`, Sessions `/sessions`, Settings `/settings`). All other domains are sub-views under their parent context — do not add them as top-level nav entries. Routes exist as placeholder screens; STORY-003+ fill them in.

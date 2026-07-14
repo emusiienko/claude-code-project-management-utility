@@ -17,7 +17,7 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 | System Settings View | Manage system-level dictionary defaults | P0 |
 | Sessions View | List, create, edit sessions; filter incomplete; link to story/task | P1 |
 | Milestones View | List, create, edit, delete milestones within a project | P1 |
-| Attachments Management | Upload documents (text or file) and images; view, archive, browse history | P1 |
+| Attachments Management | Upload documents (text or file) and images to stories, tasks, or milestones; view, archive | P1 |
 | Comments Management | Create, edit, delete comments on stories and tasks | P1 |
 | Work Item Linking | Create and delete typed directed links between tasks (in Task Detail Modal) and between stories (in Story slide-over); linked item titles are clickable navigation targets | P1 |
 
@@ -225,7 +225,6 @@ Sub-nav active tab: **Board**.
 - "Show archived" toggle reveals archived attachments (greyed out)
 - **Add attachment** button → attachment upload panel (see Attachment Upload below)
 - **View file** button (document/image) → opens file in new tab via `GET /attachments/:id/file`
-- **History** button (document only) → slide-over showing AttachmentVersion list with timestamps
 - **Archive** button (document/image) → confirmation dialog
 - **Delete** button (external-ref only) → confirmation dialog
 
@@ -293,7 +292,7 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 
 **Attachments section:**
 - Heading "Attachments" with count badge
-- Same behaviour as Story Attachments (list, add, view file, history, archive, delete) — see Story Detail above
+- Same behaviour as Story Attachments (list, add, view file, archive, delete) — see Story Detail above
 
 **Comments section:**
 - Heading "Comments" with count badge
@@ -321,13 +320,23 @@ Sub-nav active tab: **Milestones**.
 
 ---
 
-### Milestone Detail View (`/milestones/:id`)
+### Milestone Detail View (`/milestones/:id`) <!-- updated: 2026-07-14 (STORY-007 spec) -->
 
 - Displays: name, description, status badge, story count
 - **Edit milestone** button → form panel (name and description only)
 - **Stories** section: paginated list of assigned stories; each row shows title, status badge; clicking a title opens the Story Detail slide-over
 
-> **Deferred to STORY-007 and STORY-008:** Attachments and Comments sections.
+**Attachments section:**
+- Heading "Attachments" with a count badge
+- Same behaviour as Story Attachments (list, add, view file, archive, delete) — see Story Detail slide-over above
+- Lists active attachments: type badge, kind badge, name/url, file_size_bytes, created_at
+- "Show archived" toggle reveals archived attachments (greyed out)
+- **Add attachment** button → attachment upload panel (see Attachment Upload Panel below)
+- **View file** button (document/image) → opens file in new tab via `GET /attachments/:id/file`
+- **Archive** button (document/image) → confirmation dialog
+- **Delete** button (external-ref only) → confirmation dialog
+
+> **Deferred to STORY-008:** Comments section.
 
 ---
 

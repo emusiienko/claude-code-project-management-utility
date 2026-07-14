@@ -37,6 +37,25 @@
 > **same project**. See ADR-017 (two separate link domains) and ADR-018 (application-level link
 > cleanup). All other domains unchanged.
 
+> **v1.5 revision — approved by user 2026-07-14 (Attachments domain only, pre-implementation).**
+> Five changes: **(1) Version history is removed** — the `AttachmentVersion` entity, the
+> `GET /attachments/:id/history` endpoint, and the `GET /attachment-versions/:id/file` endpoint are
+> dropped; each attachment has exactly one stored file. **(2) Attachments are immutable — the
+> `PUT /attachments/:id` update endpoint is removed for all kinds.** To change a document's content or
+> an external-ref's `external_status`, delete the old attachment and create a new one. **(3) A new
+> `file` kind is added** for opaque binary attachments (PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP —
+> explicit MIME allow-list), uploaded via multipart, downloaded via `GET /attachments/:id/file`, 10 MB
+> limit. Agents get a full create/read surface over MCP via base64: they can upload any stored-file
+> kind (`content_base64` + `mime_type`, decoded onto the same service path as multipart) and read any
+> stored file via `get_attachment_file` → `{ mime_type, content_base64 }`. **(4) Archive is removed** —
+> the `POST /attachments/:id/archive` endpoint, the `archived_at` field, and the `include_archived` list
+> filter are dropped. The lifecycle is **create + delete only**, and `DELETE /attachments/:id` now works
+> for **every** kind (removes the DB row and, for document/image/file, the stored file). **(5)
+> `author_role` moves onto the `Attachment` entity** (it previously lived on the removed
+> `AttachmentVersion`) — optional, free-form, accepted on every create path, immutable after create. No
+> attachments code existed when this revision was made, so it is a clean contract change, not an
+> as-built divergence. All other domains unchanged.
+
 ---
 
 ## Shared shapes
@@ -149,7 +168,7 @@ interface EnrichedStoryLink extends StoryLink {
   linked_story: { id: string; title: string; status: string | null; };  // status is nullable
 }
 
-type AttachmentKind = "document" | "image" | "external-ref";
+type AttachmentKind = "document" | "image" | "file" | "external-ref";
 type ContainerType = "story" | "task" | "milestone";
 
 interface Attachment {
@@ -158,22 +177,14 @@ interface Attachment {
   container_id: string;
   type: string;              // from attachment_types
   kind: AttachmentKind;
-  mime_type: string | null;       // required when kind = document|image
-  file_size_bytes: number | null; // required when kind = document|image
-  archived_at: string | null;     // document|image only
+  mime_type: string | null;       // required when kind = document|image|file
+  file_size_bytes: number | null; // required when kind = document|image|file
   external_url: string | null;    // required when kind = external-ref
   external_status: string | null; // external-ref only, free-form
+  author_role: string | null;     // optional, free-form — who created it; descriptive metadata, set at create
   created_at: string;
   updated_at: string;
   // file_path is server-internal and NEVER serialized
-}
-
-interface AttachmentVersion {
-  id: string;
-  attachment_id: string;
-  file_size_bytes: number;
-  author_role: string | null;
-  created_at: string;
 }
 
 interface Comment {
@@ -317,7 +328,7 @@ interface StoryAggregate {
 //   they live on the Kanban board via GET /stories/:storyId/tasks + /aggregate.
 interface StoryDetail extends Story {
   links: EnrichedStoryLink[];  // v1.3 — outbound + inbound, enriched (STORY-006)
-  attachments: Attachment[];   // active only (empty until STORY-007)
+  attachments: Attachment[];   // the story's attachments (empty until STORY-007)
   comments: Comment[];         // created_at ASC (empty until STORY-008)
 }
 ```
@@ -359,7 +370,7 @@ interface UpdateTaskBody {               // story_id immutable
 // GET /tasks/:id/detail                  -> 200 Envelope<TaskDetail> | 404
 interface TaskDetail extends Task {
   links: EnrichedTaskLink[];
-  attachments: Attachment[];             // active only
+  attachments: Attachment[];             // the task's attachments
   comments: Comment[];                   // created_at ASC
 }
 
@@ -437,36 +448,50 @@ interface CreateDocumentAttachmentJson {
 // JSON, kind = external-ref
 interface CreateExternalRefAttachmentJson {
   type: string; kind: "external-ref";
-  external_url: string; external_status?: string;
+  external_url: string; external_status?: string; author_role?: string;
 }
-// multipart/form-data, kind = document | image
+// multipart/form-data, kind = document | image | file
 //   fields: type, kind, mime_type, author_role + file (binary)
 //   422: request-schema validation — content/file missing for the kind; external_url invalid
 //   400: upload business rules Pydantic cannot express — file > 10 MB; unsupported MIME type
+//   author_role is optional on every create path (all kinds).
+//   MIME allow-list per kind:
+//     document: text/markdown, text/plain
+//     image:    image/png, image/jpeg, image/gif, image/webp
+//     file:     application/pdf, application/vnd.openxmlformats-officedocument.* (docx/xlsx/pptx),
+//               text/csv, text/plain, application/json, application/zip
+//   Size limit: 10 MB for every stored-file kind (document, image, file).
+//
+// MCP create surface (agents): document-as-text and external-ref via plain JSON args; image, file, and
+//   a document uploaded AS A FILE via a base64 arg { type, kind, mime_type, content_base64, author_role? }.
+//   The tool decodes base64 onto the same service path as the REST multipart route (full upload parity
+//   with the Web UI). Same per-kind MIME allow-list and 10 MB limit. Binary never crosses MCP except as
+//   base64; one file per call.
 
 // GET  /stories/:storyId/attachments
 // GET  /tasks/:taskId/attachments
 // GET  /milestones/:id/attachments
-//   ?page&limit&type&kind&include_archived (default false)
+//   ?page&limit&type&kind
 //                                        -> 200 ListEnvelope<Attachment> | 404
 
 // GET  /attachments/:id                  -> 200 Envelope<Attachment> (metadata) | 404
 // GET  /attachments/:id/file             -> 200 raw file, Content-Type = mime_type
+//   Serves document | image | file bytes.
 //   400 if kind = external-ref ("External reference attachments do not have a stored file."); 404
 
-// PUT  /attachments/:id                  -> 200 Envelope<Attachment> | 400, 404
-//   document via JSON: { content, author_role }  -> creates new AttachmentVersion
-//   document via multipart: file + optional author_role
-//   external-ref: { external_url, external_status }
-//   image: not updatable -> 400 ; archived document: not updatable -> 400
+// MCP-only: get_attachment_file(id) -> { mime_type, content_base64 }
+//   Returns the stored file's bytes (base64) for document | image | file, so agents can read
+//   attachment content (e.g. a PDF or an existing document) without an HTTP fetch.
+//   Error if kind = external-ref (no stored file); not found -> error. No REST equivalent
+//   beyond GET /attachments/:id/file.
 
-// GET  /attachments/:id/history?page&limit  -> 200 ListEnvelope<AttachmentVersion> | 400 (not a document), 404
-// GET  /attachment-versions/:id/file        -> 200 raw snapshot file | 404
+// Attachments are immutable once created — there is NO update (PUT) endpoint for any kind.
+// To change content or an external-ref's status: delete the old one and create a new one.
+// There is NO archive: the lifecycle is create + delete only.
 
-// POST /attachments/:id/archive          -> 200 Envelope<Attachment> (archived_at set)
-//   400 already archived / external-ref kind; 404
-// DELETE /attachments/:id                -> 204                     | 400 (document|image kind), 404
-//   Only external-ref is deletable; document/image are archived, never deleted.
+// DELETE /attachments/:id                -> 204                     | 404
+//   Deletable for every kind. Removes the DB row and, for document/image/file, the stored file.
+//   external-ref has no stored file, so only its row is removed.
 ```
 
 ---
@@ -593,7 +618,7 @@ interface UpdateMilestone {                 // name + description only; project_
 //   Composes the milestone's side collections in one call. Assigned stories are NOT included —
 //   they are paginated via GET /milestones/:id/stories.
 interface MilestoneDetail extends Milestone {
-  attachments: Attachment[];   // active only
+  attachments: Attachment[];   // the milestone's attachments
   comments: Comment[];         // created_at ASC
 }
 ```

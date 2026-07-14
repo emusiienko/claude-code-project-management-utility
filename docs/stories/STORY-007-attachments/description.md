@@ -8,7 +8,7 @@ date: 2026-06-28
 # STORY-007: Work Item Attachments
 
 ## Desired Outcome
-Documents, images, and external references can be attached to stories, tasks, or milestones. Document and image files are stored on disk and directly downloadable. Documents maintain a full version history — each content update creates a new snapshot while the previous versions remain accessible. External references store a URL and an optional status string; they have no file.
+Documents, images, and external references can be attached to stories, tasks, or milestones. Document and image files are stored on disk and directly downloadable. Each attachment holds a single current file — updating a document's content replaces it in place, with no retained version history. External references store a URL and an optional status string; they have no file.
 
 ## Context
 Attachments are the artifact layer of the utility. Plans, architecture docs, implementation reports, screenshots, and external links all live here. Storing files on disk means agent-written documents (like implementation reports) are accessible as plain files — not only through the API. Archiving (rather than deleting) documents and images ensures history is never lost. The attachment type comes from the project's effective `attachment_types` dictionary.
@@ -18,8 +18,7 @@ Attachments are the artifact layer of the utility. Plans, architecture docs, imp
 - [ ] An image attachment (PNG, JPEG, GIF, or WEBP, max 10 MB) can be uploaded to a story, task, or milestone; the file is written to the server filesystem
 - [ ] An external-reference attachment can be created with a required URL and an optional `external_status` string
 - [ ] The stored file for any document or image attachment can be downloaded
-- [ ] A document attachment's content can be updated; each update creates a new version snapshot preserving the previous content
-- [ ] The full version history of a document attachment can be retrieved; any individual historical version's content can be downloaded
+- [ ] A document attachment's content can be updated; the update replaces the existing stored content in place, with no prior version retained
 - [ ] A document or image attachment can be archived; archived attachments are excluded from default listings but retrievable with an explicit flag
 - [ ] An external-reference attachment can be deleted permanently
 - [ ] Attachments on a story, task, or milestone can be listed with pagination, with optional filtering by kind (document / image / external-ref)

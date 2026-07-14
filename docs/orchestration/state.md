@@ -1,5 +1,6 @@
 ## Active wait
-waiting_for: none
+waiting_for: SESSION-014 (architect)
+next_step: after session, continue STORY-007 implementation per user decisions
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start

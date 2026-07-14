@@ -24,7 +24,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, attachment types, link types, participant roles); system defaults; project-level overrides | P0 |
 | MCP Server | Full MCP protocol access surface exposing all operations for AI agents | P0 |
 | Work Item Linking | Typed directed links between tasks (`task_links`) and between stories (`story_links`); same semantic model — typed, directed, same-project-only, passive; detail endpoints return enriched link lists with id, title, and status of the linked item | P1 |
-| Attachments | Document attachments (Markdown/text files, stored on filesystem, with change history, archivable) and image attachments (binary files on filesystem, archivable) and external-reference attachments (URL + status, detachable) attached to stories or tasks | P1 |
+| Attachments | Document attachments (Markdown/text files, stored on filesystem, archivable) and image attachments (binary files on filesystem, archivable) and external-reference attachments (URL + status, detachable) attached to stories, tasks, or milestones; a single stored file per attachment — no version history | P1 |
 | Comments | Author + text notes attached to stories or tasks; support labels | P1 |
 | Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
 | Milestones | Named planning markers scoped to exactly one project; each milestone has a lifecycle status (`planned` / `active` / `finished`); at most one milestone per project may be `active` at a time (activate action demotes the previous one atomically); stories are optionally assigned to a milestone via nullable FK; `story_count` is server-derived | P1 |
@@ -112,13 +112,13 @@ Unique constraint: (source_story_id, target_story_id, link_type).
 
 ---
 
-### Attachment
+### Attachment <!-- updated: 2026-07-14 (STORY-007 spec) -->
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
-| container_type | enum | Yes | "story" \| "task"; immutable | |
-| container_id | UUID | Yes | FK → Story or Task (per container_type); immutable | |
+| container_type | enum | Yes | "story" \| "task" \| "milestone"; immutable | |
+| container_id | UUID | Yes | FK → Story, Task, or Milestone (per container_type); immutable | |
 | type | string | Yes | from container's project's `attachment_types` dictionary | |
 | kind | enum | Yes | "document" \| "image" \| "external-ref"; immutable | |
 | mime_type | string | Cond. | required when kind = "document" or "image"; e.g. "text/markdown", "text/plain", "image/png" | stored; used as Content-Type when serving the file |
@@ -129,23 +129,7 @@ Unique constraint: (source_story_id, target_story_id, link_type).
 | created_at | timestamp | Yes | set on create | |
 | updated_at | timestamp | Yes | set on update | |
 
-**File storage:** for `kind = "document"` and `kind = "image"`, the file content is stored on the server filesystem. A server-internal `file_path` is maintained but never exposed in API responses.
-
----
-
-### AttachmentVersion
-
-Stores the change history of `document`-kind attachments. Each version is a file snapshot on the server filesystem. Read-only once written.
-
-| Field | Type | Required | Constraints | Notes |
-|-------|------|----------|-------------|-------|
-| id | UUID | Yes | PK, immutable | |
-| attachment_id | UUID | Yes | FK → Attachment (document kind only) | |
-| file_size_bytes | integer | Yes | size of the snapshot file | |
-| author_role | string | No | who made the change; free-form | |
-| created_at | timestamp | Yes | version timestamp | |
-
-A new row and a new snapshot file are written on every document content update. `AttachmentVersion` does not apply to `image` or `external-ref` kinds.
+**File storage:** for `kind = "document"` and `kind = "image"`, the file content is stored on the server filesystem. A server-internal `file_path` is maintained but never exposed in API responses. There is exactly one stored file per attachment; updating a document's content replaces that file in place — no version history is retained.
 
 ---
 
@@ -275,9 +259,9 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | Story → Comment (container_type = story) | 1:N | CASCADE |
 | Task → Attachment (container_type = task) | 1:N | CASCADE |
 | Task → Comment (container_type = task) | 1:N | CASCADE |
+| Milestone → Attachment (container_type = milestone) | 1:N | CASCADE <!-- updated: 2026-07-14 (STORY-007 spec) --> |
 | Task → TaskLink (source or target) | 1:N | CASCADE (link deleted when either task is deleted) |
 | Story → StoryLink (source or target) | 1:N | CASCADE (link deleted when either story is deleted) |
-| Attachment (document) → AttachmentVersion | 1:N | CASCADE |
 | Project → ProjectSettings | 1:N | CASCADE |
 | Session → Story (linked_story_id) | N:0-1 | SET NULL |
 | Session → Task (linked_task_id) | N:0-1 | SET NULL |
@@ -301,7 +285,6 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | StoryLink | (source_story_id, link_type) | outbound links per story |
 | StoryLink | (target_story_id, link_type) | inbound links per story |
 | Attachment | (container_type, container_id, type, archived_at) | attachments per container filtered by type and active/archived |
-| AttachmentVersion | (attachment_id, created_at DESC) | history of a document attachment |
 | Comment | (container_type, container_id, created_at ASC) | comment thread per container |
 | Session | (archived_at, result_decisions) | find incomplete sessions (WHERE result_decisions IS NULL AND archived_at IS NULL) |
 | Session | (linked_story_id) | sessions for a story |
@@ -601,12 +584,13 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 ---
 
-### Attachments
+### Attachments <!-- updated: 2026-07-14 (STORY-007 spec) -->
 
-Attachments of `kind = "document"` or `kind = "image"` are stored as files on the server filesystem. The create endpoint accepts either `application/json` (for programmatic/MCP use) or `multipart/form-data` (for file uploads from the Web UI).
+Attachments of `kind = "document"` or `kind = "image"` are stored as files on the server filesystem. The create endpoint accepts either `application/json` (for programmatic/MCP use) or `multipart/form-data` (for file uploads from the Web UI). Attachments may be attached to a story, task, or milestone (`container_type`).
 
 #### POST /stories/:storyId/attachments
 #### POST /tasks/:taskId/attachments
+#### POST /milestones/:milestoneId/attachments
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **`kind = document` via JSON:** `{ "type", "kind": "document", "content": "string", "mime_type": "text/markdown|text/plain", "author_role" }`
 - **`kind = document` or `kind = image` via multipart:** fields `type`, `kind`, `mime_type`, `author_role` + `file` binary
@@ -614,11 +598,12 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Response 201:** `{ "data": { Attachment } }`
 - **Response errors:**
   - 400: file > 10 MB; unsupported MIME type; external_url is not a valid URI (non-Pydantic business checks)
-  - 404: container not found
+  - 404: container (story, task, or milestone) not found
   - 422: required fields missing (Pydantic); type not in dict
 
 #### GET /stories/:storyId/attachments
 #### GET /tasks/:taskId/attachments
+#### GET /milestones/:milestoneId/attachments
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Query params:** `page`, `limit`, `type`, `kind`, `include_archived` (bool, default: false)
 - **Response 200:** paginated Attachment list
@@ -638,23 +623,12 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 #### PUT /attachments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **`kind = document` via JSON:** `{ "content": "string", "author_role" }` — creates new AttachmentVersion
+- **`kind = document` via JSON:** `{ "content": "string", "author_role" }` — replaces the stored file content in place; no history retained
 - **`kind = document` via multipart:** `file` + optional `author_role` — same effect
 - **`kind = external-ref`:** `{ "external_url", "external_status" }`
 - **`kind = image`:** not updatable → 400
 - **Response 200:** `{ "data": { Attachment } }`
 - **Response errors:** 400 (archived; image kind), 404
-
-#### GET /attachments/:id/history
-- **Auth:** none  **Rate limit:** 1,000 req/min
-- **Query params:** `page`, `limit` (ordered by created_at DESC)
-- **Response 200:** paginated AttachmentVersion list
-- **Response errors:** 400 (not a document), 404
-
-#### GET /attachment-versions/:id/file
-- **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** raw file content of that version snapshot
-- **Response errors:** 404
 
 #### POST /attachments/:id/archive
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -890,19 +864,20 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 1. A task's project is determined transitively via `task.story_id → story.project_id`. All dictionary lookups use that project's effective settings.
 2. Document and image attachments (`kind = "document"` or `kind = "image"`) are archived, never deleted.
 3. An archived document attachment cannot have its content updated. Image attachments cannot be updated at all — archive and re-create.
-4. Deleting a Project cascades to Stories → Tasks → Attachments → AttachmentVersions → Comments → TaskLinks → ProjectSettings. Sessions linked to deleted Stories or Tasks have links set to null.
+4. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments. Sessions linked to deleted Stories or Tasks have links set to null.
 5. `GET /stories/:id/aggregate` is always computed on demand; never stored.
 6. `GET /tasks/:id/dependencies` returns raw data only — the utility never enforces blocking.
 7. A session where both `result_decisions` and `result_summary` are null is incomplete.
 8. ProjectSettings for a given key completely replace (not merge with) the system default.
 9. A session without a linked story or task is valid.
-10. `AttachmentVersion` records exist only for `kind = "document"` attachments.
+10. Updating a document attachment's content replaces the existing stored file in place; no prior version is retained or recoverable.
 11. TaskLinks can only be created between tasks that share the same `story_id`. Both `source_task_id` and `target_task_id` must belong to the same parent story; cross-story task links are rejected (422).
 12. A project can have at most one milestone with status `active` at a time. Activating a milestone when another is already `active` demotes the previous one to `planned` in the same database transaction.
 13. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted. Deleting a project cascades to all its milestones.
 14. `link_types` is the only dictionary key with a structured entry format (`LinkTypeEntry[]`). All other five dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `participant_roles`) remain plain `string[]`. Sending a plain string in `link_types` is rejected with 422. Duplicate `value` fields within the same `link_types` array are rejected with 400.
 15. `link_type` validation on TaskLink and StoryLink creation checks against the `value` fields extracted from the effective `link_types` entries. The stored `link_type` column on `task_link` and `story_link` tables continues to hold the plain value string; existing rows are not back-filled when entries are updated.
 16. A `link_types` entry where `outbound` and `inbound` are the same string (symmetric relationship) is valid and stored as-is.
+17. Attachments may be attached to a story, task, or milestone (`container_type`). Deleting a story, task, or milestone permanently removes all of its attachments — this cascade delete overrides the normal archive-not-delete rule for document/image attachments, since the container itself no longer exists. <!-- updated: 2026-07-14 (STORY-007 spec) -->
 
 ---
 
