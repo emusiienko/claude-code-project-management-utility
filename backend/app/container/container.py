@@ -1,5 +1,7 @@
 from dependency_injector import containers, providers
 
+from app.attachments.repository import AttachmentRepository
+from app.attachments.service import AttachmentService
 from app.config import settings
 from app.core.database import build_engine, build_session_factory, init_db_session
 from app.core.storage import FilesystemStorage
@@ -102,13 +104,6 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    milestone_service = providers.Factory(
-        MilestoneService,
-        repo=milestone_repository,
-        project_repo=project_repository,
-        story_repo=story_repository,
-    )
-
     # --------------------------------------------------------------------------
     # Tasks domain — Factories (resolved per injection)
     # --------------------------------------------------------------------------
@@ -118,6 +113,42 @@ class AppContainer(containers.DeclarativeContainer):
     task_repository = providers.Factory(
         TaskRepository,
         session=db_session,
+    )
+
+    # --------------------------------------------------------------------------
+    # Attachments domain — Factories
+    # --------------------------------------------------------------------------
+    # Declared before milestone_service/story_service/task_service (STORY-007
+    # TASK-003 injects attachment_service into all three as the AttachmentReader
+    # Protocol for cascade delete + detail composition); needs story/task/
+    # milestone repositories, which are all declared above this point.
+
+    attachment_repository = providers.Factory(
+        AttachmentRepository,
+        session=db_session,
+    )
+
+    attachment_service = providers.Factory(
+        AttachmentService,
+        repo=attachment_repository,
+        storage=storage,
+        story_reader=story_repository,
+        task_reader=task_repository,
+        milestone_reader=milestone_repository,
+    )
+
+    # --------------------------------------------------------------------------
+    # Milestones domain — service (after attachment_service, see note above)
+    # --------------------------------------------------------------------------
+
+    milestone_service = providers.Factory(
+        MilestoneService,
+        repo=milestone_repository,
+        project_repo=project_repository,
+        story_repo=story_repository,
+        # Cross-domain: milestones service cascades and composes attachments
+        # via Protocol (STORY-007, TASK-003).
+        attachment_reader=attachment_service,
     )
 
     # --------------------------------------------------------------------------
@@ -172,6 +203,9 @@ class AppContainer(containers.DeclarativeContainer):
         task_counter=task_repository,
         # Cross-domain: stories service reads and clears story links via Protocol (STORY-006).
         story_link_reader=story_link_service,
+        # Cross-domain: stories service cascades and composes attachments via
+        # Protocol (STORY-007, TASK-003).
+        attachment_reader=attachment_service,
     )
 
     task_service = providers.Factory(
@@ -181,4 +215,7 @@ class AppContainer(containers.DeclarativeContainer):
         effective_dict=settings_service,
         # Cross-domain: tasks service reads and clears task links via Protocol (STORY-006).
         task_link_reader=task_link_service,
+        # Cross-domain: tasks service cascades and composes attachments via
+        # Protocol (STORY-007, TASK-003).
+        attachment_reader=attachment_service,
     )

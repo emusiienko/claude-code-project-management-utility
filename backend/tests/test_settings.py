@@ -1,6 +1,6 @@
-"""Integration tests for the Settings domain — STORY-002.
+"""Integration tests for the Settings domain — STORY-002 (+ STORY-021 retirement).
 
-Coverage zones (per TASK-009):
+Coverage zones (per TASK-009, revised by STORY-021/TASK-006):
 - GET  /v1/system/settings
 - PUT  /v1/system/settings
 - GET  /v1/projects/:id/settings
@@ -8,9 +8,10 @@ Coverage zones (per TASK-009):
 - PUT  /v1/projects/:id/settings
 
 Behaviors tested:
-- All six dictionary keys present in system settings response
+- All five dictionary keys present in system settings response (STORY-021 retired
+  `attachment_types` — Settings dropped from six keys to five)
 - Partial PUT updates only specified keys; others unchanged
-- Unknown key → 400
+- Unknown key (including the retired `attachment_types`) → 422
 - Empty values list → 400 with verbatim "Dictionary values cannot be empty."
 - Project override fully replaces (not merges) system default for that key
 - Project with no overrides returns system defaults as effective settings
@@ -25,18 +26,21 @@ Notes:
 - System settings are seeded by migration 0003 and shared across tests.
   Tests that mutate system settings MUST restore them to avoid inter-test
   interference (use try/finally or restore in the test body).
+- `attachment_types` is intentionally NOT in ALL_KEYS / SEED_DEFAULTS below —
+  STORY-021 / TASK-002 removed it from `ALL_DICT_KEYS` entirely and migration
+  0010_attachment_title deletes its seeded rows. See TestAttachmentTypesRetired.
 """
 from httpx import AsyncClient
 
 # ---------------------------------------------------------------------------
-# Six canonical dictionary keys (mirrors app.core.constants)
+# Five canonical dictionary keys (mirrors app.settings.schema.ALL_DICT_KEYS,
+# post-STORY-021 retirement of attachment_types)
 # ---------------------------------------------------------------------------
 
 ALL_KEYS = {
     "task_statuses",
     "task_types",
     "story_statuses",
-    "attachment_types",
     "link_types",
     "participant_roles",
 }
@@ -47,14 +51,6 @@ SEED_DEFAULTS: dict[str, list] = {
     "task_statuses": ["todo", "in-progress", "done"],
     "task_types": ["task", "bug", "testing-task"],
     "story_statuses": ["planned", "in-progress", "pending-approval", "accepted"],
-    "attachment_types": [
-        "plan",
-        "document",
-        "image",
-        "implementation-report",
-        "test-result",
-        "external-ref",
-    ],
     "link_types": [
         {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"},
         {"value": "dependent", "outbound": "dependent", "inbound": "depends on"},
@@ -116,7 +112,7 @@ class TestGetSystemSettings:
         body = response.json()
         assert "data" in body, "Response body missing 'data' key"
 
-    async def test_all_six_keys_present(self, client: AsyncClient) -> None:
+    async def test_all_five_keys_present(self, client: AsyncClient) -> None:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
         for key in ALL_KEYS:
@@ -187,7 +183,7 @@ class TestUpdateSystemSettings:
             json={"task_statuses": SEED_DEFAULTS["task_statuses"]},
         )
 
-    async def test_update_returns_all_six_keys(self, client: AsyncClient) -> None:
+    async def test_update_returns_all_five_keys(self, client: AsyncClient) -> None:
         new_link_types = [
             {"value": "depends-on", "outbound": "depends on", "inbound": "is depended on by"},
             {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
@@ -377,7 +373,7 @@ class TestGetEffectiveProjectSettings:
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
-    async def test_all_six_keys_present(
+    async def test_all_five_keys_present(
         self, client: AsyncClient, create_project
     ) -> None:
         project_id = create_project("Six Keys Project")
@@ -531,7 +527,7 @@ class TestUpdateProjectSettings:
     async def test_returns_effective_settings_after_update(
         self, client: AsyncClient, create_project
     ) -> None:
-        """PUT /projects/:id/settings returns effective (all six keys), not just overrides."""
+        """PUT /projects/:id/settings returns effective (all five keys), not just overrides."""
         project_id = create_project("Effective After PUT Project")
         override = ["x", "y"]
         response = await client.put(
@@ -540,7 +536,7 @@ class TestUpdateProjectSettings:
         )
         data = _settings_data(response.json())
 
-        # All six keys must be present
+        # All five keys must be present
         for key in ALL_KEYS:
             assert key in data, f"Response after PUT missing key '{key}'"
 
@@ -759,4 +755,67 @@ class TestPartialOverrideClearingBehavior:
         )
         assert "first" not in data["task_statuses"], (
             "Old override value should not persist after replace"
+        )
+
+
+# ===========================================================================
+# attachment_types retirement — STORY-021 / TASK-002
+# ===========================================================================
+
+
+class TestAttachmentTypesRetired:
+    """`attachment_types` was removed from ALL_DICT_KEYS entirely (STORY-021):
+    it is no longer a recognized Settings dictionary key at either scope."""
+
+    async def test_system_settings_get_has_no_attachment_types_key(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get("/v1/system/settings")
+        data = _settings_data(response.json())
+        assert "attachment_types" not in data, (
+            f"attachment_types should be retired from system settings, got keys: {list(data)}"
+        )
+
+    async def test_system_settings_get_returns_exactly_five_keys(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get("/v1/system/settings")
+        data = _settings_data(response.json())
+        assert set(data.keys()) == ALL_KEYS, (
+            f"Expected exactly the five keys {ALL_KEYS}, got {set(data.keys())}"
+        )
+
+    async def test_put_system_settings_with_attachment_types_returns_422(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.put(
+            "/v1/system/settings",
+            json={"attachment_types": ["plan", "document"]},
+        )
+        assert response.status_code == 422, (
+            f"attachment_types is an unknown key post-retirement, expected 422, "
+            f"got {response.status_code} — {response.text}"
+        )
+
+    async def test_put_project_settings_with_attachment_types_returns_422(
+        self, client: AsyncClient, create_project
+    ) -> None:
+        project_id = create_project("Attachment Types Retired Project")
+        response = await client.put(
+            f"/v1/projects/{project_id}/settings",
+            json={"attachment_types": ["plan", "document"]},
+        )
+        assert response.status_code == 422, (
+            f"attachment_types is an unknown key post-retirement, expected 422, "
+            f"got {response.status_code} — {response.text}"
+        )
+
+    async def test_project_effective_settings_has_no_attachment_types_key(
+        self, client: AsyncClient, create_project
+    ) -> None:
+        project_id = create_project("Effective No Attachment Types Project")
+        response = await client.get(f"/v1/projects/{project_id}/settings/effective")
+        data = _settings_data(response.json())
+        assert "attachment_types" not in data, (
+            f"attachment_types should be retired from effective settings, got keys: {list(data)}"
         )

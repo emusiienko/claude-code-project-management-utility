@@ -2,6 +2,9 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from app.attachments.schema import CONTAINER_STORY
+# Import only the Protocol, never the concrete AttachmentService.
+from app.attachments.service import AttachmentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
 from app.projects.repository import ProjectRepository
 from app.settings.schema import DICT_KEY_STORY_STATUSES
@@ -35,6 +38,7 @@ class StoryService:
         milestone_repo: "MilestoneRepositoryProtocol | None" = None,
         task_counter: "TaskCounterProtocol | None" = None,
         story_link_reader: "StoryLinkReaderProtocol | None" = None,
+        attachment_reader: AttachmentReaderProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
@@ -42,6 +46,7 @@ class StoryService:
         self._milestone_repo = milestone_repo
         self._task_counter = task_counter
         self._story_link_reader = story_link_reader
+        self._attachment_reader = attachment_reader
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -162,12 +167,17 @@ class StoryService:
         story.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
         return self._repo.save(story)
 
-    def get_detail(self, story_id: str) -> tuple[Story, list]:
+    def get_detail(self, story_id: str) -> tuple[Story, list, list]:
         story = self.get_by_id(story_id)
         links: list = []
         if self._story_link_reader is not None:
             links = self._story_link_reader.list_all_enriched_for_story(story.id)
-        return story, links
+        attachments: list = []
+        if self._attachment_reader is not None:
+            attachments = self._attachment_reader.list_all_for_container(
+                CONTAINER_STORY, story.id
+            )
+        return story, links, attachments
 
     def delete(self, story_id: str, project_id: str) -> None:
         story = self.get(story_id, project_id)
@@ -176,6 +186,13 @@ class StoryService:
         # PRAGMA foreign_keys = ON (Known Divergences — architecture.md).
         if self._story_link_reader is not None:
             self._story_link_reader.delete_all_for_story(story.id)
+        # Application-level cascade (ADR-018 precedent, extended to the
+        # no-FK polymorphic attachment container): remove the story's
+        # attachments — rows and files — before the story itself is removed.
+        if self._attachment_reader is not None:
+            self._attachment_reader.delete_all_for_container(
+                CONTAINER_STORY, story.id
+            )
         self._repo.delete(story)
 
     def get_aggregate(self, story_id: str) -> StoryAggregate:

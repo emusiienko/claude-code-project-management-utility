@@ -2,6 +2,9 @@ import datetime
 import uuid
 from typing import Protocol, runtime_checkable
 
+from app.attachments.schema import CONTAINER_TASK
+# Import only the Protocol, never the concrete AttachmentService.
+from app.attachments.service import AttachmentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
 from app.settings.schema import (
     DICT_KEY_PARTICIPANT_ROLES,
@@ -48,11 +51,13 @@ class TaskService:
         story_repo: StoryRepository,
         effective_dict: EffectiveDictionary,
         task_link_reader: 'TaskLinkReaderProtocol | None' = None,
+        attachment_reader: AttachmentReaderProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._story_repo = story_repo
         self._effective_dict = effective_dict
         self._task_link_reader = task_link_reader
+        self._attachment_reader = attachment_reader
 
     def create(self, story_id: str, data: CreateTask) -> Task:
         story = self._assert_story_exists(story_id)
@@ -96,12 +101,17 @@ class TaskService:
             raise NotFoundError(f"Task '{task_id}' not found.")
         return task
 
-    def get_detail(self, task_id: str) -> tuple[Task, list]:
+    def get_detail(self, task_id: str) -> tuple[Task, list, list]:
         task = self.get_by_id(task_id)
         links: list = []
         if self._task_link_reader is not None:
             links = self._task_link_reader.list_all_enriched_for_task(task.id)
-        return task, links
+        attachments: list = []
+        if self._attachment_reader is not None:
+            attachments = self._attachment_reader.list_all_for_container(
+                CONTAINER_TASK, task.id
+            )
+        return task, links, attachments
 
     def list_paginated(
         self,
@@ -179,6 +189,13 @@ class TaskService:
         # PRAGMA foreign_keys = ON (Known Divergences — architecture.md).
         if self._task_link_reader is not None:
             self._task_link_reader.delete_all_for_task(task.id)
+        # Application-level cascade (ADR-018 precedent, extended to the
+        # no-FK polymorphic attachment container): remove the task's
+        # attachments — rows and files — before the task itself is removed.
+        if self._attachment_reader is not None:
+            self._attachment_reader.delete_all_for_container(
+                CONTAINER_TASK, task.id
+            )
         self._repo.delete(task)
 
     # ------------------------------------------------------------------

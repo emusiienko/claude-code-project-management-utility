@@ -1,6 +1,5 @@
 ## Active wait
-waiting_for: SESSION-014 (architect)
-next_step: after session, continue STORY-007 implementation per user decisions
+waiting_for: none
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start
@@ -20,3 +19,6 @@ next_step: after session, continue STORY-007 implementation per user decisions
 - 2026-07-11: STORY-012 (Milestones) accepted and fully reconciled — ADR-015 (single-project model), ADR-016 (single-active service invariant), requirements updated, 350 tests total, TC-035–TC-052 merged; archived
 - 2026-07-11: STORY-017 (Board Milestone Filter Combobox) accepted and fully reconciled — useActiveMilestone hook removed (orphan), TC-042/043 updated, requirements_web.md updated; archived
 - 2026-07-11: STORY-005 Feature Design complete — spec updated, plan approved (useBoardDrag promoted to shared/hooks, no generic KanbanBoard component); 7 tasks ready for implementation
+- 2026-07-14: SESSION-014 completed — STORY-007 plan review with architect; api-contract v1.5 (versioning + archive removed, attachments immutable create+delete, new `file` kind, MCP base64 binary create/read, in-app viewer, `author_role` moved to Attachment); implementation_plan.md, task files, api-contract.md, architecture.md, CLAUDE.md updated by architect. Spec-writer to-do pending to bring requirements docs in line with v1.5.
+- 2026-07-15: STORY-007 (Work Item Attachments) implemented, QA-passed (4 bug-fix rounds, last one a structural fix — shared `useModalEscape` modal-stack hook), accepted, and fully reconciled (ADR-020, ADR-021; requirements updated; TC-110–TC-132 merged); archived.
+- 2026-07-15: STORY-021 (Attachment Title Field) created as a design follow-up — replaced Attachment's dictionary-bound `type` with a mandatory free-form `title` (autofill from filename on upload, editable); retired the `attachment_types` Settings dictionary (six → five keys). Implemented, QA-passed with zero bugs, accepted, and fully reconciled (api-contract v1.6, no ADR — spec-driven refinement; TC-133–TC-138 merged, TC-131 retired as superseded); archived.

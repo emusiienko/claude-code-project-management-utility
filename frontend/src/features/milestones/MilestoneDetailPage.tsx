@@ -1,9 +1,10 @@
 /**
  * MilestoneDetailPage — detail view at /milestones/:id.
  *
- * Shows the milestone name (as heading), status badge, description, and a
- * paginated list of stories assigned to this milestone. A back-link returns
- * to the owning project's Milestones tab.
+ * Shows the milestone name (as heading), status badge, description, a
+ * paginated list of stories assigned to this milestone, and an Attachments
+ * section (STORY-007). A back-link returns to the owning project's
+ * Milestones tab.
  *
  * Data fetching:
  *   - Milestone detail: useMilestone (GET /v1/milestones/:id)
@@ -18,6 +19,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMilestone, useMilestoneStories } from "./hooks/useMilestones";
 import { extractErrorMessage } from "./utils/errorMessages";
 import { PageLoader } from "@/shared/components/PageLoader";
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
 import type { MilestoneStatus, Story } from "@/api/types";
 
 // ---------------------------------------------------------------------------
@@ -245,6 +247,15 @@ export default function MilestoneDetailPage() {
           />
         )}
       </section>
+
+      {/* Attachments section — STORY-007 */}
+      <div className="mt-8">
+        <AttachmentsSection
+          containerType="milestone"
+          containerId={milestone.id}
+          projectId={milestone.project_id}
+        />
+      </div>
     </div>
   );
 }

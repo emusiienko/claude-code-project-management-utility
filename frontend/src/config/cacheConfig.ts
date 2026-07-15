@@ -61,7 +61,8 @@ export const CACHE_KEYS = {
     ) =>
       ["attachments", "list", containerType, containerId, params ?? {}] as const,
     detail: (id: string) => ["attachments", "detail", id] as const,
-    history: (id: string) => ["attachments", "history", id] as const,
+    /** Cached raw file text (markdown/plain/csv/json) rendered by the in-app viewer. */
+    file: (id: string) => ["attachments", "file", id] as const,
   },
 
   comments: {

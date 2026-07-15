@@ -39,6 +39,11 @@ export const PAGINATION = {
    * Story links per story — fetches all links in one request for the slide-over.
    */
   STORY_LINKS: 100,
+  /**
+   * Attachments per container (story/task/milestone) — fetches all in one request;
+   * containers are unlikely to accumulate more than 100 attachments in a session.
+   */
+  ATTACHMENTS: 100,
 } as const;
 
 /**
@@ -72,4 +77,6 @@ export const DATA_FRESHNESS = {
   TASK_LINKS: 0,
   /** Story links — always fresh so the slide-over reflects recent link changes. */
   STORY_LINKS: 0,
+  /** Attachments — always fresh so the section reflects recent uploads/deletes. */
+  ATTACHMENTS: 0,
 } as const;

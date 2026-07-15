@@ -32,6 +32,15 @@ class FilesystemStorage:
         except OSError as exc:
             raise InternalError(f"Failed to read file: {exc}") from exc
 
+    def delete(self, relative_path: str) -> None:
+        # Permanent removal for attachment delete / container-cascade delete.
+        # missing_ok tolerates a file already absent (e.g. a retried delete).
+        path = self._resolve(relative_path)
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as exc:
+            raise InternalError(f"Failed to delete file: {exc}") from exc
+
     def snapshot(self, source_relative: str) -> str:
         # Creates an immutable copy of the source file for version history.
         # Returns the relative path of the new snapshot.

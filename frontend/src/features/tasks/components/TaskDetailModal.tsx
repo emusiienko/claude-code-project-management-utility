@@ -7,22 +7,25 @@
  * as its child route without unmounting the slide-over.
  *
  * Closing (✕ button or Escape) navigates back to the story route, leaving the
- * slide-over open. The slide-over's own Escape handler is suppressed while this
- * modal is mounted via a capture-phase listener that stops propagation.
+ * slide-over open. Escape is coordinated via the shared `useModalEscape` stack
+ * so it closes only the topmost host — this modal, or an attachment viewer
+ * layered on top of it — never the slide-over underneath.
  *
  * Settings (task_types, task_statuses, participant_roles) are loaded from the
  * project's effective settings — the query is already in-cache from StorySlideOver,
  * so this causes no extra network request.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { X, Pencil } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTaskDetail, useUpdateTask } from "../hooks/useTasks";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
+import { useModalEscape } from "@/shared/hooks/useModalEscape";
 import { TaskForm } from "./TaskForm";
 import { TaskLinksSection } from "./TaskLinksSection";
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
 import { extractErrorMessage, extractFieldErrors } from "../utils/errorMessages";
 import type { CreateTask } from "@/api/types";
 
@@ -61,19 +64,7 @@ export function TaskDetailModal() {
     navigate(`/projects/${projectId}/stories/${storyId}`);
   }, [navigate, projectId, storyId]);
 
-  // Capture-phase Escape handler — intercepts before the slide-over's bubble-phase
-  // listener, preventing the slide-over from closing when this modal is open.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        handleClose();
-      }
-    }
-    document.addEventListener("keydown", onKeyDown, { capture: true });
-    return () =>
-      document.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [handleClose]);
+  useModalEscape(handleClose);
 
   function handleEditSubmit(values: CreateTask) {
     setEditError(undefined);
@@ -339,16 +330,13 @@ export function TaskDetailModal() {
               />
 
               {/* ---------------------------------------------------------- */}
-              {/* Attachments placeholder (STORY-007)                         */}
+              {/* Attachments section (STORY-007)                             */}
               {/* ---------------------------------------------------------- */}
-              <section aria-label="Task attachments">
-                <h3 className="mb-3 text-sm font-semibold text-text-secondary uppercase tracking-wide">
-                  Attachments
-                </h3>
-                <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-text-muted">
-                  Task attachments — coming in STORY-007
-                </p>
-              </section>
+              <AttachmentsSection
+                containerType="task"
+                containerId={taskId}
+                projectId={projectId}
+              />
 
               {/* ---------------------------------------------------------- */}
               {/* Comments placeholder (STORY-008)                            */}

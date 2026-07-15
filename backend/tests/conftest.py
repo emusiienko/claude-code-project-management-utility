@@ -3,6 +3,8 @@
 All tests run against a real SQLite database created fresh each session.
 The test database is written to tests/test.db and removed at teardown.
 """
+import os
+import shutil
 import uuid
 from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timezone
@@ -20,6 +22,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 TEST_DB_PATH = Path(__file__).parent / "test.db"
 TEST_DB_URL = f"sqlite:///{TEST_DB_PATH}"
+
+# ATTACHMENTS_DIR must be set before anything imports app.config (Settings()
+# reads it at instantiation). conftest.py is always imported by pytest before
+# any test module, and nothing above this line imports an app.* package, so
+# setting it here — at collection time — guarantees it lands before the first
+# `from app...` import anywhere else (e.g. inside the `client` fixture, or
+# migrations/env.py imported transitively by the `apply_migrations` fixture).
+ATTACHMENTS_TEST_DIR = Path(__file__).parent / "attachments_tmp"
+os.environ.setdefault("ATTACHMENTS_DIR", str(ATTACHMENTS_TEST_DIR))
 
 # ---------------------------------------------------------------------------
 # Session-scoped engine + schema setup
@@ -44,6 +55,24 @@ def engine():
     _engine.dispose()
     if TEST_DB_PATH.exists():
         TEST_DB_PATH.unlink()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def attachments_dir() -> Generator[Path, None, None]:
+    """Create the temp ATTACHMENTS_DIR for the test session; remove it after.
+
+    Fills the gap noted by TASK-002's implementor: `docs/backend-coding-conventions.md`
+    describes this fixture as already existing; it did not. Autouse + session-scoped so
+    every test (attachments or otherwise) gets a clean, existing directory without
+    needing to depend on it explicitly.
+    """
+    if ATTACHMENTS_TEST_DIR.exists():
+        shutil.rmtree(ATTACHMENTS_TEST_DIR)
+    ATTACHMENTS_TEST_DIR.mkdir(parents=True, exist_ok=True)
+
+    yield ATTACHMENTS_TEST_DIR
+
+    shutil.rmtree(ATTACHMENTS_TEST_DIR, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")

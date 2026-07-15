@@ -30,8 +30,12 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 /**
  * Builds the full URL for an API path. Strips leading slash from `path`
  * to prevent double-slash when BASE_URL has a trailing slash.
+ *
+ * Exported for callers that need an absolute URL rather than a fetched
+ * response — e.g. `<img src>`, `<iframe src>`, and file download anchors
+ * that the browser requests directly (attachments file endpoint).
  */
-function buildUrl(path: string): string {
+export function buildApiUrl(path: string): string {
   const base = BASE_URL.replace(/\/$/, "");
   const normalised = path.startsWith("/") ? path : `/${path}`;
   return `${base}${normalised}`;
@@ -71,7 +75,7 @@ async function request<T>(
   } = {},
 ): Promise<T> {
   const { params, skipDefaultContentType, ...fetchInit } = init;
-  const rawUrl = buildUrl(path);
+  const rawUrl = buildApiUrl(path);
   const url = params ? appendQuery(rawUrl, params) : rawUrl;
 
   const headers: HeadersInit = skipDefaultContentType
@@ -99,6 +103,30 @@ async function request<T>(
   }
 
   return json as T;
+}
+
+/**
+ * Fetches a path and returns the raw response body as text (not JSON).
+ * Used for the attachments file endpoint, which serves the stored file with
+ * its own Content-Type rather than the standard envelope shape.
+ *
+ * On a non-2xx response, attempts to parse the standard ApiError shape;
+ * falls back to a generic message if the body isn't JSON.
+ */
+async function requestText(path: string): Promise<string> {
+  const response = await fetch(buildApiUrl(path));
+
+  if (!response.ok) {
+    let body: ApiError;
+    try {
+      body = (await response.json()) as ApiError;
+    } catch {
+      body = { error: "Failed to load file content.", code: "INTERNAL_ERROR" };
+    }
+    throw new ApiRequestError(response.status, body);
+  }
+
+  return response.text();
 }
 
 // ---------------------------------------------------------------------------
@@ -149,5 +177,13 @@ export const apiClient = {
       // skipDefaultContentType lets fetch set "multipart/form-data; boundary=..." automatically
       skipDefaultContentType: true,
     });
+  },
+
+  /**
+   * Fetches a path's raw response body as text — used by the attachments
+   * in-app viewer to render markdown/plain-text/CSV/JSON content.
+   */
+  getText(path: string): Promise<string> {
+    return requestText(path);
   },
 } as const;

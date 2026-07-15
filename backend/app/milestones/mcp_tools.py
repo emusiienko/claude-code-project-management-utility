@@ -10,6 +10,7 @@ from app.mcp.server import mcp_server_v1
 from app.milestones.schema import (
     CreateMilestone,
     Milestone,
+    MilestoneDetail,
     PaginationMeta,
     UpdateMilestone,
 )
@@ -145,6 +146,23 @@ async def finish_milestone(
         raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in finish_milestone: %s", exc, exc_info=exc)
+        raise ToolError("Internal server error.") from exc
+
+
+@mcp_server_v1.tool()
+async def get_milestone_detail(
+    id: str,
+    service: MilestoneService = Depends(provide_milestone_service),
+) -> dict:
+    try:
+        milestone, attachments = service.get_detail(id)
+        detail = MilestoneDetail.model_validate(milestone)
+        detail.attachments = [a.model_dump(mode="json") for a in attachments]
+        return {"data": detail.model_dump()}
+    except DomainError as exc:
+        raise exc.to_tool_error() from exc
+    except Exception as exc:
+        logger.error("Unexpected error in get_milestone_detail: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
 
 

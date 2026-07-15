@@ -133,4 +133,38 @@ export const API_PATHS = {
    * DELETE /v1/story-links/:id — delete a story link by its own ID.
    */
   STORY_LINK: (id: string) => `/v1/story-links/${id}`,
+
+  // ---------------------------------------------------------------------------
+  // Attachments
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /v1/stories/:storyId/attachments — create (JSON for document-text/external-ref, multipart for file uploads).
+   * GET  /v1/stories/:storyId/attachments?page&limit&type&kind — paginated, filtered list.
+   */
+  STORY_ATTACHMENTS: (storyId: string) => `/v1/stories/${storyId}/attachments`,
+
+  /**
+   * POST /v1/tasks/:taskId/attachments — create (JSON or multipart).
+   * GET  /v1/tasks/:taskId/attachments?page&limit&type&kind — paginated, filtered list.
+   */
+  TASK_ATTACHMENTS: (taskId: string) => `/v1/tasks/${taskId}/attachments`,
+
+  /**
+   * POST /v1/milestones/:id/attachments — create (JSON or multipart).
+   * GET  /v1/milestones/:id/attachments?page&limit&type&kind — paginated, filtered list.
+   */
+  MILESTONE_ATTACHMENTS: (id: string) => `/v1/milestones/${id}/attachments`,
+
+  /**
+   * GET    /v1/attachments/:id — fetch attachment metadata.
+   * DELETE /v1/attachments/:id — permanently delete (every kind; no update, no archive).
+   */
+  ATTACHMENT: (id: string) => `/v1/attachments/${id}`,
+
+  /**
+   * GET /v1/attachments/:id/file — download or view the stored file.
+   * Not applicable to external-ref (400 — no stored file).
+   */
+  ATTACHMENT_FILE: (id: string) => `/v1/attachments/${id}/file`,
 } as const;

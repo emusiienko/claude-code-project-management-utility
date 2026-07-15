@@ -56,6 +56,23 @@
 > attachments code existed when this revision was made, so it is a clean contract change, not an
 > as-built divergence. All other domains unchanged.
 
+> **v1.6 revision — ratified at STORY-021 reconcile 2026-07-15 (Attachments + Settings).** The
+> Attachment's dictionary-bound `type` field is **replaced by a mandatory free-form `title`** string
+> (1–500 chars, not dictionary-validated) on the entity, on every create path (document-as-text JSON,
+> external-ref JSON, multipart, and MCP base64), and in the response. Rules as built: a missing,
+> empty, or whitespace-only `title` is rejected **422** on every path. On the **multipart** path only,
+> an *absent* `title` form field defaults to the uploaded file's name truncated to 500 chars, while a
+> *present-but-empty* field is still rejected 422 (never silently re-defaulted). The
+> **`attachment_types` dictionary key is retired** — `DictionaryKey` drops from six keys to five
+> (`task_statuses`, `task_types`, `story_statuses`, `link_types`, `participant_roles`); a `PUT`
+> settings request including `attachment_types` is rejected as an unknown key (**422**, the same
+> path/status as any other unknown key — not 400). Attachment **list** endpoints drop the `type` query
+> param: `kind` filtering is unchanged; a stale `?type=` on the REST list is silently ignored, whereas
+> the MCP `list_attachments` tool no longer declares a `type` kwarg and raises a schema-level
+> `ToolError` if one is passed (strict RPC kwargs vs. lenient REST query strings — an inherent
+> transport difference, not a gap). Attachments remain immutable (no `PUT`); `title` is set once at
+> create. No new ADR — a spec-mandated refinement of the shipped Attachments feature.
+
 ---
 
 ## Shared shapes
@@ -175,7 +192,7 @@ interface Attachment {
   id: string;
   container_type: ContainerType;
   container_id: string;
-  type: string;              // from attachment_types
+  title: string;             // 1–500, free-form (v1.6 — replaces the retired dictionary-bound `type`)
   kind: AttachmentKind;
   mime_type: string | null;       // required when kind = document|image|file
   file_size_bytes: number | null; // required when kind = document|image|file
@@ -226,15 +243,16 @@ interface Milestone {
   updated_at: string;
 }
 
+// v1.6 (2026-07-15, STORY-021): `attachment_types` retired — five keys, not six.
 type DictionaryKey =
   | "task_statuses" | "task_types" | "story_statuses"
-  | "attachment_types" | "link_types" | "participant_roles";
+  | "link_types" | "participant_roles";
 
 type PlainDictionaryKey = Exclude<DictionaryKey, "link_types">;
 
 // v1.4 (2026-07-13, STORY-020): link_types is the ONLY dictionary that stores structured
 // entries. Each entry carries the machine value plus its directional display labels, so the
-// frontend never needs a hardcoded slug→label map. The other five keys remain plain-string arrays.
+// frontend never needs a hardcoded slug→label map. The other four keys remain plain-string arrays.
 interface LinkTypeEntry {
   value: string;      // machine key stored on TaskLink.link_type / StoryLink.link_type (1–200 chars)
   outbound: string;   // label shown on the SOURCE side of the relationship (1–200 chars)
@@ -283,7 +301,8 @@ interface CreateProject { name: string; description?: string; }
 // PUT  /projects/:id                    -> 200 Envelope<Project>   | 422, 404, 409
 interface UpdateProject { name?: string; description?: string; }
 // DELETE /projects/:id                  -> 204                     | 404
-//   Cascade: stories -> tasks -> attachments/versions/comments/links/project_settings.
+//   Cascade: stories -> tasks -> attachments/comments/links/project_settings.
+//   (No attachment versions — attachments are immutable, one file each; see v1.5 / ADR-021.)
 //   Sessions linked to deleted stories/tasks have links set to null.
 //   A malformed (non-UUID) :id returns 404 NOT_FOUND, not 422 (ADR-011).
 ```
@@ -328,7 +347,7 @@ interface StoryAggregate {
 //   they live on the Kanban board via GET /stories/:storyId/tasks + /aggregate.
 interface StoryDetail extends Story {
   links: EnrichedStoryLink[];  // v1.3 — outbound + inbound, enriched (STORY-006)
-  attachments: Attachment[];   // the story's attachments (empty until STORY-007)
+  attachments: Attachment[];   // the story's attachments (composed since STORY-007)
   comments: Comment[];         // created_at ASC (empty until STORY-008)
 }
 ```
@@ -441,20 +460,23 @@ Endpoints exist under stories, tasks, and milestones containers.
 
 // JSON, kind = document
 interface CreateDocumentAttachmentJson {
-  type: string; kind: "document";
+  title: string; kind: "document";            // title: 1–500, required, non-empty (v1.6)
   content: string; mime_type: "text/markdown" | "text/plain";
   author_role?: string;
 }
 // JSON, kind = external-ref
 interface CreateExternalRefAttachmentJson {
-  type: string; kind: "external-ref";
+  title: string; kind: "external-ref";        // title: 1–500, required, non-empty (v1.6)
   external_url: string; external_status?: string; author_role?: string;
 }
 // multipart/form-data, kind = document | image | file
-//   fields: type, kind, mime_type, author_role + file (binary)
-//   422: request-schema validation — content/file missing for the kind; external_url invalid
+//   fields: title (optional), kind, mime_type, author_role + file (binary)
+//   title (v1.6): absent form field -> defaults to the uploaded file name, truncated to 500 chars;
+//     present-but-empty / whitespace-only -> 422 (never silently re-defaulted to the file name).
+//   422: request-schema validation — content/file missing for the kind; external_url invalid;
+//     missing/empty/whitespace title on the JSON and MCP paths (multipart handles absence as above)
 //   400: upload business rules Pydantic cannot express — file > 10 MB; unsupported MIME type
-//   author_role is optional on every create path (all kinds).
+//   author_role is optional on every create path (all kinds); title is NOT dictionary-validated.
 //   MIME allow-list per kind:
 //     document: text/markdown, text/plain
 //     image:    image/png, image/jpeg, image/gif, image/webp
@@ -463,15 +485,19 @@ interface CreateExternalRefAttachmentJson {
 //   Size limit: 10 MB for every stored-file kind (document, image, file).
 //
 // MCP create surface (agents): document-as-text and external-ref via plain JSON args; image, file, and
-//   a document uploaded AS A FILE via a base64 arg { type, kind, mime_type, content_base64, author_role? }.
-//   The tool decodes base64 onto the same service path as the REST multipart route (full upload parity
-//   with the Web UI). Same per-kind MIME allow-list and 10 MB limit. Binary never crosses MCP except as
-//   base64; one file per call.
+//   a document uploaded AS A FILE via a base64 arg { title, kind, mime_type, content_base64, author_role? }.
+//   Every MCP create tool requires `title` explicitly (v1.6) — there is no file name to default from
+//   over MCP, so omitting it is rejected. The tool decodes base64 onto the same service path as the REST
+//   multipart route (full upload parity with the Web UI). Same per-kind MIME allow-list and 10 MB limit.
+//   Binary never crosses MCP except as base64; one file per call.
 
 // GET  /stories/:storyId/attachments
 // GET  /tasks/:taskId/attachments
 // GET  /milestones/:id/attachments
-//   ?page&limit&type&kind
+//   ?page&limit&kind                     (v1.6: the `type` filter is removed)
+//     REST: a stale `?type=` query param is silently ignored (not an error).
+//     MCP list_attachments: the `type` kwarg is removed — passing it raises a schema-level ToolError
+//     (strict RPC kwargs), unlike the lenient REST query string. `kind` filtering works on both.
 //                                        -> 200 ListEnvelope<Attachment> | 404
 
 // GET  /attachments/:id                  -> 200 Envelope<Attachment> (metadata) | 404
@@ -578,10 +604,10 @@ validation.
 <!-- v1.2 (2026-07-10): single-project ownership + lifecycle status. Supersedes the LOCKED v1.0
      M:N (project_ids[]) shape. A milestone belongs to exactly one project and has a status. -->
 <!-- updated: 2026-07-11 (STORY-012 reconcile): request schemas ratified without the `Body` suffix
-     (`CreateMilestone`/`UpdateMilestone`) to match the codebase naming convention, as built. The
-     `GET /milestones/:id/detail` endpoint below is specified but NOT yet implemented — it is deferred
-     until the attachments (STORY-007) and comments (STORY-008) domains exist. See architecture.md
-     § Known Divergences. All other Milestone endpoints are implemented and match this contract. -->
+     (`CreateMilestone`/`UpdateMilestone`) to match the codebase naming convention, as built. -->
+<!-- updated: 2026-07-15 (STORY-007 reconcile): `GET /milestones/:id/detail` is now IMPLEMENTED —
+     it composes the milestone's `attachments`; `comments` stays an empty array until STORY-008 builds
+     that domain (same staging as story/task detail). All Milestone endpoints now match this contract. -->
 
 ```typescript
 // POST /milestones                         -> 201 Envelope<Milestone> | 422, 404, 409
@@ -614,12 +640,11 @@ interface UpdateMilestone {                 // name + description only; project_
 // GET  /milestones/:id/stories?page&limit    -> 200 ListEnvelope<Story> (each incl. project_id) | 404
 
 // GET  /milestones/:id/detail                -> 200 Envelope<MilestoneDetail> | 404
-//   NOT YET IMPLEMENTED (deferred until attachments/comments domains exist — STORY-007/008).
 //   Composes the milestone's side collections in one call. Assigned stories are NOT included —
 //   they are paginated via GET /milestones/:id/stories.
 interface MilestoneDetail extends Milestone {
-  attachments: Attachment[];   // the milestone's attachments
-  comments: Comment[];         // created_at ASC
+  attachments: Attachment[];   // the milestone's attachments (composed since STORY-007)
+  comments: Comment[];         // created_at ASC (empty until STORY-008)
 }
 ```
 

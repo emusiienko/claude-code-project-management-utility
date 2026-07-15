@@ -136,9 +136,10 @@ async def get_story_detail(
     service: StoryService = Depends(provide_story_service),
 ) -> dict:
     try:
-        story, links = service.get_detail(id)
+        story, links, attachments = service.get_detail(id)
         detail = StoryDetail.model_validate(story)
         detail.links = [lnk.model_dump() for lnk in links]
+        detail.attachments = [a.model_dump(mode="json") for a in attachments]
         return {"data": detail.model_dump()}
     except DomainError as exc:
         raise exc.to_tool_error() from exc

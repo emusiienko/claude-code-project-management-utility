@@ -8,6 +8,7 @@ from app.container.container import AppContainer
 from app.milestones.schema import (
     CreateMilestone,
     Milestone,
+    MilestoneDetail,
     PaginationMeta,
     UpdateMilestone,
 )
@@ -140,6 +141,23 @@ async def finish_milestone(
 ) -> dict:
     milestone = service.finish(milestone_id)
     return {"data": Milestone.model_validate(milestone).model_dump()}
+
+
+@router.get(
+    "/{milestone_id}/detail",
+    status_code=status.HTTP_200_OK,
+    response_model=dict,
+)
+@inject
+async def get_milestone_detail(
+    milestone_id: str,
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: MilestoneService = Depends(Provide[AppContainer.milestone_service]),
+) -> dict:
+    milestone, attachments = service.get_detail(milestone_id)
+    detail = MilestoneDetail.model_validate(milestone)
+    detail.attachments = [a.model_dump(mode="json") for a in attachments]
+    return {"data": detail.model_dump()}
 
 
 @router.get(

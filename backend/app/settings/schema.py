@@ -10,7 +10,6 @@ from pydantic import BaseModel, field_validator, model_validator
 DICT_KEY_TASK_STATUSES = "task_statuses"
 DICT_KEY_TASK_TYPES = "task_types"
 DICT_KEY_STORY_STATUSES = "story_statuses"
-DICT_KEY_ATTACHMENT_TYPES = "attachment_types"
 DICT_KEY_LINK_TYPES = "link_types"
 DICT_KEY_PARTICIPANT_ROLES = "participant_roles"
 
@@ -19,7 +18,6 @@ ALL_DICT_KEYS: frozenset[str] = frozenset(
         DICT_KEY_TASK_STATUSES,
         DICT_KEY_TASK_TYPES,
         DICT_KEY_STORY_STATUSES,
-        DICT_KEY_ATTACHMENT_TYPES,
         DICT_KEY_LINK_TYPES,
         DICT_KEY_PARTICIPANT_ROLES,
     }
@@ -68,11 +66,10 @@ class LinkTypeEntry(BaseModel):
 class UpdateSettingsBody(BaseModel):
     # Partial update body for both system and project settings.
     # Only provided keys are updated; absent keys are left unchanged.
-    # Field names match the six DictionaryKey constants exactly.
+    # Field names match the five DictionaryKey constants exactly.
     task_statuses: list[str] | None = None
     task_types: list[str] | None = None
     story_statuses: list[str] | None = None
-    attachment_types: list[str] | None = None
     link_types: list[LinkTypeEntry] | None = None
     participant_roles: list[str] | None = None
 
@@ -106,7 +103,6 @@ class UpdateSettingsBody(BaseModel):
             (DICT_KEY_TASK_STATUSES, self.task_statuses),
             (DICT_KEY_TASK_TYPES, self.task_types),
             (DICT_KEY_STORY_STATUSES, self.story_statuses),
-            (DICT_KEY_ATTACHMENT_TYPES, self.attachment_types),
             (DICT_KEY_LINK_TYPES, self.link_types),
             (DICT_KEY_PARTICIPANT_ROLES, self.participant_roles),
         ]
@@ -119,11 +115,10 @@ class UpdateSettingsBody(BaseModel):
 
 
 class SettingsResponse(BaseModel):
-    # Full Settings — all six dictionary keys present.
+    # Full Settings — all five dictionary keys present.
     task_statuses: list[str]
     task_types: list[str]
     story_statuses: list[str]
-    attachment_types: list[str]
     link_types: list[LinkTypeEntry]
     participant_roles: list[str]
 
@@ -134,7 +129,6 @@ class SettingsResponse(BaseModel):
             task_statuses=data[DICT_KEY_TASK_STATUSES],
             task_types=data[DICT_KEY_TASK_TYPES],
             story_statuses=data[DICT_KEY_STORY_STATUSES],
-            attachment_types=data[DICT_KEY_ATTACHMENT_TYPES],
             link_types=_coerce_link_type_entries(raw_link_types),
             participant_roles=data[DICT_KEY_PARTICIPANT_ROLES],
         )
@@ -146,7 +140,6 @@ class SettingsOverridesResponse(BaseModel):
     task_statuses: list[str] | None = None
     task_types: list[str] | None = None
     story_statuses: list[str] | None = None
-    attachment_types: list[str] | None = None
     link_types: list[LinkTypeEntry] | None = None
     participant_roles: list[str] | None = None
 
@@ -160,7 +153,6 @@ class SettingsOverridesResponse(BaseModel):
             task_statuses=data.get(DICT_KEY_TASK_STATUSES),
             task_types=data.get(DICT_KEY_TASK_TYPES),
             story_statuses=data.get(DICT_KEY_STORY_STATUSES),
-            attachment_types=data.get(DICT_KEY_ATTACHMENT_TYPES),
             link_types=link_types,
             participant_roles=data.get(DICT_KEY_PARTICIPANT_ROLES),
         )

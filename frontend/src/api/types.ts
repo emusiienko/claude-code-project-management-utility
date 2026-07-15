@@ -120,30 +120,35 @@ export interface EnrichedStoryLink extends StoryLink {
   };
 }
 
-export type AttachmentKind = "document" | "image" | "external-ref";
+/**
+ * v1.5 — "file" is a new opaque-binary kind (PDF/DOCX/XLSX/PPTX/CSV/TXT/JSON/ZIP).
+ * Archive and version history were removed in the same revision.
+ */
+export type AttachmentKind = "document" | "image" | "file" | "external-ref";
+/** The three kinds whose content is written to disk (as opposed to external-ref). */
+export type StoredFileAttachmentKind = Extract<
+  AttachmentKind,
+  "document" | "image" | "file"
+>;
 export type ContainerType = "story" | "task" | "milestone";
 
+/**
+ * v1.5 — immutable: no update endpoint, no archive, no version history.
+ * `author_role` moved onto this entity (previously on the removed AttachmentVersion).
+ */
 export interface Attachment {
   id: string;
   container_type: ContainerType;
   container_id: string;
-  type: string;
+  title: string;
   kind: AttachmentKind;
   mime_type: string | null;
   file_size_bytes: number | null;
-  archived_at: string | null;
   external_url: string | null;
   external_status: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AttachmentVersion {
-  id: string;
-  attachment_id: string;
-  file_size_bytes: number;
   author_role: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Comment {
@@ -192,7 +197,6 @@ export type DictionaryKey =
   | "task_statuses"
   | "task_types"
   | "story_statuses"
-  | "attachment_types"
   | "link_types"
   | "participant_roles";
 
@@ -209,10 +213,10 @@ export interface LinkTypeEntry {
   inbound: string;
 }
 
-/** The five plain-string dictionary keys (all except link_types). */
+/** The four plain-string dictionary keys (all except link_types). */
 type PlainStringDictionaryKey = Exclude<DictionaryKey, "link_types">;
 
-/** Full set of six system dictionaries. link_types entries are structured objects. */
+/** Full set of five system dictionaries. link_types entries are structured objects. */
 export interface Settings extends Record<PlainStringDictionaryKey, string[]> {
   link_types: LinkTypeEntry[];
 }
@@ -319,19 +323,34 @@ export interface CreateStoryLink {
   link_type: string;
 }
 
+/** REST JSON / MCP create input for a document supplied as inline UTF-8 text. */
 export interface CreateDocumentAttachment {
-  type: string;
+  title: string;
   kind: "document";
   content: string;
   mime_type: "text/markdown" | "text/plain";
   author_role?: string;
 }
 
+/** REST JSON / MCP create input for an external-reference attachment (no stored file). */
 export interface CreateExternalRefAttachment {
-  type: string;
+  title: string;
   kind: "external-ref";
   external_url: string;
   external_status?: string;
+  author_role?: string;
+}
+
+/**
+ * Multipart form fields for any stored-file kind (document-as-file, image, file).
+ * The binary itself is appended separately as the `file` form field.
+ */
+export interface CreateStoredFileAttachment {
+  title: string;
+  kind: StoredFileAttachmentKind;
+  mime_type: string;
+  author_role?: string;
+  file: File;
 }
 
 export interface CreateComment {

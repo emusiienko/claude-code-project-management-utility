@@ -17,7 +17,7 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 | System Settings View | Manage system-level dictionary defaults | P0 |
 | Sessions View | List, create, edit sessions; filter incomplete; link to story/task | P1 |
 | Milestones View | List, create, edit, delete milestones within a project | P1 |
-| Attachments Management | Upload documents (text or file) and images to stories, tasks, or milestones; view, archive | P1 |
+| Attachments Management | Upload documents (text or file), images, and files (PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) to stories, tasks, or milestones; view via an in-app viewer or download; delete (immutable — no edit, no archive); each attachment has a mandatory free-form title, defaulted from the uploaded file's name where applicable and editable before submit — see STORY-021 <!-- updated: 2026-07-15 (STORY-021) --> | P1 |
 | Comments Management | Create, edit, delete comments on stories and tasks | P1 |
 | Work Item Linking | Create and delete typed directed links between tasks (in Task Detail Modal) and between stories (in Story slide-over); linked item titles are clickable navigation targets | P1 |
 
@@ -67,7 +67,7 @@ Reads the last-visited project ID from browser local storage (key `app:last_proj
 | `/projects/:id/settings` | Project Settings | Per-project dictionary overrides |
 | `/projects/:id/stories/:storyId` | Story Detail | Full-screen slide-over on top of the current project view |
 | `/projects/:id/stories/:storyId/tasks/:taskId` | Task Detail | Modal on top of the Story Detail slide-over |
-| `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments + comments *(placeholder)* |
+| `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments (live, STORY-007); comments *(placeholder, pending STORY-008)* |
 | `/sessions` | Sessions | Full-screen flat list, no sidebar |
 | `/settings` | System Settings | Task Manager system-level dictionary defaults |
 
@@ -217,16 +217,22 @@ Sub-nav active tab: **Board**.
 - **Add link** button → inline form: search-by-title input for target story (within the same project), `link_type` dropdown showing all directional label options (outbound + inbound for each key) populated from project's effective `link_types`; selecting an inbound option swaps source and target before the API call
 - **Delete** button per link row → confirmation dialog; on confirm the link is removed and the list refreshes
 
-**Right panel — Story Attachments:**
+**Right panel — Story Attachments:** <!-- updated: 2026-07-15 (STORY-021: title replaces type) -->
 
 > **As-built (STORY-016):** Static placeholder section. No attachment endpoint calls. Live implementation delivered by STORY-007.
+>
+> **BUG-001 fix (2026-07-15):** the section heading was initially missing the count badge present on the Task and Milestone hosts; fixed uniformly across all three hosts since they share one component. See the note below.
+>
+> **As-built notes (STORY-021):** the list row's `type` badge is replaced by the attachment's `title`.
+> For `external-ref` kind, the `external_url` continues to be shown alongside the title (title is the
+> primary label; the URL is secondary/supporting text). Confirmed matching the shipped UI — QA passed
+> with zero bugs.
 
-- Lists active attachments: type badge, kind badge, name/url, file_size_bytes, created_at
-- "Show archived" toggle reveals archived attachments (greyed out)
-- **Add attachment** button → attachment upload panel (see Attachment Upload below)
-- **View file** button (document/image) → opens file in new tab via `GET /attachments/:id/file`
-- **Archive** button (document/image) → confirmation dialog
-- **Delete** button (external-ref only) → confirmation dialog
+- Heading "Attachments" with a count badge reflecting the number of attachments currently listed; updates live after every create/delete
+- Lists attachments: title, kind badge, file_size_bytes, created_at (external-ref rows also show `external_url`)
+- **Add attachment** button → attachment upload panel (see Attachment Upload Panel below)
+- **View** button → opens the in-app Attachment Viewer (see Attachment Viewer below) for document/image/file kinds; opens `external_url` in a new tab for external-ref
+- **Delete** button (every kind) → confirmation dialog; permanent, no archive step
 
 **Right panel — Story Comments:**
 
@@ -240,7 +246,7 @@ Sub-nav active tab: **Board**.
 
 ### Task Detail View (`/projects/:id/stories/:storyId/tasks/:taskId`) <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 
-> **As-built notes (STORY-005):** The Task Detail modal is a full-screen modal (z-index 60/70) rendered above the slide-over (z-50). Data is fetched from `GET /tasks/:id/detail` via `useTaskDetail`. Effective settings (`task_types`, `task_statuses`, `participant_roles`) are loaded via `useProjectSettingsEffective(projectId)` — the data is already in the TanStack Query cache from StorySlideOver, so no extra network request is made at runtime. The Escape key is registered in the **capture phase** to intercept it before the slide-over's bubble-phase listener, preventing the slide-over from closing when the user dismisses the modal. The modal backdrop has no `onClick` handler — clicking the dimmed slide-over behind the modal does not close it. The inline Edit toggle replaces the metadata block with `TaskForm`; saving returns to the metadata view without a full remount. Links, Attachments, and Comments sections are static placeholders pending STORY-006, STORY-007, and STORY-008 respectively.
+> **As-built notes (STORY-005):** The Task Detail modal is a full-screen modal (z-index 60/70) rendered above the slide-over (z-50). Data is fetched from `GET /tasks/:id/detail` via `useTaskDetail`. Effective settings (`task_types`, `task_statuses`, `participant_roles`) are loaded via `useProjectSettingsEffective(projectId)` — the data is already in the TanStack Query cache from StorySlideOver, so no extra network request is made at runtime. The Escape key is registered in the **capture phase** to intercept it before the slide-over's bubble-phase listener, preventing the slide-over from closing when the user dismisses the modal. The modal backdrop has no `onClick` handler — clicking the dimmed slide-over behind the modal does not close it. The inline Edit toggle replaces the metadata block with `TaskForm`; saving returns to the metadata view without a full remount. At STORY-005 time, Links, Attachments, and Comments sections were static placeholders pending STORY-006, STORY-007, and STORY-008 respectively — Links went live in STORY-006 and Attachments in STORY-007; Comments remains a placeholder pending STORY-008.
 
 **Layout:** full-screen modal overlay on top of the Story Detail slide-over. The slide-over behind it is dimmed but not unmounted. The modal has a fixed header (task title + close button) and a single vertically scrollable body containing all sections.
 
@@ -292,7 +298,7 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 
 **Attachments section:**
 - Heading "Attachments" with count badge
-- Same behaviour as Story Attachments (list, add, view file, archive, delete) — see Story Detail above
+- Same behaviour as Story Attachments (list, add, view, delete) — see Story Detail above
 
 **Comments section:**
 - Heading "Comments" with count badge
@@ -328,13 +334,7 @@ Sub-nav active tab: **Milestones**.
 
 **Attachments section:**
 - Heading "Attachments" with a count badge
-- Same behaviour as Story Attachments (list, add, view file, archive, delete) — see Story Detail slide-over above
-- Lists active attachments: type badge, kind badge, name/url, file_size_bytes, created_at
-- "Show archived" toggle reveals archived attachments (greyed out)
-- **Add attachment** button → attachment upload panel (see Attachment Upload Panel below)
-- **View file** button (document/image) → opens file in new tab via `GET /attachments/:id/file`
-- **Archive** button (document/image) → confirmation dialog
-- **Delete** button (external-ref only) → confirmation dialog
+- Same behaviour as Story Attachments (list, add, view, delete) — see Story Detail slide-over above
 
 > **Deferred to STORY-008:** Comments section.
 
@@ -353,16 +353,19 @@ No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in
 
 ---
 
-### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor) -->
+### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired) -->
 
 > **As-built notes (STORY-002):** Previously implemented as two tabs (`System Defaults` / `Project Overrides`) at `/settings`. The Project Overrides tab is removed from this view — project overrides now live at `/projects/:id/settings`.
 >
 > **As-built notes (STORY-020):** `link_types` uses a dedicated three-field `LinkTypesEditor` component instead of the generic `DictionaryEditor`. The `LinkTypesEditor` spans both grid columns (`sm:col-span-2`). The generic `DictionaryEditor` is unchanged.
+>
+> **As-built notes (STORY-021):** the `attachment_types` editor is removed — the dictionary key no
+> longer exists (its sole consumer, the Attachment `type` field, was replaced by a free-form `title`).
 
 Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only). No sidebar; no sub-navigation bar.
 
-- Six dictionary editors in a 2-column responsive grid (not accordion), one per key: `task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `link_types`, `participant_roles`
-- Five keys (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `participant_roles`) use the generic chip-list editor: shows current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
+- Five dictionary editors in a 2-column responsive grid (not accordion), one per key: `task_statuses`, `task_types`, `story_statuses`, `link_types`, `participant_roles`
+- Four keys (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`) use the generic chip-list editor: shows current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
 - `link_types` uses the **three-field `LinkTypesEditor`**: renders one row per entry with three editable fields — **Value**, **Outbound label**, **Inbound label**; **Add entry** appends a blank row; **Remove** per row; all three fields must be non-empty before Save is enabled (client-side guard); server 422 surfaces above the Save button
 - **Save / Cancel** controls per editor — Save disabled when the value list is empty or any `link_types` field is blank
 - Per-key independent save state and error state (saving one key does not affect others)
@@ -371,16 +374,19 @@ Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only)
 
 ---
 
-### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor) -->
+### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired) -->
 
 > **As-built notes (STORY-002):** Previously implemented as the "Project Overrides" tab within `/settings`. Now a dedicated route accessed via the `Settings` tab in the project sub-navigation bar.
 >
 > **As-built notes (STORY-020):** `link_types` uses the same three-field `LinkTypesEditor` as the System Settings page. The Override badge and Clear override action for `link_types` are sourced from the stored overrides, same as all other keys.
+>
+> **As-built notes (STORY-021):** the `attachment_types` row is removed along with the retired
+> dictionary key.
 
 Sub-nav active tab: **Settings**.
 
-- Lists all six dictionary keys with their effective values
-- Five plain-string keys use the generic chip-list editor
+- Lists all five dictionary keys with their effective values
+- Four plain-string keys use the generic chip-list editor
 - `link_types` uses the **three-field `LinkTypesEditor`** (same behaviour as System Settings — three-column rows, Add/Remove, client-side guard before Save)
 - Each key row shows: key name, current override value (if set) with an `Override` badge, or the inherited system default value
 - **Override / Edit button** per key → activates inline editor for that key
@@ -402,20 +408,52 @@ Fields: title (text, required), content (Markdown textarea, optional), type (dro
 
 All dropdown options populated from `GET /projects/:id/settings/effective` for the current project.
 
-### Attachment Upload Panel
-- **Kind selector:** document / image / external-ref (radio or segmented control)
-- **Type dropdown:** populated from project's effective `attachment_types`
+### Attachment Upload Panel <!-- updated: 2026-07-15 (STORY-021: type dropdown replaced by title field) -->
+
+> **As-built notes (STORY-021):** The `Type dropdown` (previously populated from the project's
+> `attachment_types` dictionary) is removed. A `Title` text input takes its place: mandatory on every
+> kind. When the user selects a file for the `document` (Upload file mode), `image`, or `file` kind,
+> the Title field auto-populates with the selected file's name (truncated to 500 chars if longer); the
+> user can edit it before submitting, and the edited value is what gets saved. For the `document`
+> kind's "Write Markdown" mode and for the `external-ref` kind, the Title field has no default and the
+> user must type it in. Built exactly as planned; confirmed by manual QA with zero bugs filed.
+
+- **Kind selector:** document / image / file / external-ref (radio or segmented control)
+- **Title text input (required):** auto-populated from the selected file's name when a file is chosen
+  (document-as-file, image, file kinds); editable before submit; empty for document-as-text and
+  external-ref, which require the user to type a title explicitly
 - **For document kind:**
   - Mode toggle: "Write Markdown" (textarea) vs "Upload file" (file picker accepting .md, .txt)
   - MIME type auto-detected from mode: `text/markdown` (textarea) or from file extension
 - **For image kind:**
   - File picker accepting image/png, image/jpeg, image/gif, image/webp
   - Client-side size check: reject before upload if file > 10 MB with inline error
+- **For file kind:**
+  - File picker accepting the curated binary allow-list: PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP
+  - Client-side size check: reject before upload if file > 10 MB with inline error
 - **For external-ref kind:**
   - URL text input (required)
   - External status text input (optional)
-- Author role text input (optional, free-form)
-- Submit button
+- Author role text input (optional, free-form; stored immutably once set)
+- Submit button; disabled while the title is empty
+- Attachments are immutable once created — this panel has no edit mode; to change content or title, delete the attachment and create a new one
+
+### Attachment Viewer <!-- updated: 2026-07-15 (STORY-007 reconcile) -->
+Opened by the **View** action on an attachment row. Rendering is chosen by `mime_type`; content is
+always fetched from `GET /attachments/:id/file`:
+
+- **document, `text/markdown`** → rendered as formatted Markdown, reusing the app's existing Markdown renderer
+- **document, `text/plain` / `text/csv` / `application/json`** → shown as raw text in a scrollable `<pre>` block
+- **image** (PNG/JPEG/GIF/WEBP) → lightbox with `<img>`
+- **file, `application/pdf`** → embedded via `<iframe>` (browser's native PDF viewer)
+- **file, DOCX / XLSX / PPTX / ZIP** → no inline rendering; the row action is a **download** link only, not a viewer
+- **external-ref** → has no stored file; the row action opens `external_url` in a new tab
+
+On open, keyboard focus moves into the viewer modal (onto its close control); while open, Tab/Shift+Tab
+cycle only among the modal's own focusable elements. `Escape` closes **only** the viewer — regardless of
+which host it was opened from (Story slide-over, Task Detail modal, or Milestone Detail page) — leaving
+any parent modal/slide-over open, and returns keyboard focus to the row's **View** button that opened it.
+<!-- BUG-002/003/004 fix (2026-07-15): the viewer originally left focus on the triggering button on open (no trap), and Escape originally cascaded closed the parent Story slide-over or Task Detail modal along with the viewer. See the stacked-modal Escape rule under Accessibility. -->
 
 ### Labels Editor
 - Displayed as a list of key-value pair rows
@@ -436,7 +474,8 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 | API 404 — navigated resource deleted | "Not found" inline message with back-navigation link |
 | API 500 — server error | Toast notification: "An unexpected error occurred. Please try again." |
 | Network unreachable | Toast notification: "Cannot connect to the server. Make sure the utility is running." |
-| File > 10 MB selected for image upload | Inline error below file input before upload is attempted: "File must be smaller than 10 MB." |
+| File > 10 MB selected for image or file upload | Inline error below file input before upload is attempted: "File must be smaller than 10 MB." |
+| Attachment title left empty on submit | Inline error below the Title field before API call is made: "A title is required for every attachment." <!-- new: 2026-07-15 (STORY-021) --> |
 | Confirmation dialog — user cancels | Dialog closes; no action taken |
 | Activating a milestone when one is already active | Confirmation dialog: "This will deactivate '{current active name}'. Continue?" — cancel keeps current state; confirm swaps active milestone |
 | Board tab accessed with no active milestone | Board shows all stories without any filter applied; no filter indicator is visible; the Board tab is always enabled |
@@ -458,6 +497,7 @@ All dropdown options populated from `GET /projects/:id/settings/effective` for t
 - Confirmation dialogs trap keyboard focus until dismissed
 - Story Detail slide-over traps keyboard focus while open; `Escape` closes it and returns focus to the triggering element
 - Task Detail modal traps keyboard focus while open; `Escape` closes it and returns focus to the triggering task card
+- **Stacked modals/panels:** when panels or modals are layered on top of one another (e.g. the Attachment Viewer opened from within the Task Detail modal, itself opened from within the Story Detail slide-over), pressing `Escape` closes only the topmost layer — every parent layer stays open, and keyboard focus returns to the control that opened the topmost layer. This rule applies uniformly regardless of which host the topmost layer was opened from. <!-- added: 2026-07-15 (STORY-007 reconcile, BUG-002/003/004) -->
 - Status badges and icons have accessible text alternatives (not colour-only indicators)
 - Error messages are announced to screen readers via ARIA live regions
 

@@ -111,3 +111,32 @@
 | [TC-107](test-cases/TC-107-project-level-override-takes-precedence.md) | Project-level link_types override is used for that project's links — not the system default | @regression | STORY-020 | Active |
 | [TC-108](test-cases/TC-108-symmetric-link-type-valid.md) | A link_types entry with identical outbound and inbound labels is accepted and rendered correctly | @regression | STORY-020 | Active |
 | [TC-109](test-cases/TC-109-other-dictionaries-unaffected.md) | Other dictionary sections in Settings are unaffected and still use single-field rows | @smoke @regression | STORY-020 | Active |
+| [TC-110](test-cases/TC-110-story-attachments-section-renders.md) | Story slide-over — Attachments section renders correctly | @smoke @regression | STORY-007 | Active |
+| [TC-111](test-cases/TC-111-task-attachments-section-renders.md) | Task Detail Modal — Attachments section renders correctly | @smoke @regression | STORY-007 | Active |
+| [TC-112](test-cases/TC-112-milestone-attachments-section-renders.md) | Milestone Detail — Attachments section renders correctly | @smoke @regression | STORY-007 | Active |
+| [TC-113](test-cases/TC-113-upload-panel-kind-selector.md) | Attachment Upload Panel — kind selector switches the visible fields | @regression | STORY-007 | Active |
+| [TC-114](test-cases/TC-114-create-document-write-markdown.md) | Create a document attachment by writing Markdown, and verify display | @smoke @regression | STORY-007 | Active |
+| [TC-115](test-cases/TC-115-create-document-upload-file-mode.md) | Create a document attachment by uploading a .md/.txt file | @regression | STORY-007 | Active |
+| [TC-116](test-cases/TC-116-create-image-attachment.md) | Create an image attachment (PNG/JPEG/GIF/WEBP) | @regression | STORY-007 | Active |
+| [TC-117](test-cases/TC-117-create-file-attachment.md) | Create a file attachment (opaque binary kinds) | @regression | STORY-007 | Active |
+| [TC-118](test-cases/TC-118-create-external-ref-attachment.md) | Create an external-reference attachment | @regression | STORY-007 | Active |
+| [TC-119](test-cases/TC-119-client-side-size-guard.md) | Selecting a file over 10 MB shows an inline error before upload | @regression | STORY-007 | Active |
+| [TC-120](test-cases/TC-120-author-role-optional-field.md) | Author role is optional on every kind and displayed once set | @regression | STORY-007 | Active |
+| [TC-121](test-cases/TC-121-view-markdown-document.md) | Viewing a Markdown document attachment opens the in-app viewer, rendered | @smoke @regression | STORY-007 | Active |
+| [TC-122](test-cases/TC-122-view-raw-text-document.md) | Viewing a plain text / CSV / JSON document shows raw text in a scrollable block | @regression | STORY-007 | Active |
+| [TC-123](test-cases/TC-123-view-image-lightbox.md) | Viewing an image attachment opens a lightbox | @regression | STORY-007 | Active |
+| [TC-124](test-cases/TC-124-view-pdf-iframe.md) | Viewing a PDF file attachment opens an embedded viewer | @regression | STORY-007 | Active |
+| [TC-125](test-cases/TC-125-docx-xlsx-pptx-zip-download-only.md) | DOCX, XLSX, PPTX, and ZIP attachments offer download only, no in-app viewer | @regression | STORY-007 | Active |
+| [TC-126](test-cases/TC-126-view-external-ref-opens-new-tab.md) | Opening an external-reference attachment opens its URL in a new tab | @regression | STORY-007 | Active |
+| [TC-127](test-cases/TC-127-viewer-focus-trap-and-escape.md) | Attachment viewer modal traps focus and Escape returns focus to the triggering row | @regression | STORY-007 | Active |
+| [TC-128](test-cases/TC-128-download-attachment-file.md) | Downloading a document/image/file attachment retrieves the stored content | @regression | STORY-007 | Active |
+| [TC-129](test-cases/TC-129-delete-attachment-confirmed.md) | Delete an attachment via confirmation dialog — permanent removal | @smoke @regression | STORY-007 | Active |
+| [TC-130](test-cases/TC-130-delete-attachment-cancelled.md) | Cancelling the delete confirmation leaves the attachment intact | @regression | STORY-007 | Active |
+| [TC-131](test-cases/TC-131-type-dropdown-populated.md) | Attachment Type dropdown is populated from the project's effective attachment_types | @regression | STORY-007 | Inactive — Type dropdown/attachment_types dictionary removed by STORY-021 |
+| [TC-132](test-cases/TC-132-attachments-consistency-across-hosts.md) | Attachments add/view/delete behave consistently in the Task Detail Modal and Milestone Detail view | @regression | STORY-007 | Active |
+| [TC-133](test-cases/TC-133-title-autofill-file-based-kinds.md) | Title field auto-fills from file name for file-based attachment kinds (document-as-file, image, file) | @smoke @regression | STORY-021 | Active |
+| [TC-134](test-cases/TC-134-title-no-default-text-and-external-ref.md) | Title has no default value for document-as-text and external-ref kinds, and is required | @smoke @regression | STORY-021 | Active |
+| [TC-135](test-cases/TC-135-clearing-autofilled-title-is-rejected.md) | Clearing an auto-filled title (file-upload path) and submitting is rejected, not silently re-defaulted | @regression | STORY-021 | Active |
+| [TC-136](test-cases/TC-136-attachment-rows-display-title.md) | Attachment rows display Title instead of Type across Story, Task, and Milestone Attachments sections | @smoke @regression | STORY-021 | Active |
+| [TC-137](test-cases/TC-137-settings-no-attachment-types-editor.md) | System and Project Settings screens show five dictionary editors, with no attachment_types editor | @smoke @regression | STORY-021 | Active |
+| [TC-138](test-cases/TC-138-regression-attachments-viewer-and-modal-stack.md) | Regression: Attachments viewer, download, delete, and modal-stack Escape behavior are unaffected | @smoke @regression | STORY-021 | Active |

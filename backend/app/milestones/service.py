@@ -1,6 +1,9 @@
 import datetime
 import uuid
 
+from app.attachments.schema import CONTAINER_MILESTONE
+# Import only the Protocol, never the concrete AttachmentService.
+from app.attachments.service import AttachmentReaderProtocol
 from app.core.errors import ConflictError, NotFoundError
 from app.milestones.model import Milestone
 from app.milestones.repository import MilestoneRepository
@@ -28,10 +31,12 @@ class MilestoneService:
         repo: MilestoneRepository,
         project_repo: ProjectRepository,
         story_repo: StoryRepository,
+        attachment_reader: AttachmentReaderProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
         self._story_repo = story_repo
+        self._attachment_reader = attachment_reader
 
     def create(self, data: CreateMilestone) -> Milestone:
         self._assert_project_exists(data.project_id)
@@ -103,11 +108,27 @@ class MilestoneService:
         milestone.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
         return self._repo.save(milestone)
 
+    def get_detail(self, milestone_id: str) -> tuple[Milestone, list]:
+        milestone = self.get(milestone_id)
+        attachments: list = []
+        if self._attachment_reader is not None:
+            attachments = self._attachment_reader.list_all_for_container(
+                CONTAINER_MILESTONE, milestone.id
+            )
+        return milestone, attachments
+
     def delete(self, milestone_id: str) -> None:
         milestone = self.get(milestone_id)
         mid = milestone.id
         # Clear story links before deletion; stories are never deleted.
         self._repo.clear_story_links(mid)
+        # Application-level cascade (ADR-018 precedent, extended to the
+        # no-FK polymorphic attachment container): remove the milestone's
+        # attachments — rows and files — before the milestone itself is removed.
+        if self._attachment_reader is not None:
+            self._attachment_reader.delete_all_for_container(
+                CONTAINER_MILESTONE, mid
+            )
         self._repo.delete(milestone)
 
     def activate(self, milestone_id: str) -> Milestone:

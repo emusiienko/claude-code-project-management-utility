@@ -2,7 +2,7 @@
 
 > Owned by **qa-automation**. Update only at the user's explicit request.
 > Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
-> Last updated: 2026-07-06 (rev 6)
+> Last updated: 2026-07-15 (rev 8)
 
 ---
 
@@ -80,10 +80,11 @@ backend/
     test_stories.py        # STORY-004
     test_tasks.py          # STORY-005
     test_task_links.py     # STORY-006
-    test_attachments.py    # STORY-007
+    test_attachments.py    # STORY-007 (+ STORY-021 title field)
+    test_attachment_title_migration.py  # STORY-021 — 0010_attachment_title migration
     test_comments.py       # STORY-008
     test_sessions.py       # STORY-009
-    test_settings.py       # STORY-002
+    test_settings.py       # STORY-002 (+ STORY-021 attachment_types retirement)
     test_milestones.py     # STORY-012
 ```
 
@@ -99,10 +100,11 @@ backend/
     test_stories.py        # STORY-004
     test_tasks.py          # STORY-005
     test_task_links.py     # STORY-006
-    test_attachments.py    # STORY-007
+    test_attachments.py    # STORY-007 (+ STORY-021 title field)
+    test_attachment_title_migration.py  # STORY-021 — 0010_attachment_title migration
     test_comments.py       # STORY-008
     test_sessions.py       # STORY-009
-    test_settings.py       # STORY-002
+    test_settings.py       # STORY-002 (+ STORY-021 attachment_types retirement)
     test_milestones.py     # STORY-012
 ```
 
@@ -143,12 +145,12 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 
 | Story | Test file | Key zones |
 |-------|-----------|-----------|
-| STORY-002 (Settings) | `test_settings.py` | System dict GET; project override PUT; effective resolution; invalid key 404 |
+| STORY-002 (Settings) | `test_settings.py` | System dict GET; project override PUT; effective resolution; invalid key 404. TestAttachmentTypesRetired (STORY-021): five keys (not six) on GET system/effective; `attachment_types` absent from every response; PUT with `attachment_types` at system or project scope → 422 (unknown key) |
 | STORY-003 (Projects) | `test_projects.py` | CRUD happy path; name conflict 409; case-insensitive uniqueness; pagination |
 | STORY-004 (Stories) | `test_stories.py` | CRUD; status dictionary validation 422; label filtering; aggregate endpoint |
 | STORY-005 (Tasks) | `test_tasks.py` | CRUD; type/status dict validation; detail composition (links+attachments+comments); dependency endpoint |
 | STORY-006 (Task Linking) | `test_task_links.py`, `test_story_links.py` | Task links: create; self-link 422; cross-story 422; invalid link_type 422; duplicate 409; missing source/target 404; direction=outbound/inbound/both; link_type filter; enrichment; pagination; delete 204; cascade delete (source + target side); detail endpoint links field. Story links: same coverage mapped to story domain; cross-project 422; null-status enrichment 200 |
-| STORY-007 (Attachments) | `test_attachments.py` | Upload doc/image; external-ref create; archive; version history; file download; 10 MB limit |
+| STORY-007 (Attachments) + STORY-021 (title field) | `test_attachments.py`, `test_attachment_title_migration.py` | Create document (JSON text + multipart), image, file (opaque binary), external-ref — per container (story/task/milestone); MIME allow-list per kind (400, no "any binary" fallthrough); MCP base64 create parity with REST multipart (image/file/document-as-file); `author_role` optional on every create path; container 404 / missing-field 422 (dictionary validation removed by STORY-021 — `title` is free-form, no `attachment_types` check on any path); `title` mandatory on every create path (JSON, multipart, MCP) — missing/empty/whitespace-only → 422; two attachments on the same container may share an identical title; multipart title default-from-filename: absent → defaults to (truncated ≤500-char) uploaded file name, present-but-empty/whitespace → 422 not silently defaulted, provided value honored over filename; MCP create tools (`create_document_attachment`, `create_external_ref_attachment`, `create_file_attachment`) require `title` explicitly, no default; 10 MB boundary (exactly vs just over, REST + MCP); list pagination/kind filter; a stale `type` list query param is ignored (not an error, does not filter) — REST only, since the MCP `list_attachments` tool never accepted `type` as an argument (unrecognized kwargs are a schema-level ToolError, not a silent no-op, for that transport); GET metadata (`file_path` never present, response has `title` and no `type`) + file download (Content-Type = mime_type; external-ref 400; 404); MCP `get_attachment_file` parity + errors; no PUT (update, title is immutable) and no archive route for any kind; DELETE hard-deletes every kind (row + file for document/image/file); cascade delete on story/task/milestone removal (rows + files); story/task/milestone detail composition (milestone comments stay empty). Migration 0010_attachment_title (real Alembic upgrade/downgrade against a disposable per-test SQLite file, not a Python reimplementation): populated-DB backfill of `title` from `type`, no row left null, `type` column dropped + `title` NOT NULL, container-list index swapped from `type`- to `kind`-keyed, `attachment_types` rows deleted from both system_settings and project_settings; fresh-DB upgrade to head no-ops cleanly; downgrade restores `type` (backfilled from `title`, truncated to 100 chars) and re-seeds the system-level `attachment_types` default (project-level overrides are not recoverable, by design) |
 | STORY-008 (Comments) | `test_comments.py` | CRUD on story/task/milestone; label filtering; author_role optional |
 | STORY-009 (Sessions) | `test_sessions.py` | CRUD; linked_story/task validation; archive; incomplete-session query |
 | STORY-010 (MCP) | skip | MCP tools are REST-equivalent; REST coverage is sufficient; MCP smoke only if requested |
@@ -292,11 +294,12 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 | `frontend/src/features/tasks/hooks/useTasks.test.ts` | STORY-005 | useTaskList: disabled when empty, enabled, story-scoped cache key, distinct cache per storyId, filters forwarded; useCreateTask: calls endpoint, invalidates task list + aggregate; useUpdateTask: calls endpoint, applies optimistic update, rollback on error, invalidates list + aggregate + richDetail; useDeleteTask: calls endpoint, invalidates list + aggregate |
 | `frontend/src/features/tasks/utils/errorMessages.test.ts` | STORY-005 | extractErrorMessage: ApiRequestError → server message, unknown error → generic fallback; extractFieldErrors: field map when details present, empty object when no details, empty object for non-ApiRequestError |
 | `frontend/src/shared/utils/linkLabels.test.ts` | STORY-018 + STORY-019 | getLinkLabel: all 3 known types × 2 directions; unknown type fallback; undefined direction fallback. getLinkOptions: empty input → []; 2 entries per key (outbound first, inbound second); known labels; unknown key fallback; linkType preserved on all entries |
+| `frontend/src/shared/hooks/useModalEscape.test.ts` | STORY-007 (BUG-004 regression) | Single-modal Escape closes it; unmounted modal no longer responds; three-deep stack (viewer → Task Detail Modal → Story slide-over) — one Escape closes only the topmost entry, next Escape reveals the next host down after unmount; `isActive=false` modal does not participate in the stack; latest `onClose` ref is always called without caller memoization |
 
 ### Run Commands
 
 ```bash
-# Full frontend unit suite (confirmed working — 194 tests, ~4.6s)
+# Full frontend unit suite (confirmed working — 201 tests, ~4.4s)
 cd frontend
 npx vitest run
 

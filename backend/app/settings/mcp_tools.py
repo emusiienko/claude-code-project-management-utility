@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # link_types shape note (for MCP callers)
 # ---------------------------------------------------------------------------
-# Unlike the other five dictionaries (plain string arrays), `link_types` is a
+# Unlike the other four dictionaries (plain string arrays), `link_types` is a
 # structured object array.  Each entry must be:
 #   {"value": "<slug>", "outbound": "<label>", "inbound": "<label>"}
 # where all three fields are required non-empty strings (1–200 chars) and
@@ -38,12 +38,12 @@ logger = logging.getLogger(__name__)
 async def get_system_settings(
     service: SettingsService = Depends(provide_settings_service),
 ) -> dict[str, Any]:
-    """Return the system-level settings for all six dictionaries.
+    """Return the system-level settings for all five dictionaries.
 
-    The response contains all six dictionary keys.  Five keys
-    (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`,
-    `participant_roles`) are plain string arrays.  `link_types` is a
-    structured object array — see module-level note for the entry shape.
+    The response contains all five dictionary keys.  Four keys
+    (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`)
+    are plain string arrays.  `link_types` is a structured object array —
+    see module-level note for the entry shape.
     """
     try:
         return service.get_system_settings()
@@ -62,16 +62,15 @@ async def set_system_settings(
     """Update one or more system-level dictionary settings.
 
     Only the keys present in `body` are updated; absent keys are left unchanged.
-    The five plain-string dictionaries (`task_statuses`, `task_types`,
-    `story_statuses`, `attachment_types`, `participant_roles`) accept
-    ``list[str]``.
+    The four plain-string dictionaries (`task_statuses`, `task_types`,
+    `story_statuses`, `participant_roles`) accept ``list[str]``.
 
     `link_types` must be provided as a structured object array.  Each entry
     must have the shape ``{"value": str, "outbound": str, "inbound": str}``
     with all three fields non-empty (1–200 chars) and unique `value` across
     the array.  Passing a plain string or omitting any field returns 422.
 
-    Returns the updated system settings for all six keys.
+    Returns the updated system settings for all five keys.
     """
     try:
         return service.update_system_settings(body)
@@ -90,7 +89,7 @@ async def get_project_effective_settings(
     """Return the effective (merged) settings for a project.
 
     Each key is resolved from the project-level override when one exists,
-    otherwise from the system default.  All six keys are present in the
+    otherwise from the system default.  All five keys are present in the
     response.  `link_types` is a structured object array — see module-level
     note for the entry shape.
     """
@@ -116,9 +115,8 @@ async def set_project_settings(
     Each provided key fully replaces (never merges with) the system default
     for that key.  Absent keys are left unchanged.
 
-    The five plain-string dictionaries (`task_statuses`, `task_types`,
-    `story_statuses`, `attachment_types`, `participant_roles`) accept
-    ``list[str]``.
+    The four plain-string dictionaries (`task_statuses`, `task_types`,
+    `story_statuses`, `participant_roles`) accept ``list[str]``.
 
     `link_types` must be provided as a structured object array.  Each entry
     must have the shape ``{"value": str, "outbound": str, "inbound": str}``
@@ -146,7 +144,7 @@ async def clear_project_setting(
 
     After clearing, the effective value for that key falls back to the system
     default.  Clearing an absent override is a no-op — the system default is
-    returned.  `key` must be one of the six valid dictionary keys.
+    returned.  `key` must be one of the five valid dictionary keys.
     """
     try:
         return service.clear_project_setting(

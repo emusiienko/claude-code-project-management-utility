@@ -13,13 +13,18 @@
  *
  * Deep-link: visiting the URL directly renders the slide-over over the list.
  * Non-existent storyId: renders an inline "Not found" message.
+ *
+ * Escape closes only this slide-over, and only when it is topmost — the
+ * shared `useModalEscape` stack lets the Task Detail Modal or an attachment
+ * viewer mounted on top of it take precedence instead.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useNavigate, Outlet } from "react-router-dom";
 import { X, ChevronLeft, Pencil } from "lucide-react";
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
+import { useModalEscape } from "@/shared/hooks/useModalEscape";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
 import { TaskKanban } from "@/features/tasks/components/TaskKanban";
@@ -77,14 +82,7 @@ export function StorySlideOver() {
     navigate(`/projects/${projectId}/stories`);
   }, [navigate, projectId]);
 
-  // Escape key closes the slide-over
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") handleClose();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handleClose]);
+  useModalEscape(handleClose);
 
   // Milestone assignment — updates only milestone_id, no other fields touched
   function handleMilestoneAssign(milestoneId: string | null) {

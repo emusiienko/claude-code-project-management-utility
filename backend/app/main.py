@@ -16,6 +16,7 @@ from app.mcp.server import mcp_server_v1
 container.wire(
     packages=[
         "app.api",
+        "app.attachments",
         "app.mcp",
         "app.milestones",
         "app.projects",

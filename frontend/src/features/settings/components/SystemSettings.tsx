@@ -1,5 +1,5 @@
 /**
- * SystemSettings — view and edit all six global dictionary values.
+ * SystemSettings — view and edit all five global dictionary values.
  *
  * Renders one DictionaryEditor per dictionary key. Each editor is
  * independent: saving one key sends only that key in the request body
@@ -16,15 +16,14 @@ import type { DictionaryKey, LinkTypeEntry } from "@/api/types";
 import { ApiRequestError } from "@/core/client";
 
 /**
- * The five plain-string dictionary keys rendered by the generic DictionaryEditor.
- * link_types is excluded here — it uses structured objects and will have a
+ * The four plain-string dictionary keys rendered by the generic DictionaryEditor.
+ * link_types is excluded here — it uses structured objects and has a
  * dedicated three-field editor (STORY-020 TASK-005).
  */
 const PLAIN_DICT_KEYS: Exclude<DictionaryKey, "link_types">[] = [
   "task_statuses",
   "task_types",
   "story_statuses",
-  "attachment_types",
   "participant_roles",
 ];
 

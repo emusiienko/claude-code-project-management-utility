@@ -31,15 +31,14 @@ import type { DictionaryKey, LinkTypeEntry } from "@/api/types";
 import { ApiRequestError } from "@/core/client";
 
 /**
- * The five plain-string dictionary keys rendered by the generic DictionaryEditor.
- * link_types is excluded here — it uses structured objects and will have a
+ * The four plain-string dictionary keys rendered by the generic DictionaryEditor.
+ * link_types is excluded here — it uses structured objects and has a
  * dedicated three-field editor (STORY-020 TASK-005).
  */
 const PLAIN_DICT_KEYS: Exclude<DictionaryKey, "link_types">[] = [
   "task_statuses",
   "task_types",
   "story_statuses",
-  "attachment_types",
   "participant_roles",
 ];
 
@@ -79,7 +78,7 @@ interface EffectiveSettingsPanelProps {
 }
 
 /**
- * Renders a DictionaryEditor for each of the six dictionary keys, using the
+ * Renders a DictionaryEditor for each of the five dictionary keys, using the
  * project's effective settings as the displayed values. Shows an "Override"
  * badge on keys that have project-level overrides and a "Clear override" button.
  *

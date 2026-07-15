@@ -50,6 +50,14 @@ vi.mock("@/features/story-links/hooks/useStoryLinks", () => ({
   useDeleteStoryLink: vi.fn(),
 }));
 
+// AttachmentsSection (rendered in StoryRightPanel, STORY-007) uses TanStack Query
+// hooks — mock to avoid requiring a QueryClientProvider.
+vi.mock("@/features/attachments/hooks/useAttachments", () => ({
+  useAttachmentList: vi.fn(),
+  useCreateAttachment: vi.fn(),
+  useDeleteAttachment: vi.fn(),
+}));
+
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
@@ -65,6 +73,11 @@ import {
   useCreateStoryLink,
   useDeleteStoryLink,
 } from "@/features/story-links/hooks/useStoryLinks";
+import {
+  useAttachmentList,
+  useCreateAttachment,
+  useDeleteAttachment,
+} from "@/features/attachments/hooks/useAttachments";
 
 const mockUseStory = vi.mocked(useStory);
 const mockUseUpdateStory = vi.mocked(useUpdateStory);
@@ -78,6 +91,9 @@ const mockUseDeleteTask = vi.mocked(useDeleteTask);
 const mockUseStoryLinkList = vi.mocked(useStoryLinkList);
 const mockUseCreateStoryLink = vi.mocked(useCreateStoryLink);
 const mockUseDeleteStoryLink = vi.mocked(useDeleteStoryLink);
+const mockUseAttachmentList = vi.mocked(useAttachmentList);
+const mockUseCreateAttachment = vi.mocked(useCreateAttachment);
+const mockUseDeleteAttachment = vi.mocked(useDeleteAttachment);
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -169,6 +185,14 @@ beforeEach(() => {
   } as never);
   mockUseCreateStoryLink.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseDeleteStoryLink.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  // AttachmentsSection hooks — return empty data so the section renders without errors
+  mockUseAttachmentList.mockReturnValue({
+    data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 0 } },
+    isLoading: false,
+    isError: false,
+  } as never);
+  mockUseCreateAttachment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  mockUseDeleteAttachment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
 });
 
 // ---------------------------------------------------------------------------

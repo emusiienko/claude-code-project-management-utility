@@ -9,7 +9,7 @@ The following assumptions were made where the validated idea or conceptual docum
 3. **Labels structure** — labels are an ordered array of `{key: string, value: string}` objects; `key` is always required; all keys are free-form.
 4. **Session status** — free-form string, not dictionary-validated (conceptual doc: "свободная метка" — free label).
 5. **Story statuses dictionary** — added as settings key `story_statuses`; the dedicated `status` field on Story is validated against this dictionary.
-6. **Attachment file storage** — all attachment content (both `document` and `image` kinds) is stored on the server filesystem, not as text in the database. This makes attached artifacts (plans, architecture docs, implementation reports) directly accessible as files on disk. The database stores metadata and a server-internal file path only. For AI agents (MCP), document content is submitted as UTF-8 text in the request body and the server writes it to a file. For the Web UI, file upload via multipart/form-data is also supported.
+6. **Attachment file storage** — attachment content for the `document`, `image`, and `file` kinds is stored on the server filesystem, not as text in the database. This makes attached artifacts (plans, architecture docs, implementation reports, PDFs, spreadsheets) directly accessible as files on disk. The database stores metadata and a server-internal file path only. Attachments are immutable: each has exactly one stored file, written once at create and never overwritten — there is no update endpoint and no version history; changing content means deleting the attachment and creating a new one. For AI agents (MCP), document content is submitted as UTF-8 text in the request body for the document-as-text path, or as base64-encoded bytes (`content_base64` + `mime_type`) for any stored-file kind (image, file, or a document uploaded as a file) — the `get_attachment_file` MCP tool returns a stored file's bytes as base64 for reading. For the Web UI, file upload via multipart/form-data is used for all stored-file kinds. <!-- updated: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
 7. **Authentication** — none; this is a single-developer personal tool. Docker port mapping to localhost is the access boundary — no auth layer required.
 
 ---
@@ -21,10 +21,10 @@ The following assumptions were made where the validated idea or conceptual docum
 | Project Management | CRUD for projects — the top-level namespace for all work items | P0 |
 | Stories | Top-level work containers within a project; dedicated `status` field (dictionary-validated); free-form labels; on-demand aggregated task state | P0 |
 | Tasks | Atomic work items within a story; `type`, `status`, `assignee_role`, `creator_role` from per-project dictionaries; validated at write | P0 |
-| Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, attachment types, link types, participant roles); system defaults; project-level overrides | P0 |
+| Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, link types, participant roles); system defaults; project-level overrides <!-- updated: 2026-07-15 (STORY-021: attachment_types retired — see STORY-021 section) --> | P0 |
 | MCP Server | Full MCP protocol access surface exposing all operations for AI agents | P0 |
 | Work Item Linking | Typed directed links between tasks (`task_links`) and between stories (`story_links`); same semantic model — typed, directed, same-project-only, passive; detail endpoints return enriched link lists with id, title, and status of the linked item | P1 |
-| Attachments | Document attachments (Markdown/text files, stored on filesystem, archivable) and image attachments (binary files on filesystem, archivable) and external-reference attachments (URL + status, detachable) attached to stories, tasks, or milestones; a single stored file per attachment — no version history | P1 |
+| Attachments | Document (Markdown/text), image, and file (curated binary formats: PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) attachments — stored on filesystem — plus external-reference attachments (URL + status) attached to stories, tasks, or milestones; immutable once created (a single stored file per attachment, no update, no version history); create + delete only, delete permanently removes every kind; agents get full base64 upload/download parity over MCP; every attachment carries a mandatory free-form `title` (defaults to the uploaded file name, editable; agents must supply it explicitly) — see STORY-021 | P1 |
 | Comments | Author + text notes attached to stories or tasks; support labels | P1 |
 | Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
 | Milestones | Named planning markers scoped to exactly one project; each milestone has a lifecycle status (`planned` / `active` / `finished`); at most one milestone per project may be `active` at a time (activate action demotes the previous one atomically); stories are optionally assigned to a milestone via nullable FK; `story_count` is server-derived | P1 |
@@ -112,24 +112,24 @@ Unique constraint: (source_story_id, target_story_id, link_type).
 
 ---
 
-### Attachment <!-- updated: 2026-07-14 (STORY-007 spec) -->
+### Attachment <!-- updated: 2026-07-15 (STORY-021 reconcile) -->
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
 | container_type | enum | Yes | "story" \| "task" \| "milestone"; immutable | |
 | container_id | UUID | Yes | FK → Story, Task, or Milestone (per container_type); immutable | |
-| type | string | Yes | from container's project's `attachment_types` dictionary | |
-| kind | enum | Yes | "document" \| "image" \| "external-ref"; immutable | |
-| mime_type | string | Cond. | required when kind = "document" or "image"; e.g. "text/markdown", "text/plain", "image/png" | stored; used as Content-Type when serving the file |
-| file_size_bytes | integer | Cond. | required when kind = "document" or "image"; set on upload/creation | |
-| archived_at | timestamp | No | null = active; non-null = archived; "document" and "image" kinds only | once archived, file content is immutable |
+| title | string | Yes | 1–500 chars; free-form, not dictionary-validated; immutable after create | <!-- new: 2026-07-15 (STORY-021) --> defaults to the uploaded file's name for file-based create paths (Web UI); must be supplied explicitly for document-as-text, external-ref, and every MCP create path. Replaces the removed `type` field. |
+| kind | enum | Yes | "document" \| "image" \| "file" \| "external-ref"; immutable | |
+| mime_type | string | Cond. | required when kind = "document", "image", or "file"; e.g. "text/markdown", "image/png", "application/pdf" | stored; used as Content-Type when serving the file |
+| file_size_bytes | integer | Cond. | required when kind = "document", "image", or "file"; set on upload/creation | |
 | external_url | string | Cond. | required when kind = "external-ref"; max 2,000 chars; valid URI | |
 | external_status | string | No | free-form; max 200 chars; "external-ref" kind only | user-defined state of the referenced artifact; e.g. "open", "merged", "deployed". Semantic meaning is caller-defined; the utility stores it without interpretation. |
+| author_role | string | No | free-form; accepted on every create path (all kinds); immutable after create | descriptive metadata — who created the attachment; not access control |
 | created_at | timestamp | Yes | set on create | |
 | updated_at | timestamp | Yes | set on update | |
 
-**File storage:** for `kind = "document"` and `kind = "image"`, the file content is stored on the server filesystem. A server-internal `file_path` is maintained but never exposed in API responses. There is exactly one stored file per attachment; updating a document's content replaces that file in place — no version history is retained.
+**File storage:** for `kind = "document"`, `kind = "image"`, and `kind = "file"`, the file content is stored on the server filesystem. A server-internal `file_path` is maintained but never exposed in API responses. There is exactly one stored file per attachment, written once at create. Attachments are immutable — there is no update endpoint and no version history. To change content, delete the attachment and create a new one.
 
 ---
 
@@ -173,14 +173,18 @@ Sessions do not belong to a project. A project may be mentioned in `topic` or `c
 
 ---
 
-### SystemSettings <!-- updated: 2026-07-13 (STORY-020 reconcile) -->
+### SystemSettings <!-- updated: 2026-07-15 (STORY-021: attachment_types retired) -->
 
 One row per dictionary key. Pre-seeded at install time; updatable.
 
+> **STORY-021:** The `attachment_types` key is removed. It had exactly one consumer — the
+> Attachment `type` field — which is itself removed in favor of a free-form `title`. Five dictionary
+> keys remain.
+
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
-| key | string | Yes | PK; one of the six keys below | |
-| values | JSON array | Yes | see per-key format below; min 1 item | format is heterogeneous: `link_types` is `LinkTypeEntry[]`; the other five keys are `string[]` |
+| key | string | Yes | PK; one of the five keys below | |
+| values | JSON array | Yes | see per-key format below; min 1 item | format is heterogeneous: `link_types` is `LinkTypeEntry[]`; the other four keys are `string[]` |
 | updated_at | timestamp | Yes | set on update | |
 
 **LinkTypeEntry** — the structured format used exclusively for `link_types` values:
@@ -200,11 +204,12 @@ Symmetric entries (`outbound == inbound`, e.g. `"context"`) are valid.
 | task_statuses | `["todo", "in-progress", "done"]` |
 | task_types | `["task", "bug", "testing-task"]` |
 | story_statuses | `["planned", "in-progress", "pending-approval", "accepted"]` |
-| attachment_types | `["plan", "document", "image", "implementation-report", "test-result", "external-ref"]` |
 | link_types | `[{"value":"depends-on","outbound":"depends on","inbound":"dependent"},{"value":"dependent","outbound":"dependent","inbound":"depends on"},{"value":"created-by","outbound":"created by","inbound":"creates"},{"value":"creates","outbound":"creates","inbound":"created by"},{"value":"context","outbound":"context","inbound":"context for"}]` |
 | participant_roles | `["orchestrator", "architect", "backend-developer", "frontend-developer", "devops", "spec-writer", "qa-automation", "manual-qa"]` |
 
 > **As-built notes (STORY-020):** `link_types` changed from a flat string array to a `LinkTypeEntry[]` array in migration `0008_link_types_structured`. The migration converts existing flat-string entries to structured objects (best-effort: `"depends-on"` → `{"value":"depends-on","outbound":"depends-on","inbound":"depends-on"}`); the five canonical slugs receive their correct directional labels. Migration seed in `0002_settings` was updated so fresh installs start with the five canonical structured defaults. The migration is reversible: downgrade converts structured objects back to flat strings using only the `value` field. See ADR-019.
+>
+> **STORY-021:** The `attachment_types` key (formerly `["plan", "document", "image", "implementation-report", "test-result", "external-ref"]`) and its row are removed from both `SystemSettings` and `ProjectSettings` — no field consumes it anymore.
 
 ---
 
@@ -215,7 +220,7 @@ One row per (project, key) pair. Absent rows fall through to system defaults.
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | project_id | UUID | Yes | FK → Project; composite PK (project_id, key) | |
-| key | string | Yes | same six keys as SystemSettings; composite PK | |
+| key | string | Yes | same five keys as SystemSettings; composite PK | <!-- updated: 2026-07-15 (STORY-021: attachment_types retired) --> |
 | values | JSON array | Yes | see per-key format (same heterogeneous rule as SystemSettings); min 1 item | completely replaces (does not merge with) the system default for that key |
 | updated_at | timestamp | Yes | set on update | |
 
@@ -284,7 +289,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | TaskLink | (target_task_id, link_type) | inbound links per task (for blocked computation) |
 | StoryLink | (source_story_id, link_type) | outbound links per story |
 | StoryLink | (target_story_id, link_type) | inbound links per story |
-| Attachment | (container_type, container_id, type, archived_at) | attachments per container filtered by type and active/archived |
+| Attachment | (container_type, container_id, kind) | attachments per container filtered by kind <!-- updated: 2026-07-15 (STORY-021: was filtered by type, now type is removed) --> |
 | Comment | (container_type, container_id, created_at ASC) | comment thread per container |
 | Session | (archived_at, result_decisions) | find incomplete sessions (WHERE result_decisions IS NULL AND archived_at IS NULL) |
 | Session | (linked_story_id) | sessions for a story |
@@ -415,12 +420,13 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 > **As-built notes (STORY-005):** Implemented via `TaskCounterProtocol` injected into `StoryService`. The protocol is duck-typed against `TaskRepository.get_status_counts(story_id)` — the stories service never imports the concrete task service. `total_tasks` is computed as `sum(by_status.values())` to avoid a second DB round-trip. The `get_story_aggregate` MCP tool mirrors the REST endpoint exactly. Container declaration order: `task_repository` must be declared before `story_service` in `AppContainer` because Python evaluates class-body assignments in order.
 
-#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile); updated: 2026-07-13 (STORY-006: links added) -->
+#### GET /stories/:id/detail <!-- updated: 2026-07-02 (STORY-001 reconcile); updated: 2026-07-13 (STORY-006: links added); updated: 2026-07-15 (STORY-007 reconcile: attachments populated) -->
 
 > **As-built notes (STORY-006):**
 > - The route was added in STORY-006 TASK-003 alongside the `StoryDetail` schema (`StoryDetail(Story)` Pydantic model in `stories/schema.py`). The endpoint is registered in `stories/controller.py` before the existing `/aggregate` route, and mirrored as the `get_story_detail` MCP tool.
 > - `links` is populated by `StoryService.get_detail` via the injected `StoryLinkReaderProtocol`; returns `[]` when the reader is not wired.
 > - **BUG-001 fix (2026-07-13):** `LinkedStorySummary.status` is declared `str | None` (nullable). The original spec described `status` as a string; however `story.status` is nullable, causing a 500 when any linked story has no status. The fix is a one-line type change in `story_links/schema.py`. All enriched story-link responses must tolerate `null` in the `status` field.
+> - **As-built notes (STORY-007):** `attachments` is now populated by `StoryService.get_detail` via the injected `AttachmentReader` Protocol (mirrors the `StoryLinkReaderProtocol` pattern) — no longer an empty placeholder array. `comments` remains `[]` pending STORY-008.
 
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:**
@@ -453,7 +459,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 > - The controller uses two separate routers: `stories_router` for `POST /stories/{story_id}/tasks` and `GET /stories/{story_id}/tasks`; `tasks_router` for `GET/PUT/DELETE /tasks/{task_id}` and `GET /tasks/{task_id}/detail`.
 > - `PUT /tasks/:id` omitting `assignee_role` or `creator_role` leaves the current value unchanged. Sending `null` clears the field (always allowed — not dictionary-validated when clearing). The `"field" in data.model_fields_set` guard ensures null-clearing and omission remain distinct.
 > - `PUT /tasks/:id` with `story_id` in the body is silently ignored (`UpdateTask` schema does not declare it). The owning story never changes.
-> - `GET /tasks/:id/detail` `links` field is populated by STORY-006 (TASK-003) via the injected `TaskLinkReaderProtocol`; `attachments` and `comments` remain `[]` pending STORY-007 and STORY-008.
+> - `GET /tasks/:id/detail` `links` field is populated by STORY-006 (TASK-003) via the injected `TaskLinkReaderProtocol`. `attachments` is populated by STORY-007 (TASK-003) via the injected `AttachmentReader` Protocol; `comments` remains `[]` pending STORY-008.
 > - The `delete_task` MCP tool (and all task MCP tools) return appropriate values; the MCP protocol does not support void returns.
 > - Cascade delete (`task ON DELETE CASCADE`) is implemented in migration `0005_task` at the DB schema level. SQLite WAL mode requires `PRAGMA foreign_keys = ON` at connection time to enforce FK cascade; the conftest engine setup does not yet set this pragma — the cascade test is marked `xfail(strict=True)` pending that fix.
 
@@ -584,30 +590,60 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 ---
 
-### Attachments <!-- updated: 2026-07-14 (STORY-007 spec) -->
+### Attachments <!-- updated: 2026-07-15 (STORY-021 reconcile: type replaced by title) -->
 
-Attachments of `kind = "document"` or `kind = "image"` are stored as files on the server filesystem. The create endpoint accepts either `application/json` (for programmatic/MCP use) or `multipart/form-data` (for file uploads from the Web UI). Attachments may be attached to a story, task, or milestone (`container_type`).
+Attachments are immutable once created — there is no update endpoint and no archive; the lifecycle is create + delete only. Attachments of `kind = "document"`, `kind = "image"`, or `kind = "file"` are stored as files on the server filesystem. The create endpoint accepts either `application/json` (for programmatic/MCP use) or `multipart/form-data` (for file uploads from the Web UI). Attachments may be attached to a story, task, or milestone (`container_type`).
+
+> **As-built notes (STORY-007):**
+> - `container_id` carries **no foreign key** — it is a polymorphic reference across three tables (story/task/milestone); container existence is validated in the service layer, not the DB. Cascade removal on container delete is application-level (extends the ADR-018 app-cascade precedent to a no-FK polymorphic association — see ADR-020).
+> - Cross-domain container reads and cascade delete are implemented via an `AttachmentReader` Protocol injected into the story, task, and milestone services, mirroring the task-links/story-links precedent.
+> - `GET /attachments/:id/file` reads the whole file into memory before streaming the response (acceptable at the 10 MB cap; would need revisiting if the limit grows).
+
+> **As-built notes (STORY-021):** `type` (formerly validated against the `attachment_types`
+> dictionary) is removed from every create path and response. `title` (mandatory, free-form, 1–500
+> chars) takes its place. For file-based create paths (multipart upload from the Web UI), omitting
+> `title` defaults it to the uploaded file's name, truncated to 500 chars; the caller may still supply
+> `title` explicitly to override the default in the same request. Every other create path
+> (document-as-text JSON, external-ref JSON, and every MCP argument shape) requires `title` explicitly
+> — there is no default to fall back to. Built exactly as planned; confirmed by automated tests
+> (72 rewritten attachment tests + 11 new migration tests, 0 failures). Two as-built clarifications
+> surfaced by QA are documented at the Settings and list-endpoint notes below: (1) sending the retired
+> `attachment_types` key to a settings `PUT` returns **422**, not 400; (2) the MCP `list_attachments`
+> tool raises a hard error on a stale `type` keyword argument rather than silently ignoring it, unlike
+> the REST list endpoints. See api-contract v1.6.
 
 #### POST /stories/:storyId/attachments
 #### POST /tasks/:taskId/attachments
 #### POST /milestones/:milestoneId/attachments
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **`kind = document` via JSON:** `{ "type", "kind": "document", "content": "string", "mime_type": "text/markdown|text/plain", "author_role" }`
-- **`kind = document` or `kind = image` via multipart:** fields `type`, `kind`, `mime_type`, `author_role` + `file` binary
-- **`kind = external-ref` via JSON:** `{ "type", "kind": "external-ref", "external_url": "string", "external_status" }`
+- **`kind = document` via JSON:** `{ "title": "string (required, 1–500 chars)", "kind": "document", "content": "string", "mime_type": "text/markdown|text/plain", "author_role" }`
+- **`kind = document`, `image`, or `file` via multipart:** fields `title` (optional — defaults to the uploaded file's name if omitted), `kind`, `mime_type`, `author_role` + `file` binary
+- **`kind = external-ref` via JSON:** `{ "title": "string (required, 1–500 chars)", "kind": "external-ref", "external_url": "string", "external_status", "author_role" }`
+- `author_role` is optional on every create path, for every kind; stored immutably once set.
+- `title` is immutable after create, exactly like every other attachment field (no update endpoint).
+- **Per-kind MIME allow-list:** document: `text/markdown`, `text/plain`; image: `image/png`, `image/jpeg`, `image/gif`, `image/webp`; file: `application/pdf`, `application/vnd.openxmlformats-officedocument.*` (docx/xlsx/pptx), `text/csv`, `text/plain`, `application/json`, `application/zip`
+- **Size limit:** 10 MB for every stored-file kind (document, image, file)
+- **MCP create surface (agents):** document-as-text and external-ref via plain JSON args; image, file, and a document uploaded **as a file** (rather than inline text) via a base64 argument `{ title, kind, mime_type, content_base64, author_role? }`. **`title` is a required argument on every MCP create tool, with no default** — the tool decodes the base64 onto the same service path as the REST multipart route, but there is no file name available in a base64 payload to default from, so the calling agent must always supply it. Same per-kind MIME allow-list and 10 MB limit apply; binary never crosses MCP except as base64, one file per call.
 - **Response 201:** `{ "data": { Attachment } }`
 - **Response errors:**
-  - 400: file > 10 MB; unsupported MIME type; external_url is not a valid URI (non-Pydantic business checks)
+  - 400: file > 10 MB; unsupported MIME type for the kind; external_url is not a valid URI (non-Pydantic business checks)
   - 404: container (story, task, or milestone) not found
-  - 422: required fields missing (Pydantic); type not in dict
+  - 422: required fields missing (Pydantic) — including `title` missing/empty on every path where it is required
 
 #### GET /stories/:storyId/attachments
 #### GET /tasks/:taskId/attachments
 #### GET /milestones/:milestoneId/attachments
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Query params:** `page`, `limit`, `type`, `kind`, `include_archived` (bool, default: false)
+- **Query params:** `page`, `limit`, `kind` <!-- updated: 2026-07-15 (STORY-021): `type` filter removed along with the field -->
 - **Response 200:** paginated Attachment list
 - **Response errors:** 404
+
+> **As-built notes (STORY-021):** A stale `?type=` query param on these REST list endpoints is
+> silently ignored (unknown query params are dropped by the framework) — not an error. The MCP
+> `list_attachments` tool behaves differently: it no longer declares a `type` keyword argument at all,
+> so passing one raises a schema-level tool error (`ToolError: Unexpected keyword argument`) instead of
+> being silently ignored. This is an inherent transport difference — MCP tool calls are strict,
+> Pydantic-validated RPC, while REST query strings are lenient — not a REST/MCP parity gap to close.
 
 #### GET /attachments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -616,30 +652,18 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 #### GET /attachments/:id/file
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** raw file with `Content-Type` matching `mime_type`
+- **Response 200:** raw file with `Content-Type` matching `mime_type` (document, image, or file kind)
 - **Response errors:**
   - 400: `kind = external-ref` → `{ "error": "External reference attachments do not have a stored file.", "code": "VALIDATION_ERROR" }`
   - 404
 
-#### PUT /attachments/:id
-- **Auth:** none  **Rate limit:** 1,000 req/min
-- **`kind = document` via JSON:** `{ "content": "string", "author_role" }` — replaces the stored file content in place; no history retained
-- **`kind = document` via multipart:** `file` + optional `author_role` — same effect
-- **`kind = external-ref`:** `{ "external_url", "external_status" }`
-- **`kind = image`:** not updatable → 400
-- **Response 200:** `{ "data": { Attachment } }`
-- **Response errors:** 400 (archived; image kind), 404
-
-#### POST /attachments/:id/archive
-- **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** `{ "data": { Attachment } }` with `archived_at` set
-- **Response errors:** 400 (already archived; external-ref kind), 404
+**MCP-only:** `get_attachment_file(id) -> { mime_type, content_base64 }` — returns the stored file's bytes as base64 for `document` / `image` / `file`, so agents can read attachment content (e.g. a PDF or an existing document) without an HTTP fetch. Errors if `kind = external-ref` (no stored file) or the attachment is not found. No REST equivalent beyond `GET /attachments/:id/file`.
 
 #### DELETE /attachments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Behavior:** only `kind = external-ref`; document and image are archived, never deleted
+- **Behavior:** deletable for **every** kind. Removes the DB row and, for document/image/file, the stored file from disk; external-ref has no stored file, so only its row is removed.
 - **Response 204**
-- **Response errors:** 400 (document or image kind), 404
+- **Response errors:** 404
 
 ---
 
@@ -708,19 +732,27 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 ---
 
-### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile); updated: 2026-07-13 (STORY-020: link_types structured) -->
+### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile); updated: 2026-07-13 (STORY-020: link_types structured); updated: 2026-07-15 (STORY-021: attachment_types retired) -->
 
-> **As-built notes (STORY-020):** Settings responses are now **heterogeneous** — `link_types` is returned and accepted as `LinkTypeEntry[]`; the other five keys remain plain `string[]`. The MCP tools (`get_system_settings`, `set_system_settings`, `get_project_effective_settings`, `set_project_settings`, `clear_project_setting`) mirror this shape; validation for `link_types` delegates entirely to the service layer. See ADR-019.
+> **As-built notes (STORY-020):** Settings responses are now **heterogeneous** — `link_types` is returned and accepted as `LinkTypeEntry[]`; the other four keys remain plain `string[]`. The MCP tools (`get_system_settings`, `set_system_settings`, `get_project_effective_settings`, `set_project_settings`, `clear_project_setting`) mirror this shape; validation for `link_types` delegates entirely to the service layer. See ADR-019.
+>
+> **As-built notes (STORY-021):** `attachment_types` is removed — it had no consumer once the
+> Attachment entity's `type` field was replaced by a free-form `title`. Five dictionary keys remain:
+> `task_statuses`, `task_types`, `story_statuses`, `link_types`, `participant_roles`. A `PUT` request
+> including `attachment_types` (or any other unrecognized key) is rejected as an unknown key with
+> **422**, not 400 — the existing unknown-key rejection is a Pydantic `model_validator` that FastAPI
+> surfaces as 422 for every dictionary key, not a status this story changed. The error line below is
+> corrected accordingly; see api-contract v1.6.
 
 #### GET /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** `{ "data": { task_statuses: string[], task_types: string[], story_statuses: string[], attachment_types: string[], link_types: LinkTypeEntry[], participant_roles: string[] } }`
+- **Response 200:** `{ "data": { task_statuses: string[], task_types: string[], story_statuses: string[], link_types: LinkTypeEntry[], participant_roles: string[] } }`
 
 #### PUT /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** partial — only provided keys updated; `link_types` must be `LinkTypeEntry[]` (plain strings → 422); other keys must be `string[]`
 - **Response 200:** `{ "data": { all system settings } }`
-- **Response errors:** 400 (unknown key; empty values array; duplicate `link_types` value); 422 (Pydantic validation: plain string in `link_types`; missing/blank `LinkTypeEntry` field)
+- **Response errors:** 400 (empty values array; duplicate `link_types` value); 422 (unknown key — e.g. the retired `attachment_types` key, rejected by the same Pydantic `model_validator` as any other unknown key, not 400 <!-- corrected: 2026-07-15 (STORY-021 reconcile) -->; plain string in `link_types`; missing/blank `LinkTypeEntry` field)
 
 #### GET /projects/:projectId/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -729,14 +761,14 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 #### GET /projects/:projectId/settings/effective
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** merged effective dictionaries for all six keys; `link_types` is `LinkTypeEntry[]`
+- **Response 200:** merged effective dictionaries for all five keys; `link_types` is `LinkTypeEntry[]`
 - **Response errors:** 404
 
 #### PUT /projects/:projectId/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** partial settings object; same heterogeneous format as PUT /system/settings
 - **Response 200:** `{ "data": { effective settings after update } }`
-- **Response errors:** 400 (unknown key; empty values; duplicate `link_types` value), 404; 422 (Pydantic validation on `link_types`)
+- **Response errors:** 400 (empty values; duplicate `link_types` value), 404; 422 (unknown key — same Pydantic rejection as system settings, not 400 <!-- corrected: 2026-07-15 (STORY-021 reconcile) -->; Pydantic validation on `link_types`)
 
 #### DELETE /projects/:projectId/settings/:key *(not yet implemented — see Known Gaps)*
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -747,9 +779,9 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 
 ---
 
-### Milestones <!-- updated: 2026-07-11 (STORY-012 reconcile) -->
+### Milestones <!-- updated: 2026-07-11 (STORY-012 reconcile); updated: 2026-07-15 (STORY-007 reconcile: detail endpoint added) -->
 
-> **As-built notes (STORY-012):** The previously planned M:N (milestone ↔ project) model was replaced with a single-project model before implementation. Each milestone carries a `project_id` FK (not a join table). A `status` lifecycle field was added (`planned` / `active` / `finished`). Lifecycle transitions are exposed as action endpoints (POST activate / POST finish), not via PUT. `story_count` is a server-derived field present on both list and detail responses. `container_type = "milestone"` for attachments/comments was deferred — not implemented in STORY-012.
+> **As-built notes (STORY-012):** The previously planned M:N (milestone ↔ project) model was replaced with a single-project model before implementation. Each milestone carries a `project_id` FK (not a join table). A `status` lifecycle field was added (`planned` / `active` / `finished`). Lifecycle transitions are exposed as action endpoints (POST activate / POST finish), not via PUT. `story_count` is a server-derived field present on both list and detail responses. `container_type = "milestone"` for attachments was deferred at STORY-012 time and implemented in STORY-007 (comments remain deferred, pending STORY-008).
 
 #### POST /milestones
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -806,6 +838,23 @@ Attachments of `kind = "document"` or `kind = "image"` are stored as files on th
 - **Response 200:** paginated Story list assigned to this milestone
 - **Response errors:** 404
 
+#### GET /milestones/:id/detail <!-- added: 2026-07-15 (STORY-007 reconcile) -->
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 200:**
+  ```json
+  {
+    "data": {
+      "...all Milestone fields, plus story_count...",
+      "attachments": [ active Attachment objects ],
+      "comments": []
+    }
+  }
+  ```
+  Composite read — milestone entity plus its attachments. `comments` is always `[]` pending STORY-008 (Milestones has no comment container support yet).
+- **Response errors:** 404
+
+> **As-built notes (STORY-007):** This endpoint did not exist prior to STORY-007; it closes the Known Divergence left open at STORY-012 (deferred pending the attachments domain). `attachments` is populated via the same injected `AttachmentReader` Protocol used by the Story and Task detail endpoints.
+
 #### Story list — milestone filter (extension to existing GET /projects/:projectId/stories)
 The story list endpoint accepts an optional `milestone_id` query parameter. An unknown or malformed `milestone_id` yields an empty page (not an error).
 
@@ -844,10 +893,10 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 | TaskLink | target_task_id | Must differ from source | "A task cannot link to itself." |
 | TaskLink | target_task_id | Must share the same `story_id` as source | "Linked tasks must belong to the same story." |
 | TaskLink | (source, target, type) | Unique | "This link already exists." |
-| Attachment | type | Required; in `attachment_types` dict | "Attachment type '{v}' is not allowed. Allowed: {list}." |
-| Attachment | kind | Required; one of the three enum values | "Attachment kind must be 'document', 'image', or 'external-ref'." |
+| Attachment | title | Required; 1–500 chars; free-form, not dictionary-validated <!-- updated: 2026-07-15 (STORY-021): replaces the removed `type` field --> | "A title is required for every attachment." |
+| Attachment | kind | Required; one of the four enum values | "Attachment kind must be 'document', 'image', 'file', or 'external-ref'." |
 | Attachment | content / file | Required when kind = document | "Content is required for document attachments." |
-| Attachment | mime_type | Required when kind = document or image; allowed values per kind | "MIME type '{v}' is not supported for {kind} attachments." |
+| Attachment | mime_type | Required when kind = document, image, or file; allowed values per kind | "MIME type '{v}' is not supported for {kind} attachments." |
 | Attachment | external_url | Required when kind = external-ref; valid URI | "A valid URL is required for external reference attachments." |
 | Comment | content | Required; 1–50,000 chars | "Comment content is required." |
 | Session | topic | Required; 1–500 chars | "Session topic is required." |
@@ -862,22 +911,24 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 ### Business-Level
 
 1. A task's project is determined transitively via `task.story_id → story.project_id`. All dictionary lookups use that project's effective settings.
-2. Document and image attachments (`kind = "document"` or `kind = "image"`) are archived, never deleted.
-3. An archived document attachment cannot have its content updated. Image attachments cannot be updated at all — archive and re-create.
-4. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments. Sessions linked to deleted Stories or Tasks have links set to null.
-5. `GET /stories/:id/aggregate` is always computed on demand; never stored.
-6. `GET /tasks/:id/dependencies` returns raw data only — the utility never enforces blocking.
-7. A session where both `result_decisions` and `result_summary` are null is incomplete.
-8. ProjectSettings for a given key completely replace (not merge with) the system default.
-9. A session without a linked story or task is valid.
-10. Updating a document attachment's content replaces the existing stored file in place; no prior version is retained or recoverable.
-11. TaskLinks can only be created between tasks that share the same `story_id`. Both `source_task_id` and `target_task_id` must belong to the same parent story; cross-story task links are rejected (422).
-12. A project can have at most one milestone with status `active` at a time. Activating a milestone when another is already `active` demotes the previous one to `planned` in the same database transaction.
-13. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted. Deleting a project cascades to all its milestones.
-14. `link_types` is the only dictionary key with a structured entry format (`LinkTypeEntry[]`). All other five dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `attachment_types`, `participant_roles`) remain plain `string[]`. Sending a plain string in `link_types` is rejected with 422. Duplicate `value` fields within the same `link_types` array are rejected with 400.
-15. `link_type` validation on TaskLink and StoryLink creation checks against the `value` fields extracted from the effective `link_types` entries. The stored `link_type` column on `task_link` and `story_link` tables continues to hold the plain value string; existing rows are not back-filled when entries are updated.
-16. A `link_types` entry where `outbound` and `inbound` are the same string (symmetric relationship) is valid and stored as-is.
-17. Attachments may be attached to a story, task, or milestone (`container_type`). Deleting a story, task, or milestone permanently removes all of its attachments — this cascade delete overrides the normal archive-not-delete rule for document/image attachments, since the container itself no longer exists. <!-- updated: 2026-07-14 (STORY-007 spec) -->
+2. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments. Sessions linked to deleted Stories or Tasks have links set to null.
+3. `GET /stories/:id/aggregate` is always computed on demand; never stored.
+4. `GET /tasks/:id/dependencies` returns raw data only — the utility never enforces blocking.
+5. A session where both `result_decisions` and `result_summary` are null is incomplete.
+6. ProjectSettings for a given key completely replace (not merge with) the system default.
+7. A session without a linked story or task is valid.
+8. TaskLinks can only be created between tasks that share the same `story_id`. Both `source_task_id` and `target_task_id` must belong to the same parent story; cross-story task links are rejected (422).
+9. A project can have at most one milestone with status `active` at a time. Activating a milestone when another is already `active` demotes the previous one to `planned` in the same database transaction.
+10. Deleting a milestone sets `milestone_id` to null on all assigned stories; the stories themselves are not deleted. Deleting a project cascades to all its milestones.
+11. `link_types` is the only dictionary key with a structured entry format (`LinkTypeEntry[]`). All other four dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`) remain plain `string[]`. Sending a plain string in `link_types` is rejected with 422. Duplicate `value` fields within the same `link_types` array are rejected with 400. <!-- updated: 2026-07-15 (STORY-021): `attachment_types` removed from this list — the dictionary was retired -->
+12. `link_type` validation on TaskLink and StoryLink creation checks against the `value` fields extracted from the effective `link_types` entries. The stored `link_type` column on `task_link` and `story_link` tables continues to hold the plain value string; existing rows are not back-filled when entries are updated.
+13. A `link_types` entry where `outbound` and `inbound` are the same string (symmetric relationship) is valid and stored as-is.
+14. Attachments are immutable once created: each has exactly one stored file (document, image, or file kind), written once at create and never overwritten. There is no update endpoint and no version history; to change content or an external-ref's `external_status`, delete the attachment and create a new one. <!-- updated: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
+15. There is no archive lifecycle for attachments — the lifecycle is create + delete only. `DELETE /attachments/:id` works for every kind and is permanent, removing the DB row and, for document/image/file, the stored file. <!-- updated: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
+16. Attachments may be attached to a story, task, or milestone (`container_type`). Deleting a story, task, or milestone permanently removes all of its attachments (DB rows and, for document/image/file, the stored files). <!-- updated: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
+17. `author_role` on an Attachment is optional, free-form, accepted on every create path (all kinds), and immutable once set — descriptive metadata only, not access control. <!-- new: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
+18. `title` on an Attachment is mandatory, free-form, and not dictionary-validated; it replaces the removed `type` field. For file-based create paths (multipart upload), an omitted `title` defaults to the uploaded file's name (truncated to 500 chars); every other create path (document-as-text JSON, external-ref JSON, and every MCP argument shape) requires it explicitly with no default. `title` is immutable once set — like every other attachment field, changing it means deleting the attachment and creating a new one. <!-- new: 2026-07-15 (STORY-021 reconcile) -->
+19. The `attachment_types` dictionary key is removed from `SystemSettings` and `ProjectSettings`; sending it to a settings `PUT` is rejected as an unknown key with **422** (the same Pydantic `model_validator` path as any other unknown key — not 400). Existing attachments created before this change (which have a `type` but no `title`) are backfilled with a non-null `title` (derived from their former `type` value) so every attachment has one after this change ships. <!-- new: 2026-07-15 (STORY-021 reconcile); confirmed by migration tests against the real Alembic upgrade/downgrade -->
 
 ---
 

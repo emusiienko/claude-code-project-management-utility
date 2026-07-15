@@ -5,7 +5,7 @@
  *   - Story description rendered as Markdown (via react-markdown)
  *   - Milestone assignment control (inline set/clear)
  *   - Story links section (list + add + delete) — STORY-006
- *   - Attachments placeholder (STORY-007)
+ *   - Attachments section (list + upload + view/download + delete) — STORY-007
  *   - Comments placeholder (STORY-008)
  *
  * The panel is toggled by the parent; its open/closed state is persisted per
@@ -24,6 +24,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Story, LinkTypeEntry } from "@/api/types";
 import { MilestoneAssignment } from "./MilestoneAssignment";
 import { StoryLinksSection } from "@/features/story-links/components/StoryLinksSection";
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
 
 interface StoryRightPanelProps {
   /** Story data to display. */
@@ -42,7 +43,7 @@ interface StoryRightPanelProps {
 
 /**
  * Collapsible right panel with story description (Markdown), milestone assignment,
- * story links (STORY-006), attachments placeholder, and comments placeholder.
+ * story links (STORY-006), attachments (STORY-007), and comments placeholder.
  */
 export function StoryRightPanel({
   story,
@@ -125,18 +126,12 @@ export function StoryRightPanel({
             />
           </section>
 
-          {/* Attachments placeholder */}
-          <section aria-labelledby="story-attachments-heading">
-            <h3
-              id="story-attachments-heading"
-              className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary"
-            >
-              Attachments
-            </h3>
-            <div className="flex h-16 items-center justify-center rounded-md border border-dashed border-border">
-              <p className="text-xs text-text-muted">Attachments coming soon (STORY-007)</p>
-            </div>
-          </section>
+          {/* Attachments section — STORY-007 */}
+          <AttachmentsSection
+            containerType="story"
+            containerId={story.id}
+            projectId={story.project_id}
+          />
 
           {/* Comments placeholder */}
           <section aria-labelledby="story-comments-heading">
