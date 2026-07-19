@@ -6,6 +6,8 @@ waiting_for: none
 - SESSION-009 completed: labels = free-form {key,value}, settings dicts = fixed set of 6, status only dict-bound field on story
 
 ## Recent changes
+- 2026-07-19: SESSION-016 completed — architect Feature Design for STORY-008: implementation_plan.md + 11 task files (5 backend/4 frontend/1 qa-automation); replies use persisted materialized ancestor path (architect's call, diverges from spec's schema-free prepend model — flagged as Spec Divergence); open item: description.md needs spec-writer pass to strip reply-mechanism implementation prescription
+- 2026-07-19: SESSION-015 completed — STORY-008 spec expanded (mandatory+immutable author_role, new default-role setting, @role mentions, permalinks/reply via in_reply_to, milestone container added); still Planned, ready for architecture
 - 2026-07-02: STORY-013 accepted; STORY-001 + STORY-013 fully reconciled and archived
 - 2026-07-02: STORY-014 (Docker uv) accepted and fully reconciled
 - 2026-07-03: SESSION-007 completed — STORY-002 code review continuation (major refactor: fastmcp, routing, DI, file structure)
