@@ -9,6 +9,7 @@
  *   ├─ /sessions           → SessionsPage (no sidebar, no sub-nav)
  *   ├─ /settings           → SettingsPage (no sidebar, no sub-nav)
  *   ├─ /milestones/:id     → MilestoneDetailPage (no sidebar, back-link to project milestones)
+ *   ├─ /comments/:id       → CommentsPage (permalink resolver; navigates to the host view)
  *   └─ AppShell (/projects/:projectId/*)
  *      └─ ProjectShell
  *         ├─ index         → redirect to /stories
@@ -53,6 +54,7 @@ const MilestonesPage = React.lazy(
 const MilestoneDetailPage = React.lazy(
   () => import("@/features/milestones/MilestoneDetailPage"),
 );
+const CommentsPage = React.lazy(() => import("@/features/comments/CommentsPage"));
 const BoardPage = React.lazy(() => import("@/features/board/BoardPage"));
 const ProjectSettingsPage = React.lazy(
   () => import("@/features/settings/ProjectSettingsPage"),
@@ -128,6 +130,18 @@ export const router = createBrowserRouter([
         element: (
           <SuspendedPage>
             <MilestoneDetailPage />
+          </SuspendedPage>
+        ),
+      },
+
+      // Comment permalink resolver — resolves the comment's host view and
+      // navigates there (with scroll-into-view + highlight); root-relative
+      // so the backend's `/comments/{id}` contract stays origin-agnostic.
+      {
+        path: "comments/:id",
+        element: (
+          <SuspendedPage>
+            <CommentsPage />
           </SuspendedPage>
         ),
       },

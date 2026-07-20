@@ -10,6 +10,10 @@
  * The thread stays flat — this row never renders nested/indented replies;
  * the reply-prefix is only a header line on an otherwise ordinary comment.
  *
+ * Any `/comments/:id` link inside the rendered content (root-relative or
+ * absolute to this app's own origin) navigates via client-side routing
+ * instead of a full page reload (TASK-009's `CommentMarkdownLink`).
+ *
  * @param comment          - The comment to render.
  * @param parentAuthorRole - The direct parent's author role, when the parent is loaded in the current thread; undefined otherwise.
  * @param canJumpToParent  - True when the parent comment is present in the loaded thread and can be scrolled to.
@@ -19,6 +23,9 @@
  * @param updateError      - Top-level error from a failed update attempt.
  * @param updateFieldErrors - Per-field error messages from a failed update attempt.
  * @param registerRef      - Registers this row's DOM element for the reply-jump scroll mechanism.
+ * @param participantRoles - The project's effective `participant_roles` values — drives both
+ *                            `@role` mention highlighting on this row's rendered content and the
+ *                            mention autocomplete inside its inline edit form.
  * @param onStartEdit       - Called when the user clicks Edit.
  * @param onCancelEdit      - Called when the user cancels the inline edit.
  * @param onSaveEdit        - Called with the updated content/labels on save.
@@ -33,8 +40,14 @@ import ReactMarkdown from "react-markdown";
 import { IconButton } from "@/shared/components/IconButton";
 import { formatTimestamp } from "@/shared/utils/formatTimestamp";
 import { MARKDOWN_CONTENT_CLASS } from "@/shared/utils/markdownStyles";
+import { createMentionRehypePlugin } from "@/features/comments/utils/mentionRehypePlugin";
 import { EditCommentForm } from "./EditCommentForm";
+import { MentionMarkdownSpan } from "./MentionMarkdownSpan";
+import { CommentMarkdownLink } from "./CommentMarkdownLink";
 import type { Comment, UpdateComment } from "@/api/types";
+
+/** `react-markdown` element overrides shared by every rendered comment. */
+const MARKDOWN_COMPONENTS = { span: MentionMarkdownSpan, a: CommentMarkdownLink };
 
 interface CommentRowProps {
   comment: Comment;
@@ -46,6 +59,7 @@ interface CommentRowProps {
   updateError?: string;
   updateFieldErrors?: Record<string, string>;
   registerRef: (el: HTMLLIElement | null) => void;
+  participantRoles: string[];
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: (data: UpdateComment) => void;
@@ -66,6 +80,7 @@ export function CommentRow({
   updateError,
   updateFieldErrors,
   registerRef,
+  participantRoles,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -88,6 +103,7 @@ export function CommentRow({
           initialContent={comment.content}
           initialLabels={comment.labels}
           authorRole={comment.author_role}
+          participantRoles={participantRoles}
           onSave={onSaveEdit}
           onCancel={onCancelEdit}
           isSaving={isUpdating}
@@ -116,9 +132,14 @@ export function CommentRow({
             <span className="text-[11px] text-text-muted">{formatTimestamp(comment.created_at)}</span>
           </div>
 
-          {/* Markdown content */}
+          {/* Markdown content — `@role` tokens matching a current effective role render as accent badges */}
           <div className={MARKDOWN_CONTENT_CLASS}>
-            <ReactMarkdown>{comment.content}</ReactMarkdown>
+            <ReactMarkdown
+              rehypePlugins={[createMentionRehypePlugin(participantRoles)]}
+              components={MARKDOWN_COMPONENTS}
+            >
+              {comment.content}
+            </ReactMarkdown>
           </div>
 
           {/* Label chips */}

@@ -19,8 +19,8 @@
  * viewer mounted on top of it take precedence instead.
  */
 
-import { useCallback, useState } from "react";
-import { useParams, useNavigate, Outlet } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { X, ChevronLeft, Pencil } from "lucide-react";
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
@@ -52,10 +52,22 @@ export function StorySlideOver() {
     storyId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Set by the comment permalink resolver (TASK-009) when it navigates here —
+  // forces the right panel open (comments live inside it) and requests a
+  // scroll-to + highlight once CommentsSection's thread has loaded.
+  const scrollToCommentId = (location.state as { scrollToCommentId?: string } | null)
+    ?.scrollToCommentId;
 
   // Right-panel open/closed state persisted per story in localStorage
   const panelKey = `${PANEL_KEY_PREFIX}${storyId}`;
   const [isPanelOpen, setIsPanelOpen] = useLocalStorage<boolean>(panelKey, true);
+
+  // A deep-linked comment lives inside the (possibly collapsed) right panel — force it open.
+  useEffect(() => {
+    if (scrollToCommentId && !isPanelOpen) setIsPanelOpen(true);
+  }, [scrollToCommentId, isPanelOpen, setIsPanelOpen]);
 
   // Edit modal state
   const [editModal, setEditModal] = useState<EditModalState>({
@@ -265,6 +277,7 @@ export function StorySlideOver() {
                 onMilestoneAssign={handleMilestoneAssign}
                 isMilestoneUpdatePending={updateMutation.isPending}
                 linkTypeEntries={linkTypeEntries}
+                scrollToCommentId={scrollToCommentId}
               />
             </>
           )}

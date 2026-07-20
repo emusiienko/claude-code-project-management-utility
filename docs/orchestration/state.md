@@ -1,6 +1,6 @@
 ## Active wait
-waiting_for: STORY-008 implementation — Round 5 (TASK-007) running
-next_step: on completion, Round 6 (TASK-008, TASK-009 in parallel)
+waiting_for: STORY-008 implementation — Round 6 (TASK-008, TASK-009) running in parallel — last two tasks
+next_step: on completion, set STORY-008 Pending Approval + Stabilization loop
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start

@@ -10,17 +10,22 @@
  * form. The thread is always flat — a reply is an ordinary comment with a
  * header line, never nested or indented.
  *
- * `@role` mention autocomplete/highlighting (TASK-008) and cross-host
- * permalink deep-linking (TASK-009) build on top of this section; the reply
- * jump link implemented here only scrolls within the currently loaded
- * thread.
+ * `@role` mention autocomplete/highlighting (TASK-008) builds on top of this
+ * section. Cross-host permalink deep-linking (TASK-009) lands here too: the
+ * `/comments/:id` resolver navigates to this section's host with
+ * `scrollToCommentId` set, which this section resolves through the exact
+ * same scroll+highlight path (`jumpTo`) the local reply-prefix jump link
+ * already uses.
  *
- * @param containerType - story | task | milestone.
- * @param containerId   - The owning container's ID.
- * @param projectId     - Owning project — used to resolve the effective `default_web_ui_role`.
+ * @param containerType    - story | task | milestone.
+ * @param containerId      - The owning container's ID.
+ * @param projectId        - Owning project — used to resolve the effective `default_web_ui_role`.
+ * @param scrollToCommentId - Set by the permalink resolver once it has navigated to this host;
+ *                             this section scrolls to and briefly highlights that comment once the
+ *                             thread has loaded. Absent for ordinary (non-deep-linked) visits.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useToast } from "@/shared/hooks/useToast";
 import { Toast } from "@/shared/components/Toast";
@@ -41,12 +46,18 @@ interface CommentsSectionProps {
   containerType: ContainerType;
   containerId: string;
   projectId: string;
+  scrollToCommentId?: string;
 }
 
 const HIGHLIGHT_DURATION_MS = 2000;
 
 /** Orchestrates the full comments UI: thread, add form, inline actions, and delete confirmation. */
-export function CommentsSection({ containerType, containerId, projectId }: CommentsSectionProps) {
+export function CommentsSection({
+  containerType,
+  containerId,
+  projectId,
+  scrollToCommentId,
+}: CommentsSectionProps) {
   const { data: commentEnvelope, isLoading, isError } = useCommentList(containerType, containerId);
   const { data: effectiveSettings } = useProjectSettingsEffective(projectId);
 
@@ -69,14 +80,17 @@ export function CommentsSection({ containerType, containerId, projectId }: Comme
   const [deleteError, setDeleteError] = useState<string | undefined>();
 
   // Reply-jump scroll/highlight — resolved locally within the loaded thread.
-  // Cross-host permalink resolution is built on top of this in TASK-009.
+  // The permalink resolver (TASK-009) reuses this exact path via `scrollToCommentId`.
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [highlightedId, setHighlightedId] = useState<string | undefined>();
   const addFormRef = useRef<HTMLDivElement>(null);
+  // Guards against re-jumping on every re-render once a deep-linked target has been applied.
+  const appliedScrollTargetRef = useRef<string | undefined>(undefined);
 
   const comments = commentEnvelope?.data ?? [];
   const commentsById = new Map(comments.map((c) => [c.id, c]));
+  const participantRoles = effectiveSettings?.participant_roles ?? [];
 
   function jumpTo(id: string) {
     const el = rowRefs.current.get(id);
@@ -86,6 +100,15 @@ export function CommentsSection({ containerType, containerId, projectId }: Comme
     setHighlightedId(id);
     highlightTimerRef.current = setTimeout(() => setHighlightedId(undefined), HIGHLIGHT_DURATION_MS);
   }
+
+  // Applies the permalink resolver's deep-link target once the thread has loaded. A target
+  // whose comment was deleted simply finds no registered row — `jumpTo` no-ops, not an error.
+  useEffect(() => {
+    if (!scrollToCommentId || isLoading) return;
+    if (appliedScrollTargetRef.current === scrollToCommentId) return;
+    appliedScrollTargetRef.current = scrollToCommentId;
+    jumpTo(scrollToCommentId);
+  }, [scrollToCommentId, isLoading, comments.length]);
 
   function handleAddSubmit(data: CreateComment) {
     setAddError(undefined);
@@ -202,6 +225,7 @@ export function CommentsSection({ containerType, containerId, projectId }: Comme
                 comment={comment}
                 parentAuthorRole={parentComment?.author_role}
                 canJumpToParent={Boolean(parentComment)}
+                participantRoles={participantRoles}
                 isHighlighted={highlightedId === comment.id}
                 isEditing={editingId === comment.id}
                 isUpdating={updateMutation.isPending && editingId === comment.id}
@@ -232,6 +256,7 @@ export function CommentsSection({ containerType, containerId, projectId }: Comme
         <AddCommentForm
           key={formResetKey}
           authorRoleDefault={effectiveSettings?.default_web_ui_role ?? ""}
+          participantRoles={participantRoles}
           replyTarget={replyTarget}
           onDismissReply={() => setReplyTarget(undefined)}
           onSubmit={handleAddSubmit}

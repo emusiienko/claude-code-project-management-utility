@@ -17,6 +17,7 @@
  * @param onMilestoneAssign        - Called when the user changes the milestone assignment.
  * @param isMilestoneUpdatePending - True while the parent's update mutation is in flight.
  * @param linkTypeEntries          - Structured link_types entries from effective project settings (no extra fetch).
+ * @param scrollToCommentId        - Set by the comment permalink resolver (TASK-009); forwarded to CommentsSection.
  */
 
 import ReactMarkdown from "react-markdown";
@@ -40,6 +41,8 @@ interface StoryRightPanelProps {
   isMilestoneUpdatePending?: boolean;
   /** Structured link_types entries from the effective project settings — no extra fetch needed. */
   linkTypeEntries?: LinkTypeEntry[];
+  /** Set by the comment permalink resolver; forwarded to CommentsSection for scroll + highlight. */
+  scrollToCommentId?: string;
 }
 
 /**
@@ -53,6 +56,7 @@ export function StoryRightPanel({
   onMilestoneAssign,
   isMilestoneUpdatePending = false,
   linkTypeEntries = [],
+  scrollToCommentId,
 }: StoryRightPanelProps) {
   return (
     <aside
@@ -135,7 +139,12 @@ export function StoryRightPanel({
           />
 
           {/* Comments section — STORY-008 */}
-          <CommentsSection containerType="story" containerId={story.id} projectId={story.project_id} />
+          <CommentsSection
+            containerType="story"
+            containerId={story.id}
+            projectId={story.project_id}
+            scrollToCommentId={scrollToCommentId}
+          />
         </div>
       )}
     </aside>

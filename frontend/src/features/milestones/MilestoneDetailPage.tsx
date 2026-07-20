@@ -14,7 +14,7 @@
  */
 
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMilestone, useMilestoneStories } from "./hooks/useMilestones";
 import { extractErrorMessage } from "./utils/errorMessages";
@@ -160,6 +160,12 @@ function StoriesList({ stories, total, page, totalPages, onPageChange }: Stories
 export default function MilestoneDetailPage() {
   const { id } = useParams<{ id: string }>();
   const milestoneId = id ?? "";
+  const location = useLocation();
+
+  // Set by the comment permalink resolver (TASK-009) when it navigates here —
+  // forwarded to CommentsSection for a one-time scroll-to + highlight.
+  const scrollToCommentId = (location.state as { scrollToCommentId?: string } | null)
+    ?.scrollToCommentId;
 
   const [storiesPage, setStoriesPage] = useState(1);
 
@@ -264,6 +270,7 @@ export default function MilestoneDetailPage() {
           containerType="milestone"
           containerId={milestone.id}
           projectId={milestone.project_id}
+          scrollToCommentId={scrollToCommentId}
         />
       </div>
     </div>

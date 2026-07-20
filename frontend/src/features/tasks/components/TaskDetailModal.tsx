@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { X, Pencil } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTaskDetail, useUpdateTask } from "../hooks/useTasks";
@@ -41,6 +41,12 @@ export function TaskDetailModal() {
     taskId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Set by the comment permalink resolver (TASK-009) when it navigates here —
+  // forwarded to CommentsSection for a one-time scroll-to + highlight.
+  const scrollToCommentId = (location.state as { scrollToCommentId?: string } | null)
+    ?.scrollToCommentId;
 
   // Inline edit mode toggle
   const [isEditing, setIsEditing] = useState(false);
@@ -342,7 +348,12 @@ export function TaskDetailModal() {
               {/* ---------------------------------------------------------- */}
               {/* Comments section (STORY-008)                                */}
               {/* ---------------------------------------------------------- */}
-              <CommentsSection containerType="task" containerId={taskId} projectId={projectId} />
+              <CommentsSection
+                containerType="task"
+                containerId={taskId}
+                projectId={projectId}
+                scrollToCommentId={scrollToCommentId}
+              />
             </div>
           )}
         </div>

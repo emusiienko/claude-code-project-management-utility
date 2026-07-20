@@ -14,6 +14,7 @@
  * logic itself.
  *
  * @param authorRoleDefault - The effective `default_web_ui_role`; used to pre-fill until the user edits the field.
+ * @param participantRoles  - The project's effective `participant_roles` values, offered by the `@role` mention autocomplete inside the content field.
  * @param replyTarget       - When set, shows a dismissible "Replying to" chip; the compose form itself carries no reply-related field beyond `in_reply_to`.
  * @param onDismissReply    - Called when the user dismisses the reply chip.
  * @param onSubmit          - Called with the create input on submit.
@@ -25,10 +26,12 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { LabelsEditor } from "@/shared/components/LabelsEditor";
+import { MentionTextarea } from "./MentionTextarea";
 import type { Comment, CreateComment, Label } from "@/api/types";
 
 interface AddCommentFormProps {
   authorRoleDefault: string;
+  participantRoles: string[];
   replyTarget?: Comment;
   onDismissReply: () => void;
   onSubmit: (data: CreateComment) => void;
@@ -44,6 +47,7 @@ const errorClass = "mt-0.5 text-xs text-status-error";
 /** Compose form for creating a new comment (top-level or reply). */
 export function AddCommentForm({
   authorRoleDefault,
+  participantRoles,
   replyTarget,
   onDismissReply,
   onSubmit,
@@ -103,16 +107,17 @@ export function AddCommentForm({
         <label htmlFor="add-comment-content" className="mb-1 block text-xs font-medium text-text-secondary">
           Content (Markdown) <span aria-hidden="true" className="text-status-error">*</span>
         </label>
-        <textarea
+        <MentionTextarea
           id="add-comment-content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={setContent}
+          roles={participantRoles}
           required
           disabled={isSubmitting}
           rows={3}
           maxLength={50000}
           placeholder="Write a comment…"
-          aria-describedby={fieldErrors.content ? "add-comment-content-error" : undefined}
+          ariaDescribedBy={fieldErrors.content ? "add-comment-content-error" : undefined}
           className={`${inputClass} resize-y`}
         />
         {fieldErrors.content && (

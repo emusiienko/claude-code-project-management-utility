@@ -10,6 +10,8 @@
  * @param initialContent - The comment's current content, used as the starting value.
  * @param initialLabels  - The comment's current labels, used as the starting value.
  * @param authorRole     - Read-only display of the comment's immutable author role.
+ * @param participantRoles - The project's effective `participant_roles` values, offered by the
+ *                            `@role` mention autocomplete inside the content field.
  * @param onSave         - Called with the updated content/labels on submit.
  * @param onCancel       - Called when the user cancels the edit.
  * @param isSaving       - True while the parent's update mutation is in flight.
@@ -19,12 +21,14 @@
 
 import { useState } from "react";
 import { LabelsEditor } from "@/shared/components/LabelsEditor";
+import { MentionTextarea } from "./MentionTextarea";
 import type { Label, UpdateComment } from "@/api/types";
 
 interface EditCommentFormProps {
   initialContent: string;
   initialLabels: Label[];
   authorRole: string;
+  participantRoles: string[];
   onSave: (data: UpdateComment) => void;
   onCancel: () => void;
   isSaving?: boolean;
@@ -41,6 +45,7 @@ export function EditCommentForm({
   initialContent,
   initialLabels,
   authorRole,
+  participantRoles,
   onSave,
   onCancel,
   isSaving = false,
@@ -71,15 +76,16 @@ export function EditCommentForm({
         <label htmlFor="edit-comment-content" className="mb-1 block text-xs font-medium text-text-secondary">
           Content (Markdown) <span aria-hidden="true" className="text-status-error">*</span>
         </label>
-        <textarea
+        <MentionTextarea
           id="edit-comment-content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={setContent}
+          roles={participantRoles}
           required
           disabled={isSaving}
           rows={4}
           maxLength={50000}
-          aria-describedby={fieldErrors.content ? "edit-comment-content-error" : undefined}
+          ariaDescribedBy={fieldErrors.content ? "edit-comment-content-error" : undefined}
           className={textareaClass}
         />
         {fieldErrors.content && (

@@ -9,8 +9,8 @@
 | TASK-005 | default_web_ui_role setting and operator seed | backend-developer | Done |
 | TASK-006 | Comments API client and hooks | frontend-developer | Done |
 | TASK-007 | CommentsSection with forms, actions, and host mounts | frontend-developer | Done |
-| TASK-008 | @role mention combobox and render highlighting | frontend-developer | ToDo |
-| TASK-009 | Comment permalink resolver and deep-linking | frontend-developer | ToDo |
+| TASK-008 | @role mention combobox and render highlighting | frontend-developer | Done |
+| TASK-009 | Comment permalink resolver and deep-linking | frontend-developer | Done |
 | TASK-010 | Default Web UI role settings UI | frontend-developer | Done |
 | TASK-011 | Automated tests for comments and the new setting | qa-automation | Done |
 
