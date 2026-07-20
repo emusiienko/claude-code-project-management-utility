@@ -88,7 +88,7 @@ class CommentRepository(BaseRepository[Comment]):
         total = self._session.execute(count_stmt).scalar_one()
 
         rows_stmt = (
-            base_stmt.order_by(Comment.created_at.asc(), Comment.id.asc())
+            base_stmt.order_by(Comment.created_at.desc(), Comment.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -110,7 +110,7 @@ class CommentRepository(BaseRepository[Comment]):
         self, container_type: str, container_id: uuid.UUID
     ) -> list[Comment]:
         # Enumerates every comment on a container — used both ahead of a
-        # cascade delete and to compose a detail view's oldest-first
+        # cascade delete and to compose a detail view's newest-first
         # `comments` list, hence the explicit chronological ordering.
         stmt = (
             select(Comment)
@@ -118,7 +118,7 @@ class CommentRepository(BaseRepository[Comment]):
                 Comment.container_type == container_type,
                 Comment.container_id == container_id,
             )
-            .order_by(Comment.created_at.asc(), Comment.id.asc())
+            .order_by(Comment.created_at.desc(), Comment.id.desc())
         )
         return list(self._session.scalars(stmt).all())
 

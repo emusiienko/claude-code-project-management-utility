@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-008
 ---
@@ -57,9 +57,37 @@ None — this is a product-behavior change (list direction), not an architectura
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
-**Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+**Date**: 2026-07-20
+**What was done**: Flipped both comment list `ORDER BY` clauses in `CommentRepository` from
+ascending to descending on the same `(created_at, id)` key — `list_paginated` (the container-scoped
+paginated list) and `list_all_for_container` (the enumerate-all helper that also feeds story/task/
+milestone detail composition). Since story/task/milestone `get_detail` compose their `comments`
+list through `list_all_for_container` with no service-layer changes, all three detail views now
+return newest-first automatically, exactly as the implementation plan's revision anticipated. The
+`after_id` watermark predicate (`(created_at, id) > (anchor_created_at, anchor_id)`, "strictly newer
+than the referenced comment") was left untouched — only the surrounding `ORDER BY` direction
+changed, not the keyset comparison, per the explicit instruction not to alter its name or meaning.
+`get_ancestors` (via `list_by_ids`, keyed by the stored `ancestors` id list) and `delete_all_for_container`
+were not touched — they don't depend on either flipped `ORDER BY` clause, so root-first lineage
+ordering and cascade-delete behavior are unaffected. Updated the one in-code comment referencing
+"oldest-first" in `list_all_for_container` to "newest-first" to keep the doc-comment accurate.
+**Deviations from plan**: None. The change was exactly the two `ORDER BY` flips called out in the
+task and the implementation plan's revision section — no schema, service, or API-shape change.
+**Technical decisions made**: None beyond what the plan already specified — this task had no open
+design decisions.
+**Code locations**: `backend/app/comments/repository.py` — `CommentRepository.list_paginated` (line
+~91, `order_by(Comment.created_at.desc(), Comment.id.desc())`) and
+`CommentRepository.list_all_for_container` (line ~121, same flip).
+**Technical debt noted**: None. As expected and documented in the implementation plan's revision
+section, 7 pre-existing tests in `tests/test_comments.py` now fail because they assert the old
+oldest-first order verbatim (`test_list_comments_oldest_first_order`,
+`test_multiple_replies_to_same_comment_are_flat`, `test_list_comments_pagination`,
+`test_list_comments_after_id_watermark`, `test_detail_composition_returns_comments_oldest_first`
+×3 parametrizations). In every one of these, the underlying **set** of returned comments and all
+filter behavior (`label_key`, `label_value`, `descendant_of`, `after_id`) is still correct — only the
+list order assertion is now stale. `test_list_comments_descendant_of_returns_subthread` (which
+compares as an unordered set) and `test_get_ancestors_ordered_root_first` both pass unchanged,
+confirming filters and lineage ordering are unaffected. Fixing these order assertions is explicitly
+scoped to TASK-014 (qa-automation), not this task. Baseline full suite: 517 passed, 2 xfailed.
+Post-implementation full suite: 510 passed, 7 failed (the expected order-assertion failures above),
+2 xfailed — no other regressions.
