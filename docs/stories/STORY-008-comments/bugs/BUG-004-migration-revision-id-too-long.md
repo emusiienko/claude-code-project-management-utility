@@ -2,7 +2,7 @@
 id: BUG-004
 story: STORY-008
 severity: critical
-status: fixed
+status: resolved
 assignee: backend-developer
 ---
 
@@ -47,3 +47,12 @@ Renamed the migration's revision id (and its filename) from `0012_default_web_ui
 - Confirmed via `alembic history` that the revision chain (`0011_comment -> 0012_web_ui_role_backfill (head)`) resolves correctly with no orphaned or duplicate revision ids.
 
 Status → `fixed`, ready for QA re-verification.
+
+## QA Re-verification (2026-07-20)
+
+Re-verified as part of the newest-first ordering re-run (TASK-012/013/014):
+- Confirmed the current revision id `0012_web_ui_role_backfill` is 25 characters (within `VARCHAR(32)`).
+- Started a throwaway `postgres:18` Docker container and ran `alembic upgrade head` against it with a fresh database — the full chain (`0001_project` → … → `0011_comment` → `0012_web_ui_role_backfill`) applied with no truncation error. Queried `alembic_version` directly: `version_num = '0012_web_ui_role_backfill'` (25 chars), stored correctly.
+- Full SQLite backend suite: 517 passed, 2 xfailed (pre-existing, unrelated) — no regressions.
+
+Status → `resolved`.
