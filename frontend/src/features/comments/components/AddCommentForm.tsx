@@ -1,6 +1,6 @@
 /**
- * AddCommentForm — the pinned "Add Comment" form at the bottom of a
- * CommentsSection.
+ * AddCommentForm — the pinned "Add Comment" form at the top of a
+ * CommentsSection, above the newest-first thread.
  *
  * `author_role` pre-fills from the effective `default_web_ui_role` but stays
  * freely editable — once the user has typed into it, the pre-fill no longer

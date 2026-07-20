@@ -3,12 +3,14 @@
  * milestone container. Mounted in the Story slide-over right panel, the Task
  * Detail modal, and the Milestone Detail page.
  *
- * Renders the container's comment thread oldest-first (author role,
- * Markdown content, label chips, timestamp, and a reply-prefix line for
- * replies), a live count badge matching the Attachments section convention,
- * per-comment Edit/Reply/Delete/Copy-link actions, and a pinned Add-Comment
- * form. The thread is always flat — a reply is an ordinary comment with a
- * header line, never nested or indented.
+ * Renders the container's comment thread newest-first — the order the API
+ * returns, not re-sorted client-side (author role, Markdown content, label
+ * chips, timestamp, and a reply-prefix line for replies), a live count badge
+ * matching the Attachments section convention, per-comment
+ * Edit/Reply/Delete/Copy-link actions, and a pinned Add-Comment form above
+ * the thread so a newly-created comment appears directly beneath it. The
+ * thread is always flat — a reply is an ordinary comment with a header
+ * line, never nested or indented.
  *
  * `@role` mention autocomplete/highlighting (TASK-008) builds on top of this
  * section. Cross-host permalink deep-linking (TASK-009) lands here too: the
@@ -127,7 +129,8 @@ export function CommentsSection({
 
   function handleReply(comment: Comment) {
     setReplyTarget(comment);
-    requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }));
+    // Form now sits above the thread — scroll its start into view, not its end.
+    requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function handleStartEdit(id: string) {
@@ -206,6 +209,22 @@ export function CommentsSection({
         </p>
       )}
 
+      {/* Pinned Add-Comment form — above the thread so a newly-created comment
+          (newest-first) appears directly beneath it */}
+      <div ref={addFormRef} className="mb-3">
+        <AddCommentForm
+          key={formResetKey}
+          authorRoleDefault={effectiveSettings?.default_web_ui_role ?? ""}
+          participantRoles={participantRoles}
+          replyTarget={replyTarget}
+          onDismissReply={() => setReplyTarget(undefined)}
+          onSubmit={handleAddSubmit}
+          isSubmitting={createMutation.isPending}
+          errorMessage={addError}
+          fieldErrors={addFieldErrors}
+        />
+      </div>
+
       {/* Empty state */}
       {!isLoading && !isError && comments.length === 0 && (
         <p className="mb-3 rounded-md border border-dashed border-border p-4 text-center text-sm text-text-muted">
@@ -213,7 +232,7 @@ export function CommentsSection({
         </p>
       )}
 
-      {/* Comment thread — oldest-first, flat (no nesting) */}
+      {/* Comment thread — newest-first (server order), flat (no nesting) */}
       {!isLoading && !isError && comments.length > 0 && (
         <ul aria-label="Comments list" className="mb-3 divide-y divide-border rounded-md border border-border">
           {comments.map((comment) => {
@@ -250,21 +269,6 @@ export function CommentsSection({
           })}
         </ul>
       )}
-
-      {/* Pinned Add-Comment form */}
-      <div ref={addFormRef}>
-        <AddCommentForm
-          key={formResetKey}
-          authorRoleDefault={effectiveSettings?.default_web_ui_role ?? ""}
-          participantRoles={participantRoles}
-          replyTarget={replyTarget}
-          onDismissReply={() => setReplyTarget(undefined)}
-          onSubmit={handleAddSubmit}
-          isSubmitting={createMutation.isPending}
-          errorMessage={addError}
-          fieldErrors={addFieldErrors}
-        />
-      </div>
 
       {/* Delete confirmation dialog */}
       {pendingDelete && (

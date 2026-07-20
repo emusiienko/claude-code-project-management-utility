@@ -7,8 +7,9 @@ Coverage zones (per TASK-011):
 - POST with in_reply_to — valid same-container reply persists `ancestors`
   (`parent.ancestors + [parent.id]`); non-existent in_reply_to (404); in_reply_to in a
   different container (422)
-- GET  .../comments (list) — oldest-first order; pagination; label_key filter;
-  label_value filter; a label key no comment has -> empty list, not an error
+- GET  .../comments (list) — newest-first order (TASK-012 revision); pagination;
+  label_key filter; label_value filter; a label key no comment has -> empty list, not
+  an error
 - GET  .../comments?after_id=... watermark — only comments after the referenced one;
   a deleted-watermark id -> 404
 - GET  .../comments?descendant_of=... — the sub-thread beneath a comment
@@ -19,7 +20,8 @@ Coverage zones (per TASK-011):
   unchanged; empty labels array clears labels; author_role/ancestors changes are ignored
 - DELETE /comments/:id — deletes a single comment (no cascade to its replies);
   cascade: deleting a story/task/milestone removes all its comments
-- Detail composition: story/task/milestone detail return comments oldest-first
+- Detail composition: story/task/milestone detail return comments newest-first
+  (TASK-012 revision)
 - REST <-> MCP parity for create, list, get, get_ancestors, update, delete
 - default_web_ui_role validation is covered in test_settings.py::TestDefaultWebUiRole
   (STORY-008/TASK-005) — not duplicated here.
@@ -346,8 +348,8 @@ async def test_multiple_replies_to_same_comment_are_flat(
 
     list_resp = await client.get(url)
     ids = [c["id"] for c in list_resp.json()["data"]]
-    assert ids == [root["id"], reply_a["id"], reply_b["id"]], (
-        f"Thread should stay a flat oldest-first list, got {ids}"
+    assert ids == [reply_b["id"], reply_a["id"], root["id"]], (
+        f"Thread should stay a flat newest-first list, got {ids}"
     )
 
 
@@ -423,10 +425,10 @@ async def test_reply_to_deleted_target_ancestors_dangles(
 # ===========================================================================
 
 
-async def test_list_comments_oldest_first_order(
+async def test_list_comments_newest_first_order(
     client: AsyncClient, create_project
 ) -> None:
-    project_id = create_project("List Oldest First")
+    project_id = create_project("List Newest First")
     story = await _create_story(client, project_id)
     url = _comments_url("story", story["id"])
 
@@ -437,7 +439,7 @@ async def test_list_comments_oldest_first_order(
     resp = await client.get(url)
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
     ids = [c["id"] for c in resp.json()["data"]]
-    assert ids == [c1["id"], c2["id"], c3["id"]], f"Expected oldest-first order, got {ids}"
+    assert ids == [c3["id"], c2["id"], c1["id"]], f"Expected newest-first order, got {ids}"
 
 
 async def test_list_comments_pagination(client: AsyncClient, create_project) -> None:
@@ -450,9 +452,11 @@ async def test_list_comments_pagination(client: AsyncClient, create_project) -> 
         for i in range(3)
     ]
 
+    # Newest-first: page 1 holds the two most recently created comments (index 2, then 1);
+    # pagination proceeds toward the oldest, so page 2 holds the oldest comment (index 0).
     page1 = await client.get(url, params={"page": 1, "limit": 2})
     page1_data = page1.json()
-    assert [c["id"] for c in page1_data["data"]] == [created[0]["id"], created[1]["id"]], (
+    assert [c["id"] for c in page1_data["data"]] == [created[2]["id"], created[1]["id"]], (
         f"Page 1 mismatch: {page1_data['data']}"
     )
     assert page1_data["meta"]["total"] == 3, f"Expected total=3, got {page1_data['meta']}"
@@ -460,7 +464,7 @@ async def test_list_comments_pagination(client: AsyncClient, create_project) -> 
 
     page2 = await client.get(url, params={"page": 2, "limit": 2})
     page2_data = page2.json()
-    assert [c["id"] for c in page2_data["data"]] == [created[2]["id"]], (
+    assert [c["id"] for c in page2_data["data"]] == [created[0]["id"]], (
         f"Page 2 mismatch: {page2_data['data']}"
     )
 
@@ -532,9 +536,11 @@ async def test_list_comments_after_id_watermark(client: AsyncClient, create_proj
     c2 = (await _create_comment(client, url, content="Second")).json()["data"]
     c3 = (await _create_comment(client, url, content="Third")).json()["data"]
 
+    # after_id keeps its "strictly newer than the referenced comment" meaning — only the
+    # surrounding order flips to newest-first, so c3 (newest) now precedes c2.
     resp = await client.get(url, params={"after_id": c1["id"]})
     ids = [c["id"] for c in resp.json()["data"]]
-    assert ids == [c2["id"], c3["id"]], f"Expected only comments after c1, got {ids}"
+    assert ids == [c3["id"], c2["id"]], f"Expected only comments after c1, newest-first, got {ids}"
 
 
 async def test_list_comments_after_id_deleted_watermark_returns_404(
@@ -575,11 +581,15 @@ async def test_list_comments_descendant_of_returns_subthread(
     unrelated = (await _create_comment(client, url, content="Unrelated top-level")).json()["data"]
 
     resp = await client.get(url, params={"descendant_of": root["id"]})
-    ids = {c["id"] for c in resp.json()["data"]}
-    assert ids == {reply1["id"], reply2["id"]}, (
+    ids = [c["id"] for c in resp.json()["data"]]
+    assert set(ids) == {reply1["id"], reply2["id"]}, (
         f"descendant_of should return the whole sub-thread beneath root, got {ids}"
     )
     assert unrelated["id"] not in ids, "Unrelated top-level comment should not be in the sub-thread"
+    # Rides the same list query as the container list, so it is newest-first too.
+    assert ids == [reply2["id"], reply1["id"]], (
+        f"descendant_of should return the sub-thread newest-first, got {ids}"
+    )
 
 
 # ===========================================================================
@@ -825,12 +835,12 @@ async def test_deleting_container_cascades_comment_removal(
 
 
 # ===========================================================================
-# Detail composition — story/task/milestone detail return comments oldest-first
+# Detail composition — story/task/milestone detail return comments newest-first
 # ===========================================================================
 
 
 @pytest.mark.parametrize("container_type", ALL_CONTAINER_TYPES)
-async def test_detail_composition_returns_comments_oldest_first(
+async def test_detail_composition_returns_comments_newest_first(
     client: AsyncClient, create_project, container_type: str
 ) -> None:
     project_id = create_project(f"Detail Comments {container_type}")
@@ -844,8 +854,8 @@ async def test_detail_composition_returns_comments_oldest_first(
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code} — {resp.text}"
     detail = resp.json()["data"]
     ids = [c["id"] for c in detail["comments"]]
-    assert ids == [c1["id"], c2["id"]], (
-        f"Detail comments should be oldest-first, got {ids}"
+    assert ids == [c2["id"], c1["id"]], (
+        f"Detail comments should be newest-first, got {ids}"
     )
 
 

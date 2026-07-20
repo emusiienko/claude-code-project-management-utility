@@ -52,7 +52,7 @@ function containerCommentsPath(
 }
 
 /**
- * GET /v1/{container}/:id/comments — paginated, oldest-first, optionally
+ * GET /v1/{container}/:id/comments — paginated, newest-first, optionally
  * filtered comment list.
  *
  * @param containerType - story | task | milestone.

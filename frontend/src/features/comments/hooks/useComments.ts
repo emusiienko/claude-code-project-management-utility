@@ -33,7 +33,7 @@ export type { CommentFilters };
 // ---------------------------------------------------------------------------
 
 /**
- * Paginated, oldest-first, optionally filtered list of comments for a given container.
+ * Paginated, newest-first, optionally filtered list of comments for a given container.
  *
  * @param containerType - story | task | milestone.
  * @param containerId   - The owning container's ID.
