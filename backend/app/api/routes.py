@@ -16,6 +16,7 @@ class AppPath(str, Enum):
     TASK_LINKS = "task-links"
     STORY_LINKS = "story-links"
     ATTACHMENTS = "attachments"
+    COMMENTS = "comments"
     # Future domains: add one entry per top-level URL path segment.
 
     def __str__(self) -> str:

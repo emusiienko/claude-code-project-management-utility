@@ -154,9 +154,10 @@ async def get_milestone_detail(
     _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
     service: MilestoneService = Depends(Provide[AppContainer.milestone_service]),
 ) -> dict:
-    milestone, attachments = service.get_detail(milestone_id)
+    milestone, attachments, comments = service.get_detail(milestone_id)
     detail = MilestoneDetail.model_validate(milestone)
     detail.attachments = [a.model_dump(mode="json") for a in attachments]
+    detail.comments = [c.model_dump(mode="json") for c in comments]
     return {"data": detail.model_dump()}
 
 

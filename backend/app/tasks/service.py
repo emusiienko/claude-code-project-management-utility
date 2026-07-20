@@ -5,6 +5,9 @@ from typing import Protocol, runtime_checkable
 from app.attachments.schema import CONTAINER_TASK
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
+from app.comments.schema import CONTAINER_TASK as COMMENT_CONTAINER_TASK
+# Import only the Protocol, never the concrete CommentService.
+from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
 from app.settings.schema import (
     DICT_KEY_PARTICIPANT_ROLES,
@@ -52,12 +55,14 @@ class TaskService:
         effective_dict: EffectiveDictionary,
         task_link_reader: 'TaskLinkReaderProtocol | None' = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
+        comment_reader: CommentReaderProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._story_repo = story_repo
         self._effective_dict = effective_dict
         self._task_link_reader = task_link_reader
         self._attachment_reader = attachment_reader
+        self._comment_reader = comment_reader
 
     def create(self, story_id: str, data: CreateTask) -> Task:
         story = self._assert_story_exists(story_id)
@@ -101,7 +106,7 @@ class TaskService:
             raise NotFoundError(f"Task '{task_id}' not found.")
         return task
 
-    def get_detail(self, task_id: str) -> tuple[Task, list, list]:
+    def get_detail(self, task_id: str) -> tuple[Task, list, list, list]:
         task = self.get_by_id(task_id)
         links: list = []
         if self._task_link_reader is not None:
@@ -111,7 +116,12 @@ class TaskService:
             attachments = self._attachment_reader.list_all_for_container(
                 CONTAINER_TASK, task.id
             )
-        return task, links, attachments
+        comments: list = []
+        if self._comment_reader is not None:
+            comments = self._comment_reader.list_all_for_container(
+                COMMENT_CONTAINER_TASK, task.id
+            )
+        return task, links, attachments, comments
 
     def list_paginated(
         self,
@@ -195,6 +205,11 @@ class TaskService:
         if self._attachment_reader is not None:
             self._attachment_reader.delete_all_for_container(
                 CONTAINER_TASK, task.id
+            )
+        # Same cascade contract, extended to comments (STORY-008 TASK-004).
+        if self._comment_reader is not None:
+            self._comment_reader.delete_all_for_container(
+                COMMENT_CONTAINER_TASK, task.id
             )
         self._repo.delete(task)
 

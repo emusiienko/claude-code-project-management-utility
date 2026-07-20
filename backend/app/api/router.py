@@ -7,6 +7,12 @@ from app.attachments.controller import (
     stories_attachments_router,
     tasks_attachments_router,
 )
+from app.comments.controller import (
+    comments_top_router,
+    milestones_comments_router,
+    stories_comments_router,
+    tasks_comments_router,
+)
 from app.milestones.controller import router as milestones_router
 from app.projects.controller import router as projects_router
 from app.settings.controller import router as settings_router
@@ -40,6 +46,13 @@ v1_router.include_router(tasks_attachments_router, prefix=f"/{AppPath.TASKS}")
 v1_router.include_router(milestones_attachments_router, prefix=f"/{AppPath.MILESTONES}")
 # Attachment routes under /attachments/:id use the top-level attachments prefix.
 v1_router.include_router(attachments_top_router, prefix=f"/{AppPath.ATTACHMENTS}")
+# Comment routes under /stories|/tasks|/milestones/:id/comments are mounted on
+# their respective container prefixes.
+v1_router.include_router(stories_comments_router, prefix=f"/{AppPath.STORIES}")
+v1_router.include_router(tasks_comments_router, prefix=f"/{AppPath.TASKS}")
+v1_router.include_router(milestones_comments_router, prefix=f"/{AppPath.MILESTONES}")
+# Comment routes under /comments/:id use the top-level comments prefix.
+v1_router.include_router(comments_top_router, prefix=f"/{AppPath.COMMENTS}")
 # Settings routes span /system/settings and /projects/{id}/settings — no single
 # domain-level prefix applies; the router is included without an additional prefix.
 v1_router.include_router(settings_router)

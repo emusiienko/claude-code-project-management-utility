@@ -94,10 +94,11 @@ async def get_task_detail(
     service: TaskService = Depends(provide_task_service),
 ) -> dict:
     try:
-        task, links, attachments = service.get_detail(id)
+        task, links, attachments, comments = service.get_detail(id)
         detail = TaskDetail.model_validate(task)
         detail.links = [lnk.model_dump() for lnk in links]
         detail.attachments = [a.model_dump(mode="json") for a in attachments]
+        detail.comments = [c.model_dump(mode="json") for c in comments]
         return {"data": detail.model_dump()}
     except DomainError as exc:
         raise exc.to_tool_error() from exc

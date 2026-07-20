@@ -2,6 +2,8 @@ from dependency_injector import containers, providers
 
 from app.attachments.repository import AttachmentRepository
 from app.attachments.service import AttachmentService
+from app.comments.repository import CommentRepository
+from app.comments.service import CommentService
 from app.config import settings
 from app.core.database import build_engine, build_session_factory, init_db_session
 from app.core.storage import FilesystemStorage
@@ -138,6 +140,27 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
+    # Comments domain — Factories
+    # --------------------------------------------------------------------------
+    # Declared before milestone_service/story_service/task_service, mirroring the
+    # attachments domain above: comment_service is wired into all three as the
+    # CommentReaderProtocol dependency for cascade delete + detail composition
+    # (STORY-008 TASK-004).
+
+    comment_repository = providers.Factory(
+        CommentRepository,
+        session=db_session,
+    )
+
+    comment_service = providers.Factory(
+        CommentService,
+        repo=comment_repository,
+        story_reader=story_repository,
+        task_reader=task_repository,
+        milestone_reader=milestone_repository,
+    )
+
+    # --------------------------------------------------------------------------
     # Milestones domain — service (after attachment_service, see note above)
     # --------------------------------------------------------------------------
 
@@ -149,6 +172,9 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: milestones service cascades and composes attachments
         # via Protocol (STORY-007, TASK-003).
         attachment_reader=attachment_service,
+        # Cross-domain: milestones service cascades and composes comments
+        # via Protocol (STORY-008, TASK-004).
+        comment_reader=comment_service,
     )
 
     # --------------------------------------------------------------------------
@@ -206,6 +232,9 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: stories service cascades and composes attachments via
         # Protocol (STORY-007, TASK-003).
         attachment_reader=attachment_service,
+        # Cross-domain: stories service cascades and composes comments via
+        # Protocol (STORY-008, TASK-004).
+        comment_reader=comment_service,
     )
 
     task_service = providers.Factory(
@@ -218,4 +247,7 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: tasks service cascades and composes attachments via
         # Protocol (STORY-007, TASK-003).
         attachment_reader=attachment_service,
+        # Cross-domain: tasks service cascades and composes comments via
+        # Protocol (STORY-008, TASK-004).
+        comment_reader=comment_service,
     )

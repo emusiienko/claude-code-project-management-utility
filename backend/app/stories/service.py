@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from app.attachments.schema import CONTAINER_STORY
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
+from app.comments.schema import CONTAINER_STORY as COMMENT_CONTAINER_STORY
+# Import only the Protocol, never the concrete CommentService.
+from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
 from app.projects.repository import ProjectRepository
 from app.settings.schema import DICT_KEY_STORY_STATUSES
@@ -39,6 +42,7 @@ class StoryService:
         task_counter: "TaskCounterProtocol | None" = None,
         story_link_reader: "StoryLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
+        comment_reader: CommentReaderProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
@@ -47,6 +51,7 @@ class StoryService:
         self._task_counter = task_counter
         self._story_link_reader = story_link_reader
         self._attachment_reader = attachment_reader
+        self._comment_reader = comment_reader
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -167,7 +172,7 @@ class StoryService:
         story.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
         return self._repo.save(story)
 
-    def get_detail(self, story_id: str) -> tuple[Story, list, list]:
+    def get_detail(self, story_id: str) -> tuple[Story, list, list, list]:
         story = self.get_by_id(story_id)
         links: list = []
         if self._story_link_reader is not None:
@@ -177,7 +182,12 @@ class StoryService:
             attachments = self._attachment_reader.list_all_for_container(
                 CONTAINER_STORY, story.id
             )
-        return story, links, attachments
+        comments: list = []
+        if self._comment_reader is not None:
+            comments = self._comment_reader.list_all_for_container(
+                COMMENT_CONTAINER_STORY, story.id
+            )
+        return story, links, attachments, comments
 
     def delete(self, story_id: str, project_id: str) -> None:
         story = self.get(story_id, project_id)
@@ -192,6 +202,11 @@ class StoryService:
         if self._attachment_reader is not None:
             self._attachment_reader.delete_all_for_container(
                 CONTAINER_STORY, story.id
+            )
+        # Same cascade contract, extended to comments (STORY-008 TASK-004).
+        if self._comment_reader is not None:
+            self._comment_reader.delete_all_for_container(
+                COMMENT_CONTAINER_STORY, story.id
             )
         self._repo.delete(story)
 

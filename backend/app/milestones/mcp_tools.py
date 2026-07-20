@@ -155,9 +155,10 @@ async def get_milestone_detail(
     service: MilestoneService = Depends(provide_milestone_service),
 ) -> dict:
     try:
-        milestone, attachments = service.get_detail(id)
+        milestone, attachments, comments = service.get_detail(id)
         detail = MilestoneDetail.model_validate(milestone)
         detail.attachments = [a.model_dump(mode="json") for a in attachments]
+        detail.comments = [c.model_dump(mode="json") for c in comments]
         return {"data": detail.model_dump()}
     except DomainError as exc:
         raise exc.to_tool_error() from exc

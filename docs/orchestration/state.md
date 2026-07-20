@@ -1,6 +1,6 @@
 ## Active wait
-waiting_for: STORY-008 implementation — Round 2 (TASK-002, TASK-010) running in parallel
-next_step: on completion, Round 3 (TASK-003 then TASK-004, sequential)
+waiting_for: STORY-008 implementation — Round 3, TASK-003 running (TASK-004 queued to run after, sequentially — both touch the DI container file)
+next_step: on TASK-003 completion, spawn TASK-004
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start

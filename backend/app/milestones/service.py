@@ -4,6 +4,9 @@ import uuid
 from app.attachments.schema import CONTAINER_MILESTONE
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
+from app.comments.schema import CONTAINER_MILESTONE as COMMENT_CONTAINER_MILESTONE
+# Import only the Protocol, never the concrete CommentService.
+from app.comments.service import CommentReaderProtocol
 from app.core.errors import ConflictError, NotFoundError
 from app.milestones.model import Milestone
 from app.milestones.repository import MilestoneRepository
@@ -32,11 +35,13 @@ class MilestoneService:
         project_repo: ProjectRepository,
         story_repo: StoryRepository,
         attachment_reader: AttachmentReaderProtocol | None = None,
+        comment_reader: CommentReaderProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
         self._story_repo = story_repo
         self._attachment_reader = attachment_reader
+        self._comment_reader = comment_reader
 
     def create(self, data: CreateMilestone) -> Milestone:
         self._assert_project_exists(data.project_id)
@@ -108,14 +113,19 @@ class MilestoneService:
         milestone.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
         return self._repo.save(milestone)
 
-    def get_detail(self, milestone_id: str) -> tuple[Milestone, list]:
+    def get_detail(self, milestone_id: str) -> tuple[Milestone, list, list]:
         milestone = self.get(milestone_id)
         attachments: list = []
         if self._attachment_reader is not None:
             attachments = self._attachment_reader.list_all_for_container(
                 CONTAINER_MILESTONE, milestone.id
             )
-        return milestone, attachments
+        comments: list = []
+        if self._comment_reader is not None:
+            comments = self._comment_reader.list_all_for_container(
+                COMMENT_CONTAINER_MILESTONE, milestone.id
+            )
+        return milestone, attachments, comments
 
     def delete(self, milestone_id: str) -> None:
         milestone = self.get(milestone_id)
@@ -128,6 +138,11 @@ class MilestoneService:
         if self._attachment_reader is not None:
             self._attachment_reader.delete_all_for_container(
                 CONTAINER_MILESTONE, mid
+            )
+        # Same cascade contract, extended to comments (STORY-008 TASK-004).
+        if self._comment_reader is not None:
+            self._comment_reader.delete_all_for_container(
+                COMMENT_CONTAINER_MILESTONE, mid
             )
         self._repo.delete(milestone)
 

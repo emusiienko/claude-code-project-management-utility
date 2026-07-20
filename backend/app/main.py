@@ -17,6 +17,7 @@ container.wire(
     packages=[
         "app.api",
         "app.attachments",
+        "app.comments",
         "app.mcp",
         "app.milestones",
         "app.projects",

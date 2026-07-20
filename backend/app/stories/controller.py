@@ -136,10 +136,11 @@ async def get_story_detail(
     _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
     service: StoryService = Depends(Provide[AppContainer.story_service]),
 ) -> dict:
-    story, links, attachments = service.get_detail(story_id)
+    story, links, attachments, comments = service.get_detail(story_id)
     detail = StoryDetail.model_validate(story)
     detail.links = [lnk.model_dump() for lnk in links]
     detail.attachments = [a.model_dump(mode="json") for a in attachments]
+    detail.comments = [c.model_dump(mode="json") for c in comments]
     return {"data": detail.model_dump()}
 
 

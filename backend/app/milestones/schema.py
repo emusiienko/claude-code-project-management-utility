@@ -100,8 +100,6 @@ class Milestone(BaseModel):
 
 
 class MilestoneDetail(Milestone):
-    # comments stays empty pending STORY-008, matching how story/task detail
-    # composition was staged (see architecture.md Known Divergences).
     attachments: list[dict] = []
     comments: list[dict] = []
 

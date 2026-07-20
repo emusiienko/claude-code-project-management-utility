@@ -4,6 +4,7 @@ from dependency_injector.wiring import Closing, Provide, inject
 from sqlalchemy.orm import Session
 
 from app.attachments.service import AttachmentService
+from app.comments.service import CommentService
 from app.container.container import AppContainer
 from app.milestones.service import MilestoneService
 from app.projects.service import ProjectService
@@ -87,5 +88,14 @@ async def provide_story_link_service(
 async def provide_attachment_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: AttachmentService = Provide[AppContainer.attachment_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_comment_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: CommentService = Provide[AppContainer.comment_service],
 ):
     yield service
