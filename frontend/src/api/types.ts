@@ -151,13 +151,19 @@ export interface Attachment {
   updated_at: string;
 }
 
+/**
+ * `author_role` is required and immutable (set once at creation, never updatable).
+ * `ancestors` is the immutable, root-first materialized reply path — empty for a
+ * top-level comment; a reply's direct parent is `ancestors[ancestors.length - 1]`.
+ */
 export interface Comment {
   id: string;
   container_type: ContainerType;
   container_id: string;
-  author_role: string | null;
+  author_role: string;
   content: string;
   labels: Label[];
+  ancestors: string[];
   created_at: string;
   updated_at: string;
 }
@@ -366,12 +372,19 @@ export interface CreateStoredFileAttachment {
   file: File;
 }
 
+/**
+ * `in_reply_to` is request-only — the server validates it (existence + same
+ * container) and derives the persisted, immutable `ancestors` path from it;
+ * it is never itself returned or stored as its own field.
+ */
 export interface CreateComment {
   content: string;
-  author_role?: string;
+  author_role: string;
   labels?: Label[];
+  in_reply_to?: string;
 }
 
+/** `author_role` and `ancestors` are immutable — not present here, ignored if sent. */
 export interface UpdateComment {
   content?: string;
   labels?: Label[];

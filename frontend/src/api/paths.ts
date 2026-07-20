@@ -167,4 +167,39 @@ export const API_PATHS = {
    * Not applicable to external-ref (400 — no stored file).
    */
   ATTACHMENT_FILE: (id: string) => `/v1/attachments/${id}/file`,
+
+  // ---------------------------------------------------------------------------
+  // Comments
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /v1/stories/:storyId/comments — create a comment on a story.
+   * GET  /v1/stories/:storyId/comments?page&limit&label_key&label_value&after_id&descendant_of
+   */
+  STORY_COMMENTS: (storyId: string) => `/v1/stories/${storyId}/comments`,
+
+  /**
+   * POST /v1/tasks/:taskId/comments — create a comment on a task.
+   * GET  /v1/tasks/:taskId/comments?page&limit&label_key&label_value&after_id&descendant_of
+   */
+  TASK_COMMENTS: (taskId: string) => `/v1/tasks/${taskId}/comments`,
+
+  /**
+   * POST /v1/milestones/:id/comments — create a comment on a milestone.
+   * GET  /v1/milestones/:id/comments?page&limit&label_key&label_value&after_id&descendant_of
+   */
+  MILESTONE_COMMENTS: (id: string) => `/v1/milestones/${id}/comments`,
+
+  /**
+   * GET    /v1/comments/:id — fetch a single comment.
+   * PUT    /v1/comments/:id — update content and/or labels (author_role/ancestors immutable).
+   * DELETE /v1/comments/:id — permanently delete a comment.
+   */
+  COMMENT: (id: string) => `/v1/comments/${id}`,
+
+  /**
+   * GET /v1/comments/:id/ancestors — ordered (root-first) ancestor comment bodies.
+   * Returns a bare Comment[], not a paginated envelope.
+   */
+  COMMENT_ANCESTORS: (id: string) => `/v1/comments/${id}/ancestors`,
 } as const;

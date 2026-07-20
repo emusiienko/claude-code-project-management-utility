@@ -36,8 +36,10 @@ Coverage zones (per TASK-006, against api-contract v1.6 / STORY-021):
 - DELETE /attachments/:id      every kind hard-deleted (204); document/image/file also
                                removes the stored file; not found -> 404
 - Cascade delete: deleting a story/task/milestone removes all its attachments + files
-- Story/task detail return their attachments; milestone detail composes attachments with
-  an empty comments array
+- Story/task/milestone detail return their attachments; milestone detail also composes
+  comments oldest-first (STORY-008 wired CommentReader into milestone detail — the
+  `comments` list is no longer always empty; see test_comments.py for full comments
+  coverage)
 - REST and MCP produce equivalent results (create, delete, list, get, get_attachment_file)
 
 Notes:
@@ -1341,20 +1343,32 @@ async def test_task_detail_includes_attachments(client: AsyncClient, create_proj
     assert attachment_id in ids, f"Task detail should include the created attachment: {data['attachments']}"
 
 
-async def test_milestone_detail_includes_attachments_and_empty_comments(
+async def test_milestone_detail_includes_attachments_and_comments(
     client: AsyncClient, create_project
 ) -> None:
+    # STORY-008/TASK-004 wired CommentReader into milestone detail composition —
+    # comments are no longer always empty (superseding the pre-STORY-008 assertion).
     project_id = create_project("Milestone Detail Attachments")
     milestone = await _create_milestone(client, project_id)
     create_resp = await _create_document_json(client, _attachments_url("milestone", milestone["id"]))
     attachment_id = create_resp.json()["data"]["id"]
+
+    comment_resp = await client.post(
+        f"{MILESTONES_URL}/{milestone['id']}/comments",
+        json={"content": "Milestone comment", "author_role": "operator"},
+    )
+    assert comment_resp.status_code == 201, (
+        f"Expected 201 creating milestone comment, got {comment_resp.status_code} — {comment_resp.text}"
+    )
+    comment_id = comment_resp.json()["data"]["id"]
 
     resp = await client.get(_detail_url("milestone", milestone["id"]))
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code} — {resp.text}"
     data = resp.json()["data"]
     ids = [a["id"] for a in data["attachments"]]
     assert attachment_id in ids, f"Milestone detail should include the created attachment: {data['attachments']}"
-    assert data["comments"] == [], "Milestone detail comments should stay empty pending STORY-008"
+    comment_ids = [c["id"] for c in data["comments"]]
+    assert comment_id in comment_ids, f"Milestone detail should include the created comment: {data['comments']}"
 
 
 # ===========================================================================

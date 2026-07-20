@@ -1,6 +1,7 @@
-"""Integration tests for the Settings domain — STORY-002 (+ STORY-021 retirement).
+"""Integration tests for the Settings domain — STORY-002 (+ STORY-021 retirement,
++ STORY-008 `default_web_ui_role` scalar setting and `operator` participant role).
 
-Coverage zones (per TASK-009, revised by STORY-021/TASK-006):
+Coverage zones (per TASK-009, revised by STORY-021/TASK-006, STORY-008/TASK-011):
 - GET  /v1/system/settings
 - PUT  /v1/system/settings
 - GET  /v1/projects/:id/settings
@@ -8,8 +9,9 @@ Coverage zones (per TASK-009, revised by STORY-021/TASK-006):
 - PUT  /v1/projects/:id/settings
 
 Behaviors tested:
-- All five dictionary keys present in system settings response (STORY-021 retired
-  `attachment_types` — Settings dropped from six keys to five)
+- All five dictionary keys plus the scalar `default_web_ui_role` present in system
+  settings response (STORY-021 retired `attachment_types` — six keys total: five
+  dictionaries + one scalar)
 - Partial PUT updates only specified keys; others unchanged
 - Unknown key (including the retired `attachment_types`) → 422
 - Empty values list → 400 with verbatim "Dictionary values cannot be empty."
@@ -19,25 +21,32 @@ Behaviors tested:
 - Updating one project's override does not change another project's effective settings
 - Clearing one key's override (via PUT with only other keys) leaves others untouched
 - Missing project → 404 for all project-scoped endpoints
+- `default_web_ui_role`: settable at system/project scope; rejected when outside
+  effective `participant_roles`; system default is `"operator"`; `participant_roles`
+  seed includes `"operator"` on a clean install (STORY-008)
 
 Notes:
 - The `create_project` fixture creates a real row in the `project` table.
   Each test that needs a project calls it; the fixture handles cleanup.
-- System settings are seeded by migration 0003 and shared across tests.
+- System settings are seeded by migration 0002_settings and shared across tests.
   Tests that mutate system settings MUST restore them to avoid inter-test
   interference (use try/finally or restore in the test body).
-- `attachment_types` is intentionally NOT in ALL_KEYS / SEED_DEFAULTS below —
+- `attachment_types` is intentionally NOT in ALL_DICT_KEYS / SEED_DEFAULTS below —
   STORY-021 / TASK-002 removed it from `ALL_DICT_KEYS` entirely and migration
   0010_attachment_title deletes its seeded rows. See TestAttachmentTypesRetired.
 """
+from fastmcp import Client
 from httpx import AsyncClient
+
+from app.mcp.server import mcp_server_v1
 
 # ---------------------------------------------------------------------------
 # Five canonical dictionary keys (mirrors app.settings.schema.ALL_DICT_KEYS,
-# post-STORY-021 retirement of attachment_types)
+# post-STORY-021 retirement of attachment_types) plus the scalar
+# `default_web_ui_role` key added by STORY-008 (app.settings.schema.ALL_SETTINGS_KEYS).
 # ---------------------------------------------------------------------------
 
-ALL_KEYS = {
+ALL_DICT_KEYS = {
     "task_statuses",
     "task_types",
     "story_statuses",
@@ -45,8 +54,15 @@ ALL_KEYS = {
     "participant_roles",
 }
 
-# Seed defaults from migration 0003 — used as restore values.
+DEFAULT_WEB_UI_ROLE_KEY = "default_web_ui_role"
+
+# Full settings key space — five dictionaries + the scalar default_web_ui_role.
+ALL_KEYS = ALL_DICT_KEYS | {DEFAULT_WEB_UI_ROLE_KEY}
+
+# Seed defaults from migration 0002_settings — used as restore values.
 # link_types is stored and returned as structured objects (LinkTypeEntry), not plain strings.
+# participant_roles includes "operator" (STORY-008) — the human-orchestrator-via-Web-UI
+# role, distinct from the "orchestrator" agent-coordination role.
 SEED_DEFAULTS: dict[str, list] = {
     "task_statuses": ["todo", "in-progress", "done"],
     "task_types": ["task", "bug", "testing-task"],
@@ -67,8 +83,14 @@ SEED_DEFAULTS: dict[str, list] = {
         "spec-writer",
         "qa-automation",
         "manual-qa",
+        "operator",
     ],
 }
+
+# Seed default for the scalar default_web_ui_role key — checked separately from
+# SEED_DEFAULTS (a bare string, not a list, so it can't share the sorted-list
+# comparison helper the dictionary keys use).
+SEED_DEFAULT_WEB_UI_ROLE = "operator"
 
 # Restore payload for link_types — canonical structured objects matching the seed migration.
 SEED_LINK_TYPES_PAYLOAD = [
@@ -97,6 +119,11 @@ def _settings_data(response_json: dict) -> dict:
     return response_json["data"]
 
 
+async def _mcp_call(tool_name: str, args: dict):
+    async with Client(mcp_server_v1) as mcp_client:
+        return await mcp_client.call_tool(tool_name, args)
+
+
 # ===========================================================================
 # GET /v1/system/settings
 # ===========================================================================
@@ -112,18 +139,33 @@ class TestGetSystemSettings:
         body = response.json()
         assert "data" in body, "Response body missing 'data' key"
 
-    async def test_all_five_keys_present(self, client: AsyncClient) -> None:
+    async def test_all_six_keys_present(self, client: AsyncClient) -> None:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
         for key in ALL_KEYS:
             assert key in data, f"Missing key '{key}' in system settings response"
 
     async def test_values_are_non_empty_lists(self, client: AsyncClient) -> None:
+        # default_web_ui_role is the one scalar key (a bare string, not a list) —
+        # checked separately below.
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
-        for key in ALL_KEYS:
+        for key in ALL_DICT_KEYS:
             assert isinstance(data[key], list), f"'{key}' should be a list"
             assert len(data[key]) > 0, f"'{key}' should be non-empty after seeding"
+
+    async def test_default_web_ui_role_is_non_empty_string(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get("/v1/system/settings")
+        data = _settings_data(response.json())
+        assert isinstance(data[DEFAULT_WEB_UI_ROLE_KEY], str), (
+            f"'{DEFAULT_WEB_UI_ROLE_KEY}' should be a scalar string, "
+            f"got {type(data[DEFAULT_WEB_UI_ROLE_KEY])}"
+        )
+        assert data[DEFAULT_WEB_UI_ROLE_KEY], (
+            f"'{DEFAULT_WEB_UI_ROLE_KEY}' should be non-empty after seeding"
+        )
 
     async def test_seed_values_match_expected_defaults(
         self, client: AsyncClient
@@ -134,6 +176,26 @@ class TestGetSystemSettings:
             assert sorted(data[key], key=_sort_key) == sorted(expected, key=_sort_key), (
                 f"Key '{key}': expected {expected}, got {data[key]}"
             )
+
+    async def test_seed_default_web_ui_role_is_operator(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get("/v1/system/settings")
+        data = _settings_data(response.json())
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"System default_web_ui_role should seed as "
+            f"'{SEED_DEFAULT_WEB_UI_ROLE}', got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
+
+    async def test_seed_participant_roles_includes_operator(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.get("/v1/system/settings")
+        data = _settings_data(response.json())
+        assert "operator" in data["participant_roles"], (
+            f"participant_roles seed should include 'operator', "
+            f"got {data['participant_roles']}"
+        )
 
 
 # ===========================================================================
@@ -171,11 +233,16 @@ class TestUpdateSystemSettings:
         assert data["task_statuses"] == new_statuses, (
             f"task_statuses should be {new_statuses}, got {data['task_statuses']}"
         )
-        # Other keys remain at seed defaults
-        for key in ALL_KEYS - {"task_statuses"}:
+        # Other dictionary keys remain at seed defaults
+        for key in ALL_DICT_KEYS - {"task_statuses"}:
             assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
                 f"Unmodified key '{key}' was unexpectedly changed"
             )
+        # The scalar default_web_ui_role key is unaffected too
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"Unmodified key '{DEFAULT_WEB_UI_ROLE_KEY}' was unexpectedly changed, "
+            f"got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
 
         # Restore
         await client.put(
@@ -183,7 +250,7 @@ class TestUpdateSystemSettings:
             json={"task_statuses": SEED_DEFAULTS["task_statuses"]},
         )
 
-    async def test_update_returns_all_five_keys(self, client: AsyncClient) -> None:
+    async def test_update_returns_all_six_keys(self, client: AsyncClient) -> None:
         new_link_types = [
             {"value": "depends-on", "outbound": "depends on", "inbound": "is depended on by"},
             {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
@@ -373,7 +440,7 @@ class TestGetEffectiveProjectSettings:
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
-    async def test_all_five_keys_present(
+    async def test_all_six_keys_present(
         self, client: AsyncClient, create_project
     ) -> None:
         project_id = create_project("Six Keys Project")
@@ -394,6 +461,10 @@ class TestGetEffectiveProjectSettings:
             assert sorted(data[key], key=_sort_key) == sorted(expected, key=_sort_key), (
                 f"Key '{key}': project with no overrides should return seed default"
             )
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"Project with no overrides should return the system default_web_ui_role, "
+            f"got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
 
     async def test_override_replaces_system_default(
         self, client: AsyncClient, create_project
@@ -414,10 +485,14 @@ class TestGetEffectiveProjectSettings:
             f"got {data['task_statuses']}"
         )
         # Other keys still use system defaults
-        for key in ALL_KEYS - {"task_statuses"}:
+        for key in ALL_DICT_KEYS - {"task_statuses"}:
             assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
                 f"Non-overridden key '{key}' should still use system default"
             )
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"Non-overridden key '{DEFAULT_WEB_UI_ROLE_KEY}' should still use system "
+            f"default, got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
 
     async def test_missing_project_returns_404(self, client: AsyncClient) -> None:
         import uuid
@@ -527,7 +602,7 @@ class TestUpdateProjectSettings:
     async def test_returns_effective_settings_after_update(
         self, client: AsyncClient, create_project
     ) -> None:
-        """PUT /projects/:id/settings returns effective (all five keys), not just overrides."""
+        """PUT /projects/:id/settings returns effective (all six keys), not just overrides."""
         project_id = create_project("Effective After PUT Project")
         override = ["x", "y"]
         response = await client.put(
@@ -536,7 +611,7 @@ class TestUpdateProjectSettings:
         )
         data = _settings_data(response.json())
 
-        # All five keys must be present
+        # All six keys must be present
         for key in ALL_KEYS:
             assert key in data, f"Response after PUT missing key '{key}'"
 
@@ -544,11 +619,15 @@ class TestUpdateProjectSettings:
         assert data["story_statuses"] == override, (
             f"Overridden key should be {override}, got {data['story_statuses']}"
         )
-        # Other keys are system defaults
-        for key in ALL_KEYS - {"story_statuses"}:
+        # Other dictionary keys are system defaults
+        for key in ALL_DICT_KEYS - {"story_statuses"}:
             assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
                 f"Non-overridden key '{key}' should still be system default"
             )
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"Non-overridden key '{DEFAULT_WEB_UI_ROLE_KEY}' should still be system "
+            f"default, got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
 
     async def test_override_fully_replaces_not_merges(
         self, client: AsyncClient, create_project
@@ -759,6 +838,170 @@ class TestPartialOverrideClearingBehavior:
 
 
 # ===========================================================================
+# default_web_ui_role — STORY-008 / TASK-005 (+ TASK-011 test coverage)
+# ===========================================================================
+
+
+class TestDefaultWebUiRole:
+    """The scalar `default_web_ui_role` setting: system + project scope,
+    validated against the effective `participant_roles` for that scope, never
+    re-validated on read, and never constrains a comment's own `author_role`."""
+
+    async def test_put_system_default_web_ui_role_happy_path(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.put(
+            "/v1/system/settings",
+            json={"default_web_ui_role": "architect"},
+        )
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        data = _settings_data(response.json())
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == "architect", (
+            f"Expected 'architect', got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
+
+        # Restore
+        await client.put(
+            "/v1/system/settings",
+            json={"default_web_ui_role": SEED_DEFAULT_WEB_UI_ROLE},
+        )
+
+    async def test_put_system_default_web_ui_role_rejects_value_outside_participant_roles(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.put(
+            "/v1/system/settings",
+            json={"default_web_ui_role": "not-a-real-role"},
+        )
+        assert response.status_code == 422, (
+            f"Value outside participant_roles should return 422, "
+            f"got {response.status_code} — {response.text}"
+        )
+        body = response.json()
+        assert "not-a-real-role" in body.get("error", ""), (
+            f"Expected the rejected value in the error message, got: {body.get('error')}"
+        )
+
+    async def test_put_system_default_web_ui_role_empty_string_rejected(
+        self, client: AsyncClient
+    ) -> None:
+        response = await client.put(
+            "/v1/system/settings",
+            json={"default_web_ui_role": ""},
+        )
+        assert response.status_code == 422, (
+            f"Empty default_web_ui_role should return 422, got {response.status_code}"
+        )
+
+    async def test_put_project_override_happy_path(
+        self, client: AsyncClient, create_project
+    ) -> None:
+        project_id = create_project("Default Web UI Role Override Project")
+        response = await client.put(
+            f"/v1/projects/{project_id}/settings",
+            json={"default_web_ui_role": "architect"},
+        )
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        data = _settings_data(response.json())
+        assert data[DEFAULT_WEB_UI_ROLE_KEY] == "architect", (
+            f"Effective default_web_ui_role should be the override 'architect', "
+            f"got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
+
+        # Confirm the override surfaces on the plain (non-effective) overrides GET too
+        overrides_resp = await client.get(f"/v1/projects/{project_id}/settings")
+        overrides_data = _settings_data(overrides_resp.json())
+        assert overrides_data[DEFAULT_WEB_UI_ROLE_KEY] == "architect", (
+            f"Project overrides GET should include the default_web_ui_role override, "
+            f"got {overrides_data}"
+        )
+
+    async def test_put_project_override_rejects_value_outside_effective_participant_roles(
+        self, client: AsyncClient, create_project
+    ) -> None:
+        project_id = create_project("Narrowed Participant Roles Project")
+        # Narrow the project's effective participant_roles so "operator" (the
+        # system default_web_ui_role value) is no longer a member.
+        narrow_resp = await client.put(
+            f"/v1/projects/{project_id}/settings",
+            json={"participant_roles": ["architect", "backend-developer"]},
+        )
+        assert narrow_resp.status_code == 200, (
+            f"Expected 200 narrowing participant_roles, got {narrow_resp.status_code}"
+        )
+
+        response = await client.put(
+            f"/v1/projects/{project_id}/settings",
+            json={"default_web_ui_role": "operator"},
+        )
+        assert response.status_code == 422, (
+            f"Value outside the project's effective participant_roles should return "
+            f"422, got {response.status_code} — {response.text}"
+        )
+
+    async def test_clear_project_override_reverts_to_system_default(
+        self, client: AsyncClient, create_project
+    ) -> None:
+        # The REST clear-override route does not exist (known gap, STORY-002);
+        # the MCP tool is the only surface that exposes it.
+        project_id = create_project("Clear Default Web UI Role Override Project")
+        await client.put(
+            f"/v1/projects/{project_id}/settings",
+            json={"default_web_ui_role": "architect"},
+        )
+
+        effective_before = _settings_data(
+            (
+                await client.get(f"/v1/projects/{project_id}/settings/effective")
+            ).json()
+        )
+        assert effective_before[DEFAULT_WEB_UI_ROLE_KEY] == "architect", (
+            "Precondition: override should be in effect before clearing"
+        )
+
+        result = await _mcp_call(
+            "clear_project_setting",
+            {"project_id": project_id, "key": DEFAULT_WEB_UI_ROLE_KEY},
+        )
+        assert result.data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"Clearing the override should revert to the system default "
+            f"'{SEED_DEFAULT_WEB_UI_ROLE}', got {result.data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
+
+        effective_after = _settings_data(
+            (
+                await client.get(f"/v1/projects/{project_id}/settings/effective")
+            ).json()
+        )
+        assert effective_after[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
+            f"Effective settings should reflect the system default after clearing, "
+            f"got {effective_after[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
+
+    async def test_mcp_set_system_settings_default_web_ui_role_matches_rest(
+        self, client: AsyncClient
+    ) -> None:
+        result = await _mcp_call(
+            "set_system_settings", {"body": {"default_web_ui_role": "backend-developer"}}
+        )
+        assert result.data[DEFAULT_WEB_UI_ROLE_KEY] == "backend-developer", (
+            f"Expected 'backend-developer', got {result.data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
+        )
+
+        rest_resp = await client.get("/v1/system/settings")
+        rest_data = _settings_data(rest_resp.json())
+        assert rest_data[DEFAULT_WEB_UI_ROLE_KEY] == "backend-developer", (
+            "MCP-set value should be visible over REST too"
+        )
+
+        # Restore
+        await client.put(
+            "/v1/system/settings",
+            json={"default_web_ui_role": SEED_DEFAULT_WEB_UI_ROLE},
+        )
+
+
+# ===========================================================================
 # attachment_types retirement — STORY-021 / TASK-002
 # ===========================================================================
 
@@ -776,13 +1019,13 @@ class TestAttachmentTypesRetired:
             f"attachment_types should be retired from system settings, got keys: {list(data)}"
         )
 
-    async def test_system_settings_get_returns_exactly_five_keys(
+    async def test_system_settings_get_returns_exactly_six_keys(
         self, client: AsyncClient
     ) -> None:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
         assert set(data.keys()) == ALL_KEYS, (
-            f"Expected exactly the five keys {ALL_KEYS}, got {set(data.keys())}"
+            f"Expected exactly the six keys {ALL_KEYS}, got {set(data.keys())}"
         )
 
     async def test_put_system_settings_with_attachment_types_returns_422(

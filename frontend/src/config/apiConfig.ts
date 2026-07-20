@@ -44,6 +44,12 @@ export const PAGINATION = {
    * containers are unlikely to accumulate more than 100 attachments in a session.
    */
   ATTACHMENTS: 100,
+  /**
+   * Comments per container — matches the backend's generous default (a single
+   * work item is expected to hold at most ~50 comments, so a typical thread
+   * returns in one page); pagination remains only as a safety net.
+   */
+  COMMENTS: 50,
 } as const;
 
 /**
@@ -79,4 +85,6 @@ export const DATA_FRESHNESS = {
   STORY_LINKS: 0,
   /** Attachments — always fresh so the section reflects recent uploads/deletes. */
   ATTACHMENTS: 0,
+  /** Comments — user-generated content; always fresh to reflect new/edited/deleted comments. */
+  COMMENTS: 0,
 } as const;

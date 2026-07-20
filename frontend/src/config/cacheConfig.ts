@@ -73,6 +73,8 @@ export const CACHE_KEYS = {
     ) =>
       ["comments", "list", containerType, containerId, params ?? {}] as const,
     detail: (id: string) => ["comments", "detail", id] as const,
+    /** Ordered (root-first) ancestor lineage for a reply comment. */
+    ancestors: (id: string) => ["comments", "ancestors", id] as const,
   },
 
   sessions: {
