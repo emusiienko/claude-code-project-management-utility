@@ -58,6 +58,15 @@ vi.mock("@/features/attachments/hooks/useAttachments", () => ({
   useDeleteAttachment: vi.fn(),
 }));
 
+// CommentsSection (rendered in StoryRightPanel, STORY-008) uses TanStack Query
+// hooks — mock to avoid requiring a QueryClientProvider.
+vi.mock("@/features/comments/hooks/useComments", () => ({
+  useCommentList: vi.fn(),
+  useCreateComment: vi.fn(),
+  useUpdateComment: vi.fn(),
+  useDeleteComment: vi.fn(),
+}));
+
 import { useStory, useUpdateStory } from "../hooks/useStories";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones";
@@ -78,6 +87,12 @@ import {
   useCreateAttachment,
   useDeleteAttachment,
 } from "@/features/attachments/hooks/useAttachments";
+import {
+  useCommentList,
+  useCreateComment,
+  useUpdateComment,
+  useDeleteComment,
+} from "@/features/comments/hooks/useComments";
 
 const mockUseStory = vi.mocked(useStory);
 const mockUseUpdateStory = vi.mocked(useUpdateStory);
@@ -94,6 +109,10 @@ const mockUseDeleteStoryLink = vi.mocked(useDeleteStoryLink);
 const mockUseAttachmentList = vi.mocked(useAttachmentList);
 const mockUseCreateAttachment = vi.mocked(useCreateAttachment);
 const mockUseDeleteAttachment = vi.mocked(useDeleteAttachment);
+const mockUseCommentList = vi.mocked(useCommentList);
+const mockUseCreateComment = vi.mocked(useCreateComment);
+const mockUseUpdateComment = vi.mocked(useUpdateComment);
+const mockUseDeleteComment = vi.mocked(useDeleteComment);
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -193,6 +212,15 @@ beforeEach(() => {
   } as never);
   mockUseCreateAttachment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseDeleteAttachment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  // CommentsSection hooks — return empty data so the section renders without errors
+  mockUseCommentList.mockReturnValue({
+    data: { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } },
+    isLoading: false,
+    isError: false,
+  } as never);
+  mockUseCreateComment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  mockUseUpdateComment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  mockUseDeleteComment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
 });
 
 // ---------------------------------------------------------------------------

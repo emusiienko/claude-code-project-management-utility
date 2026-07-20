@@ -2,9 +2,9 @@
  * MilestoneDetailPage — detail view at /milestones/:id.
  *
  * Shows the milestone name (as heading), status badge, description, a
- * paginated list of stories assigned to this milestone, and an Attachments
- * section (STORY-007). A back-link returns to the owning project's
- * Milestones tab.
+ * paginated list of stories assigned to this milestone, an Attachments
+ * section (STORY-007), and a Comments section (STORY-008). A back-link
+ * returns to the owning project's Milestones tab.
  *
  * Data fetching:
  *   - Milestone detail: useMilestone (GET /v1/milestones/:id)
@@ -20,6 +20,7 @@ import { useMilestone, useMilestoneStories } from "./hooks/useMilestones";
 import { extractErrorMessage } from "./utils/errorMessages";
 import { PageLoader } from "@/shared/components/PageLoader";
 import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
+import { CommentsSection } from "@/features/comments/components/CommentsSection";
 import type { MilestoneStatus, Story } from "@/api/types";
 
 // ---------------------------------------------------------------------------
@@ -251,6 +252,15 @@ export default function MilestoneDetailPage() {
       {/* Attachments section — STORY-007 */}
       <div className="mt-8">
         <AttachmentsSection
+          containerType="milestone"
+          containerId={milestone.id}
+          projectId={milestone.project_id}
+        />
+      </div>
+
+      {/* Comments section — STORY-008 */}
+      <div className="mt-8">
+        <CommentsSection
           containerType="milestone"
           containerId={milestone.id}
           projectId={milestone.project_id}

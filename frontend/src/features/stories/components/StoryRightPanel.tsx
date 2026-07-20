@@ -6,7 +6,7 @@
  *   - Milestone assignment control (inline set/clear)
  *   - Story links section (list + add + delete) — STORY-006
  *   - Attachments section (list + upload + view/download + delete) — STORY-007
- *   - Comments placeholder (STORY-008)
+ *   - Comments section (thread + add/edit/reply/delete/copy-link) — STORY-008
  *
  * The panel is toggled by the parent; its open/closed state is persisted per
  * story in localStorage (managed by the parent via useLocalStorage).
@@ -25,6 +25,7 @@ import type { Story, LinkTypeEntry } from "@/api/types";
 import { MilestoneAssignment } from "./MilestoneAssignment";
 import { StoryLinksSection } from "@/features/story-links/components/StoryLinksSection";
 import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
+import { CommentsSection } from "@/features/comments/components/CommentsSection";
 
 interface StoryRightPanelProps {
   /** Story data to display. */
@@ -43,7 +44,7 @@ interface StoryRightPanelProps {
 
 /**
  * Collapsible right panel with story description (Markdown), milestone assignment,
- * story links (STORY-006), attachments (STORY-007), and comments placeholder.
+ * story links (STORY-006), attachments (STORY-007), and comments (STORY-008).
  */
 export function StoryRightPanel({
   story,
@@ -133,18 +134,8 @@ export function StoryRightPanel({
             projectId={story.project_id}
           />
 
-          {/* Comments placeholder */}
-          <section aria-labelledby="story-comments-heading">
-            <h3
-              id="story-comments-heading"
-              className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary"
-            >
-              Comments
-            </h3>
-            <div className="flex h-16 items-center justify-center rounded-md border border-dashed border-border">
-              <p className="text-xs text-text-muted">Comments coming soon (STORY-008)</p>
-            </div>
-          </section>
+          {/* Comments section — STORY-008 */}
+          <CommentsSection containerType="story" containerId={story.id} projectId={story.project_id} />
         </div>
       )}
     </aside>

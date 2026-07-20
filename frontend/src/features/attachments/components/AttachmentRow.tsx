@@ -17,7 +17,7 @@ import { Download, Eye, ExternalLink, Trash2 } from "lucide-react";
 import { IconButton } from "@/shared/components/IconButton";
 import { getAttachmentFileUrl } from "@/api/endpoints/attachments";
 import { formatFileSize } from "@/features/attachments/utils/formatFileSize";
-import { formatTimestamp } from "@/features/attachments/utils/formatTimestamp";
+import { formatTimestamp } from "@/shared/utils/formatTimestamp";
 import { isViewableMimeType } from "@/features/attachments/utils/viewerSupport";
 import type { Attachment, AttachmentKind } from "@/api/types";
 

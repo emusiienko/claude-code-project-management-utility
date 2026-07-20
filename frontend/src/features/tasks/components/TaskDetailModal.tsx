@@ -26,6 +26,7 @@ import { useModalEscape } from "@/shared/hooks/useModalEscape";
 import { TaskForm } from "./TaskForm";
 import { TaskLinksSection } from "./TaskLinksSection";
 import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
+import { CommentsSection } from "@/features/comments/components/CommentsSection";
 import { extractErrorMessage, extractFieldErrors } from "../utils/errorMessages";
 import type { CreateTask } from "@/api/types";
 
@@ -339,16 +340,9 @@ export function TaskDetailModal() {
               />
 
               {/* ---------------------------------------------------------- */}
-              {/* Comments placeholder (STORY-008)                            */}
+              {/* Comments section (STORY-008)                                */}
               {/* ---------------------------------------------------------- */}
-              <section aria-label="Task comments">
-                <h3 className="mb-3 text-sm font-semibold text-text-secondary uppercase tracking-wide">
-                  Comments
-                </h3>
-                <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-text-muted">
-                  Task comments — coming in STORY-008
-                </p>
-              </section>
+              <CommentsSection containerType="task" containerId={taskId} projectId={projectId} />
             </div>
           )}
         </div>

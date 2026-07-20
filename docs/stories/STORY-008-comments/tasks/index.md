@@ -8,7 +8,7 @@
 | TASK-004 | Detail composition and cascade delete | backend-developer | Done |
 | TASK-005 | default_web_ui_role setting and operator seed | backend-developer | Done |
 | TASK-006 | Comments API client and hooks | frontend-developer | Done |
-| TASK-007 | CommentsSection with forms, actions, and host mounts | frontend-developer | ToDo |
+| TASK-007 | CommentsSection with forms, actions, and host mounts | frontend-developer | Done |
 | TASK-008 | @role mention combobox and render highlighting | frontend-developer | ToDo |
 | TASK-009 | Comment permalink resolver and deep-linking | frontend-developer | ToDo |
 | TASK-010 | Default Web UI role settings UI | frontend-developer | Done |
