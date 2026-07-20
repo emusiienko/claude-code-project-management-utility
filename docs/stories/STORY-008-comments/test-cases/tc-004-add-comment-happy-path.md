@@ -21,7 +21,7 @@ status: Active
 
 ## Expected Result
 - Before submitting, `author_role` is already pre-filled with the project's effective default Web UI role — the user did not have to type it
-- On submit, the new comment appears at the bottom of the thread (oldest-first order preserved) showing the submitted author role, the content rendered as Markdown, and the label chip
+- On submit, the new comment appears at the top of the thread (newest-first order preserved) showing the submitted author role, the content rendered as Markdown, and the label chip
 - The Comments count badge increments by one
 - No error banner or lingering spinner remains after the operation
 - The form resets after success: `content` and `labels` are cleared, and `author_role` is reset to the effective default Web UI role again — not to whatever value was last present in the field

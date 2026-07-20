@@ -17,6 +17,6 @@ status: Active
 
 ## Expected Result
 - The long comment's content wraps within its container — no horizontal overflow, no clipped text, no distorted layout of neighboring comments
-- With ~15-20+ comments in the thread, the section remains scrollable and usable; the pinned Add Comment form stays accessible at the bottom without being pushed off-screen
+- With ~15-20+ comments in the thread, the section remains scrollable and usable; the pinned Add Comment form stays accessible at the top of the section without being pushed off-screen as the thread grows
 - The count badge accurately reflects the total number of comments after all additions
 - No layout break, overlap, or console error occurs at any point during this test

@@ -27,6 +27,6 @@ status: Active
 ## Expected Result
 - Part A: clicking Reply shows a dismissible chip reading something like "↩ Replying to {author_role}'s comment" above the compose form; the `content` field is NOT pre-filled with any link or text — the cursor is simply ready for the author's own words
 - `author_role` still pre-fills from the effective default Web UI role exactly as for any new comment; labels behave identically
-- After submitting, the new comment appears at the bottom of the flat, oldest-first thread (no visual nesting or indentation) and shows a "↩ Replying to {author_role}" prefix line pointing back at the original comment
+- After submitting, the new comment appears at the top of the flat, newest-first thread (no visual nesting or indentation) and shows a "↩ Replying to {author_role}" prefix line pointing back at the original comment
 - Part B: dismissing the chip before submitting removes the reply association — the resulting comment posts as an ordinary comment with no reply-prefix line
 - No error banner or console error appears in either part

@@ -14,7 +14,7 @@
 | [tc-010](test-cases/tc-010-mention-combobox-edge-cases.md) | @role mention combobox — no matches, dismiss and free text after @ | @regression | Active |
 | [tc-011](test-cases/tc-011-mention-render-highlighting.md) | Rendered @role mentions — accent highlight for current roles, plain text otherwise | @smoke @regression | Active |
 | [tc-012](test-cases/tc-012-reply-to-comment.md) | Reply to a comment — chip, dismiss, flat posting, reply-prefix line | @smoke @regression | Active |
-| [tc-013](test-cases/tc-013-multiple-replies-flat-thread.md) | Multiple replies and reply-to-reply — thread stays flat, oldest-first | @regression | Active |
+| [tc-013](test-cases/tc-013-multiple-replies-flat-thread.md) | Multiple replies and reply-to-reply — thread stays flat, newest-first | @regression | Active |
 | [tc-014](test-cases/tc-014-copy-link-toast.md) | Copy link — clipboard copy and confirmation toast | @regression | Active |
 | [tc-015](test-cases/tc-015-permalink-navigation.md) | Comment permalink navigation — deep link scrolls and highlights the comment | @smoke @regression | Active |
 | [tc-016](test-cases/tc-016-permalink-deleted-comment.md) | Permalink to a deleted comment — navigates to host view, no error | @regression | Active |

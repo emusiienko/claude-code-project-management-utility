@@ -20,7 +20,7 @@ status: Active
 - The previous "Deferred to STORY-008" placeholder note is no longer present anywhere on the page
 - A "Comments" heading is visible directly below the Attachments section, with a live count badge
 - When no comments exist, an empty state is shown (placeholder text — no error, no spinner)
-- When comments exist, the thread renders oldest-first with author role, Markdown content, label chips, and a timestamp per entry
+- When comments exist, the thread renders newest-first with author role, Markdown content, label chips, and a timestamp per entry
 - Each comment exposes inline Edit, Reply, Delete, and Copy link icon actions
-- An "Add Comment" form is pinned at the bottom of the section
+- An "Add Comment" form is pinned at the top of the section, above the thread
 - No "Something went wrong" overlay or console error while the section loads

@@ -19,8 +19,8 @@ status: Active
 ## Expected Result
 - A heading labeled "Comments" is visible, with a live count badge
 - When no comments exist, an empty state is shown (placeholder text — no error, no spinner)
-- When comments exist, the thread renders oldest-first with author role, Markdown content, label chips, and a timestamp per entry
+- When comments exist, the thread renders newest-first with author role, Markdown content, label chips, and a timestamp per entry
 - Each comment exposes inline Edit, Reply, Delete, and Copy link icon actions
-- An "Add Comment" form is pinned at the bottom of the section (author_role input, content textarea, labels editor)
+- An "Add Comment" form is pinned at the top of the section, above the thread (author_role input, content textarea, labels editor)
 - The section does not overflow the modal; no horizontal scrollbar appears
 - No "Something went wrong" overlay or console error while the section loads

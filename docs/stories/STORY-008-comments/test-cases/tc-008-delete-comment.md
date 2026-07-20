@@ -19,5 +19,5 @@ status: Active
 - A confirmation dialog appears before the deletion completes, using the standard destructive-action confirmation styling (danger color)
 - On confirm, the comment disappears from the thread without a full page reload
 - The count badge decrements by one
-- The remaining comment(s) stay in their original oldest-first order
+- The remaining comment(s) stay in their original newest-first order
 - No error banner or console error appears during the deletion
