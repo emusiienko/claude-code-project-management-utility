@@ -1,6 +1,6 @@
 ## Active wait
-waiting_for: STORY-008 implementation — Round 6 (TASK-008, TASK-009) running in parallel — last two tasks
-next_step: on completion, set STORY-008 Pending Approval + Stabilization loop
+waiting_for: STORY-008 — all 11 tasks Done, story set to Pending Approval; qa-automation Execute mode (Stabilization loop) running
+next_step: on green, ask user about manual-qa Check Story — Execute
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start
