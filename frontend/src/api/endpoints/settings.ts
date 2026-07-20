@@ -16,7 +16,7 @@
 
 import { apiClient } from "@/core/client";
 import { API_PATHS } from "@/api/paths";
-import type { DictionaryKey, Envelope, Settings, SettingsOverrides } from "@/api/types";
+import type { Envelope, Settings, SettingsKey, SettingsOverrides } from "@/api/types";
 
 // ---------------------------------------------------------------------------
 // System settings
@@ -79,7 +79,7 @@ export async function setProjectOverride(
 /** DELETE /v1/projects/:projectId/settings/:key — clears a single project override. */
 export async function clearProjectOverride(
   projectId: string,
-  key: DictionaryKey,
+  key: SettingsKey,
 ): Promise<void> {
   await apiClient.delete(API_PATHS.PROJECT_SETTINGS_KEY(projectId, key));
 }

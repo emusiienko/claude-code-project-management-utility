@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CACHE_KEYS } from "@/config/cacheConfig";
 import { DATA_FRESHNESS } from "@/config/apiConfig";
-import type { DictionaryKey, SettingsOverrides } from "@/api/types";
+import type { SettingsKey, SettingsOverrides } from "@/api/types";
 import {
   clearProjectOverride,
   getProjectSettings,
@@ -56,7 +56,7 @@ export function useSetProjectOverride() {
 
 interface ClearProjectOverrideParams {
   projectId: string;
-  key: DictionaryKey;
+  key: SettingsKey;
 }
 
 /** Mutation: clear a single project override, restoring the system default. */

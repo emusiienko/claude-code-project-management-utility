@@ -216,14 +216,27 @@ export interface LinkTypeEntry {
 /** The four plain-string dictionary keys (all except link_types). */
 type PlainStringDictionaryKey = Exclude<DictionaryKey, "link_types">;
 
-/** Full set of five system dictionaries. link_types entries are structured objects. */
+/**
+ * Any settings key, dictionary or scalar. `default_web_ui_role` (STORY-008) is the
+ * first scalar (single-value) key in the settings store, alongside the five
+ * list-valued dictionaries.
+ */
+export type SettingsKey = DictionaryKey | "default_web_ui_role";
+
+/**
+ * Full set of six system settings: five dictionaries plus the scalar
+ * `default_web_ui_role`. link_types entries are structured objects.
+ */
 export interface Settings extends Record<PlainStringDictionaryKey, string[]> {
   link_types: LinkTypeEntry[];
+  /** Pre-fills a new comment's author_role in the Web UI. Must be a member of participant_roles. */
+  default_web_ui_role: string;
 }
 
 /** Partial project-level overrides — only provided keys are present. */
 export interface SettingsOverrides extends Partial<Record<PlainStringDictionaryKey, string[]>> {
   link_types?: LinkTypeEntry[];
+  default_web_ui_role?: string;
 }
 
 // ---------------------------------------------------------------------------

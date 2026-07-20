@@ -21,6 +21,12 @@ class CommentRepository(BaseRepository[Comment]):
         # without UUID parsing outside the data layer (ADR-011).
         return self._coerce_uuid(container_id, "Container")
 
+    def coerce_comment_id(self, comment_id: str | uuid.UUID) -> uuid.UUID:
+        # Exposed so the service can coerce a raw `after_id`/`descendant_of`
+        # query-filter id (a comment id, not a container id) without UUID
+        # parsing outside the data layer (ADR-011).
+        return self._coerce_uuid(comment_id, "Comment")
+
     def list_paginated(
         self,
         container_type: str,
@@ -103,10 +109,16 @@ class CommentRepository(BaseRepository[Comment]):
     def list_all_for_container(
         self, container_type: str, container_id: uuid.UUID
     ) -> list[Comment]:
-        # Enumerates every comment on a container ahead of a cascade delete.
-        stmt = select(Comment).where(
-            Comment.container_type == container_type,
-            Comment.container_id == container_id,
+        # Enumerates every comment on a container — used both ahead of a
+        # cascade delete and to compose a detail view's oldest-first
+        # `comments` list, hence the explicit chronological ordering.
+        stmt = (
+            select(Comment)
+            .where(
+                Comment.container_type == container_type,
+                Comment.container_id == container_id,
+            )
+            .order_by(Comment.created_at.asc(), Comment.id.asc())
         )
         return list(self._session.scalars(stmt).all())
 

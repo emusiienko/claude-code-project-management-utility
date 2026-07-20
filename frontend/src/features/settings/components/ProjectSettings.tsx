@@ -26,8 +26,9 @@ import {
 } from "@/features/settings/hooks/useProjectSettings";
 import { DictionaryEditor, formatKeyLabel } from "./DictionaryEditor";
 import { LinkTypesEditor } from "./LinkTypesEditor";
+import { DefaultWebUiRoleEditor } from "./DefaultWebUiRoleEditor";
 import { PageLoader } from "@/shared/components/PageLoader";
-import type { DictionaryKey, LinkTypeEntry } from "@/api/types";
+import type { DictionaryKey, LinkTypeEntry, SettingsKey } from "@/api/types";
 import { ApiRequestError } from "@/core/client";
 
 /**
@@ -103,10 +104,10 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
   const clearOverrideMutation = useClearProjectOverride();
 
   const [saveErrors, setSaveErrors] = useState<
-    Partial<Record<DictionaryKey, string>>
+    Partial<Record<SettingsKey, string>>
   >({});
-  const [savingKey, setSavingKey] = useState<DictionaryKey | null>(null);
-  const [clearingKey, setClearingKey] = useState<DictionaryKey | null>(null);
+  const [savingKey, setSavingKey] = useState<SettingsKey | null>(null);
+  const [clearingKey, setClearingKey] = useState<SettingsKey | null>(null);
 
   function handleSave(key: Exclude<DictionaryKey, "link_types">, newValues: string[]) {
     setSavingKey(key);
@@ -148,7 +149,27 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
     );
   }
 
-  function handleClearOverride(key: DictionaryKey) {
+  function handleSaveDefaultWebUiRole(newValue: string) {
+    setSavingKey("default_web_ui_role");
+    setSaveErrors((prev) => ({ ...prev, default_web_ui_role: undefined }));
+    setOverrideMutation.mutate(
+      { projectId, body: { default_web_ui_role: newValue } },
+      {
+        onSuccess: () => {
+          setSavingKey(null);
+        },
+        onError: (err) => {
+          setSavingKey(null);
+          setSaveErrors((prev) => ({
+            ...prev,
+            default_web_ui_role: extractErrorMessage(err),
+          }));
+        },
+      },
+    );
+  }
+
+  function handleClearOverride(key: SettingsKey) {
     setClearingKey(key);
     clearOverrideMutation.mutate(
       { projectId, key },
@@ -225,6 +246,25 @@ export function EffectiveSettingsPanel({ projectId }: EffectiveSettingsPanelProp
             : undefined
         }
         isClearingOverride={clearingKey === "link_types"}
+      />
+
+      <DefaultWebUiRoleEditor
+        value={effectiveSettings.default_web_ui_role}
+        participantRoles={effectiveSettings.participant_roles}
+        onSave={handleSaveDefaultWebUiRole}
+        isSaving={savingKey === "default_web_ui_role"}
+        errorMessage={saveErrors.default_web_ui_role}
+        overrideBadge={
+          storedOverrides && "default_web_ui_role" in storedOverrides ? (
+            <OverrideBadge />
+          ) : undefined
+        }
+        onClearOverride={
+          storedOverrides && "default_web_ui_role" in storedOverrides
+            ? () => handleClearOverride("default_web_ui_role")
+            : undefined
+        }
+        isClearingOverride={clearingKey === "default_web_ui_role"}
       />
     </div>
   );

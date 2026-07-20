@@ -1,18 +1,20 @@
 /**
- * SystemSettings — view and edit all five global dictionary values.
+ * SystemSettings — view and edit all five global dictionaries plus the
+ * scalar `default_web_ui_role` setting.
  *
- * Renders one DictionaryEditor per dictionary key. Each editor is
- * independent: saving one key sends only that key in the request body
- * (Partial<Settings>), matching the contract's "only provided keys updated"
- * semantics. Errors from any single save are scoped to that editor.
+ * Renders one editor per key. Each editor is independent: saving one key
+ * sends only that key in the request body (Partial<Settings>), matching the
+ * contract's "only provided keys updated" semantics. Errors from any single
+ * save are scoped to that editor.
  */
 
 import { useState } from "react";
 import { useSystemSettings, useUpdateSystemSettings } from "@/features/settings/hooks/useSystemSettings";
 import { DictionaryEditor, formatKeyLabel } from "./DictionaryEditor";
 import { LinkTypesEditor } from "./LinkTypesEditor";
+import { DefaultWebUiRoleEditor } from "./DefaultWebUiRoleEditor";
 import { PageLoader } from "@/shared/components/PageLoader";
-import type { DictionaryKey, LinkTypeEntry } from "@/api/types";
+import type { DictionaryKey, LinkTypeEntry, SettingsKey } from "@/api/types";
 import { ApiRequestError } from "@/core/client";
 
 /**
@@ -46,10 +48,10 @@ export function SystemSettings() {
   const { data: settings, isLoading, isError, error } = useSystemSettings();
   const updateMutation = useUpdateSystemSettings();
 
-  // Per-key save error messages — keyed by DictionaryKey.
-  const [saveErrors, setSaveErrors] = useState<Partial<Record<DictionaryKey, string>>>({});
+  // Per-key save error messages — keyed by SettingsKey.
+  const [saveErrors, setSaveErrors] = useState<Partial<Record<SettingsKey, string>>>({});
   // Per-key saving state (in-flight key).
-  const [savingKey, setSavingKey] = useState<DictionaryKey | null>(null);
+  const [savingKey, setSavingKey] = useState<SettingsKey | null>(null);
 
   function handleSave(key: Exclude<DictionaryKey, "link_types">, newValues: string[]) {
     setSavingKey(key);
@@ -85,6 +87,26 @@ export function SystemSettings() {
           setSaveErrors((prev) => ({
             ...prev,
             link_types: extractErrorMessage(err),
+          }));
+        },
+      },
+    );
+  }
+
+  function handleSaveDefaultWebUiRole(newValue: string) {
+    setSavingKey("default_web_ui_role");
+    setSaveErrors((prev) => ({ ...prev, default_web_ui_role: undefined }));
+    updateMutation.mutate(
+      { default_web_ui_role: newValue },
+      {
+        onSuccess: () => {
+          setSavingKey(null);
+        },
+        onError: (err) => {
+          setSavingKey(null);
+          setSaveErrors((prev) => ({
+            ...prev,
+            default_web_ui_role: extractErrorMessage(err),
           }));
         },
       },
@@ -135,6 +157,14 @@ export function SystemSettings() {
           onSave={handleSaveLinkTypes}
           isSaving={savingKey === "link_types"}
           errorMessage={saveErrors.link_types}
+        />
+
+        <DefaultWebUiRoleEditor
+          value={settings.default_web_ui_role}
+          participantRoles={settings.participant_roles}
+          onSave={handleSaveDefaultWebUiRole}
+          isSaving={savingKey === "default_web_ui_role"}
+          errorMessage={saveErrors.default_web_ui_role}
         />
       </div>
     </section>
