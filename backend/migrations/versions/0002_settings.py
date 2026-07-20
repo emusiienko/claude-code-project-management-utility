@@ -1,4 +1,4 @@
-"""Create system_settings and project_settings tables; seed six default dictionaries.
+"""Create system_settings and project_settings tables; seed default settings.
 
 Revision ID: 0002_settings
 Revises: 0001_project
@@ -7,8 +7,13 @@ Create Date: 2026-06-30
 project_settings declares its FK to project inline. This is valid because
 0001_project already created the project table — no deferred FK, no batch_alter_table.
 
-Seed data (the six system-default dictionaries) is bundled in the same revision
-as the schema it populates. Timestamps are fixed for determinism.
+Seed data (the six system-default dictionaries, plus the scalar
+`default_web_ui_role` setting added by STORY-008/TASK-005) is bundled in the
+same revision as the schema it populates. Timestamps are fixed for
+determinism. STORY-008/TASK-005 edits this seed in place — the system is
+confirmed pre-production, so the chain is re-run as a clean install rather
+than patched with a backfill migration; `"operator"` is added to
+`participant_roles` and seeded as the `default_web_ui_role` system default.
 """
 
 from datetime import datetime, timezone
@@ -70,7 +75,18 @@ _SEED_ROWS = [
             "spec-writer",
             "qa-automation",
             "manual-qa",
+            # "operator" represents the human orchestrator driving the Web UI —
+            # distinct from the "orchestrator" agent-coordination role above.
+            # Added by STORY-008/TASK-005.
+            "operator",
         ],
+    },
+    {
+        # Scalar setting (STORY-008/TASK-005) — the role the Web UI pre-fills on
+        # any author/creator-style field it composes. Stored as a bare JSON
+        # string, not a list, unlike every other row in this table.
+        "key": "default_web_ui_role",
+        "values": "operator",
     },
 ]
 

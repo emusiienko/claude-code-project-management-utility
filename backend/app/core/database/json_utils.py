@@ -69,3 +69,53 @@ def _apply_postgresql(
             ")"
         ).bindparams(fragment=fragment_json)
     )
+
+
+def apply_json_scalar_array_contains_filter(
+    stmt: Select,  # type: ignore[type-arg]
+    session: Session,
+    table_alias: str,
+    column: str,
+    value: str,
+) -> Select:  # type: ignore[type-arg]
+    """Filter rows whose JSON array `column` contains the scalar string `value`.
+
+    Distinct from `apply_json_array_filter`, which matches key/value fragments
+    inside an array of *objects* (labels). This helper matches a plain string
+    element inside an array of *scalars* — used by the comments `ancestors`
+    materialized-path sub-thread filter (`descendant_of`).
+    """
+    dialect = session.get_bind().dialect.name  # type: ignore[union-attr]
+    if dialect == "sqlite":
+        return _apply_sqlite_scalar_contains(stmt, table_alias, column, value)
+    return _apply_postgresql_scalar_contains(stmt, table_alias, column, value)
+
+
+def _apply_sqlite_scalar_contains(
+    stmt: Select,  # type: ignore[type-arg]
+    table_alias: str,
+    column: str,
+    value: str,
+) -> Select:  # type: ignore[type-arg]
+    subquery_sql = (
+        f"SELECT 1 FROM json_each({table_alias}.{column}) AS je WHERE je.value = :val"
+    )
+    return stmt.where(text(f"EXISTS ({subquery_sql})").bindparams(val=value))
+
+
+def _apply_postgresql_scalar_contains(
+    stmt: Select,  # type: ignore[type-arg]
+    table_alias: str,
+    column: str,
+    value: str,
+) -> Select:  # type: ignore[type-arg]
+    # jsonb_array_elements_text extracts scalar text elements directly — no
+    # containment operator needed since we compare exact string equality.
+    return stmt.where(
+        text(
+            "EXISTS ("
+            f"  SELECT 1 FROM jsonb_array_elements_text({table_alias}.{column}::jsonb) AS elem"
+            "  WHERE elem = :val"
+            ")"
+        ).bindparams(val=value)
+    )

@@ -26,15 +26,33 @@ ALL_DICT_KEYS: frozenset[str] = frozenset(
 # Keys whose values remain plain strings — all except link_types.
 PLAIN_STRING_DICT_KEYS: frozenset[str] = ALL_DICT_KEYS - {DICT_KEY_LINK_TYPES}
 
+# ---------------------------------------------------------------------------
+# Scalar settings — single-value keys sharing the same (key, values) store as
+# the dictionaries above, but exposed as a scalar rather than a list. Kept
+# separate from ALL_DICT_KEYS: a scalar key is not a dictionary, and existing
+# dictionary-only call sites (link membership checks, dictionary editors) must
+# not suddenly see it. STORY-008/TASK-005 introduces the first one; a later
+# story may reuse it for another entity's author/creator-style field.
+# ---------------------------------------------------------------------------
+
+KEY_DEFAULT_WEB_UI_ROLE = "default_web_ui_role"
+
+ALL_SCALAR_KEYS: frozenset[str] = frozenset({KEY_DEFAULT_WEB_UI_ROLE})
+
+# Full key space accepted by the settings update body / clear-override path.
+ALL_SETTINGS_KEYS: frozenset[str] = ALL_DICT_KEYS | ALL_SCALAR_KEYS
+
 _LINK_TYPE_ENTRY_MSG = (
     "link_types entries must be objects with 'value', 'outbound', and 'inbound' fields"
 )
 _LINK_TYPE_UNIQUE_MSG = "link_types values must be unique"
 
 
-def validate_dict_key(key: str) -> None:
-    if key not in ALL_DICT_KEYS:
-        raise ValueError(f"Unknown dictionary key: '{key}'. Allowed: {sorted(ALL_DICT_KEYS)}")
+def validate_settings_key(key: str) -> None:
+    if key not in ALL_SETTINGS_KEYS:
+        raise ValueError(
+            f"Unknown settings key: '{key}'. Allowed: {sorted(ALL_SETTINGS_KEYS)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -66,27 +84,39 @@ class LinkTypeEntry(BaseModel):
 class UpdateSettingsBody(BaseModel):
     # Partial update body for both system and project settings.
     # Only provided keys are updated; absent keys are left unchanged.
-    # Field names match the five DictionaryKey constants exactly.
+    # Field names match the five DictionaryKey constants exactly, plus the
+    # scalar default_web_ui_role setting.
     task_statuses: list[str] | None = None
     task_types: list[str] | None = None
     story_statuses: list[str] | None = None
     link_types: list[LinkTypeEntry] | None = None
     participant_roles: list[str] | None = None
+    default_web_ui_role: str | None = None
+
+    @field_validator("default_web_ui_role")
+    @classmethod
+    def non_empty_default_web_ui_role(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("default_web_ui_role must be a non-empty string")
+        return stripped
 
     @model_validator(mode="before")
     @classmethod
     def reject_unknown_keys(cls, data: object) -> object:
-        # Reject unknown dictionary keys before Pydantic silently discards them.
-        # A key absent from ALL_DICT_KEYS is not a valid dictionary key — callers
+        # Reject unknown settings keys before Pydantic silently discards them.
+        # A key absent from ALL_SETTINGS_KEYS is not a valid key — callers
         # should receive 400 VALIDATION_ERROR, not a silent no-op.
         if not isinstance(data, dict):
             return data
-        unknown = set(data.keys()) - ALL_DICT_KEYS
+        unknown = set(data.keys()) - ALL_SETTINGS_KEYS
         if unknown:
             unknown_list = ", ".join(sorted(unknown))
             raise ValueError(
                 f"Unknown dictionary key(s): {unknown_list}. "
-                f"Valid keys are: {', '.join(sorted(ALL_DICT_KEYS))}."
+                f"Valid keys are: {', '.join(sorted(ALL_SETTINGS_KEYS))}."
             )
         # Validate link_types entries are objects before Pydantic attempts to parse them,
         # so we can produce the exact domain error message the contract requires.
@@ -97,8 +127,11 @@ class UpdateSettingsBody(BaseModel):
         return data
 
     def to_key_value_pairs(self) -> list[tuple[str, list[str] | list[LinkTypeEntry]]]:
-        # Returns (key, values) pairs for every provided (non-None) field.
+        # Returns (key, values) pairs for every provided (non-None) dictionary field.
         # Field names are bound to the constant values to preserve single source of truth.
+        # The scalar default_web_ui_role field is handled separately by the service —
+        # its validation (membership in participant_roles) needs scope-dependent lookups
+        # that don't fit this list-shaped loop.
         mapping: list[tuple[str, list[str] | list[LinkTypeEntry] | None]] = [
             (DICT_KEY_TASK_STATUSES, self.task_statuses),
             (DICT_KEY_TASK_TYPES, self.task_types),
@@ -115,12 +148,13 @@ class UpdateSettingsBody(BaseModel):
 
 
 class SettingsResponse(BaseModel):
-    # Full Settings — all five dictionary keys present.
+    # Full Settings — all five dictionary keys plus the scalar default_web_ui_role.
     task_statuses: list[str]
     task_types: list[str]
     story_statuses: list[str]
     link_types: list[LinkTypeEntry]
     participant_roles: list[str]
+    default_web_ui_role: str
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SettingsResponse":
@@ -131,6 +165,7 @@ class SettingsResponse(BaseModel):
             story_statuses=data[DICT_KEY_STORY_STATUSES],
             link_types=_coerce_link_type_entries(raw_link_types),
             participant_roles=data[DICT_KEY_PARTICIPANT_ROLES],
+            default_web_ui_role=data[KEY_DEFAULT_WEB_UI_ROLE],
         )
 
 
@@ -142,6 +177,7 @@ class SettingsOverridesResponse(BaseModel):
     story_statuses: list[str] | None = None
     link_types: list[LinkTypeEntry] | None = None
     participant_roles: list[str] | None = None
+    default_web_ui_role: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SettingsOverridesResponse":
@@ -155,6 +191,7 @@ class SettingsOverridesResponse(BaseModel):
             story_statuses=data.get(DICT_KEY_STORY_STATUSES),
             link_types=link_types,
             participant_roles=data.get(DICT_KEY_PARTICIPANT_ROLES),
+            default_web_ui_role=data.get(KEY_DEFAULT_WEB_UI_ROLE),
         )
 
 

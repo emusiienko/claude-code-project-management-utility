@@ -1,5 +1,6 @@
 ## Active wait
-waiting_for: none
+waiting_for: STORY-008 implementation — Round 1 (TASK-001, TASK-005, manual-qa Prepare) running in parallel
+next_step: on completion, Round 2 (TASK-002, TASK-010)
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start

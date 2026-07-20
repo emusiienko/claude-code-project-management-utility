@@ -33,17 +33,33 @@ logger = logging.getLogger(__name__)
 # duplicate it.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# default_web_ui_role shape note (for MCP callers)
+# ---------------------------------------------------------------------------
+# Unlike the five dictionaries (list-valued), `default_web_ui_role` is a
+# single scalar string. It is the role the Web UI pre-fills on any
+# author/creator-style field it composes (currently: a Comment's
+# `author_role`). On write it must be a non-empty member of the effective
+# `participant_roles` for that scope (system `participant_roles` for a
+# system write; the project's effective `participant_roles` for a project
+# override) — violating this returns 422. It is never re-validated on read
+# and never constrains a comment's own free-form `author_role`.
+# ---------------------------------------------------------------------------
+
 
 @mcp_server_v1.tool()
 async def get_system_settings(
     service: SettingsService = Depends(provide_settings_service),
 ) -> dict[str, Any]:
-    """Return the system-level settings for all five dictionaries.
+    """Return the system-level settings for all five dictionaries plus
+    `default_web_ui_role`.
 
-    The response contains all five dictionary keys.  Four keys
-    (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`)
-    are plain string arrays.  `link_types` is a structured object array —
-    see module-level note for the entry shape.
+    The response contains all five dictionary keys and the scalar
+    `default_web_ui_role` key.  Four keys (`task_statuses`, `task_types`,
+    `story_statuses`, `participant_roles`) are plain string arrays.
+    `link_types` is a structured object array — see module-level note for
+    the entry shape.  `default_web_ui_role` is a single string — see its
+    module-level note.
     """
     try:
         return service.get_system_settings()
@@ -59,7 +75,7 @@ async def set_system_settings(
     body: UpdateSettingsBody,
     service: SettingsService = Depends(provide_settings_service),
 ) -> dict[str, Any]:
-    """Update one or more system-level dictionary settings.
+    """Update one or more system-level settings.
 
     Only the keys present in `body` are updated; absent keys are left unchanged.
     The four plain-string dictionaries (`task_statuses`, `task_types`,
@@ -70,7 +86,10 @@ async def set_system_settings(
     with all three fields non-empty (1–200 chars) and unique `value` across
     the array.  Passing a plain string or omitting any field returns 422.
 
-    Returns the updated system settings for all five keys.
+    `default_web_ui_role` accepts a single non-empty string that must be a
+    member of the system `participant_roles` — see module-level note.
+
+    Returns the updated system settings for all six keys.
     """
     try:
         return service.update_system_settings(body)
@@ -89,9 +108,10 @@ async def get_project_effective_settings(
     """Return the effective (merged) settings for a project.
 
     Each key is resolved from the project-level override when one exists,
-    otherwise from the system default.  All five keys are present in the
+    otherwise from the system default.  All six keys are present in the
     response.  `link_types` is a structured object array — see module-level
-    note for the entry shape.
+    note for the entry shape.  `default_web_ui_role` is a single string —
+    see its module-level note.
     """
     try:
         return service.resolve_all(project_id=project_id)
@@ -110,7 +130,7 @@ async def set_project_settings(
     body: UpdateSettingsBody,
     service: SettingsService = Depends(provide_settings_service),
 ) -> dict[str, Any]:
-    """Set project-level overrides for one or more dictionary settings.
+    """Set project-level overrides for one or more settings.
 
     Each provided key fully replaces (never merges with) the system default
     for that key.  Absent keys are left unchanged.
@@ -122,6 +142,10 @@ async def set_project_settings(
     must have the shape ``{"value": str, "outbound": str, "inbound": str}``
     with all three fields non-empty (1–200 chars) and unique `value` across
     the array.  Passing a plain string or omitting any field returns 422.
+
+    `default_web_ui_role` accepts a single non-empty string that must be a
+    member of the project's *effective* `participant_roles` — see
+    module-level note.
 
     Returns the updated project overrides (only keys that have an override).
     """
@@ -140,11 +164,12 @@ async def clear_project_setting(
     key: str,
     service: SettingsService = Depends(provide_settings_service),
 ) -> dict[str, Any]:
-    """Remove a project-level override for a single dictionary key.
+    """Remove a project-level override for a single settings key.
 
     After clearing, the effective value for that key falls back to the system
     default.  Clearing an absent override is a no-op — the system default is
-    returned.  `key` must be one of the five valid dictionary keys.
+    returned.  `key` must be one of the six valid settings keys (five
+    dictionaries plus `default_web_ui_role`).
     """
     try:
         return service.clear_project_setting(

@@ -2,11 +2,11 @@
 
 | ID | Title | Assignee | Status |
 |----|-------|----------|--------|
-| TASK-001 | Comment model, migration, and repository | backend-developer | ToDo |
+| TASK-001 | Comment model, migration, and repository | backend-developer | Done |
 | TASK-002 | Comment service and schemas | backend-developer | ToDo |
 | TASK-003 | Comment REST controller, MCP tools, and DI wiring | backend-developer | ToDo |
 | TASK-004 | Detail composition and cascade delete | backend-developer | ToDo |
-| TASK-005 | default_web_ui_role setting and operator seed | backend-developer | ToDo |
+| TASK-005 | default_web_ui_role setting and operator seed | backend-developer | Done |
 | TASK-006 | Comments API client and hooks | frontend-developer | ToDo |
 | TASK-007 | CommentsSection with forms, actions, and host mounts | frontend-developer | ToDo |
 | TASK-008 | @role mention combobox and render highlighting | frontend-developer | ToDo |

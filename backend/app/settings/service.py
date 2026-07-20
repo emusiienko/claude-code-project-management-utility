@@ -2,19 +2,22 @@ import datetime
 import uuid
 from typing import Any, Protocol, cast
 
-from app.core.errors import NotFoundError, ValidationError
+from app.core.errors import NotFoundError, UnprocessableError, ValidationError
 from app.settings.model import ProjectSettings, SystemSettings
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
 from app.settings.schema import (
     ALL_DICT_KEYS,
     DICT_KEY_LINK_TYPES,
+    DICT_KEY_PARTICIPANT_ROLES,
+    KEY_DEFAULT_WEB_UI_ROLE,
     LinkTypeEntry,
     UpdateSettingsBody,
-    validate_dict_key,
+    validate_settings_key,
 )
 
 _EMPTY_VALUES_MSG = "Dictionary values cannot be empty."
 _LINK_TYPE_UNIQUE_MSG = "link_types values must be unique"
+_VALUE_NOT_ALLOWED_MSG = "Value '{v}' is not allowed. Allowed: {allowed}."
 
 
 class EffectiveDictionary(Protocol):
@@ -72,6 +75,22 @@ class SettingsService:
                     row.values = plain_values
                     row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
                 self._system_repo.save(row)
+
+        if body.default_web_ui_role is not None:
+            allowed = self._system_participant_roles()
+            self._validate_default_web_ui_role(body.default_web_ui_role, allowed)
+            row = self._system_repo.get_by_key(KEY_DEFAULT_WEB_UI_ROLE)
+            if row is None:
+                row = SystemSettings(
+                    key=KEY_DEFAULT_WEB_UI_ROLE,
+                    values=body.default_web_ui_role,
+                    updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                )
+            else:
+                row.values = body.default_web_ui_role
+                row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
+            self._system_repo.save(row)
+
         return self.get_system_settings()
 
     # ------------------------------------------------------------------
@@ -120,6 +139,25 @@ class SettingsService:
                     row.values = plain_values
                     row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
                 self._project_repo.save(row)
+
+        if body.default_web_ui_role is not None:
+            # Validated against the project's effective participant_roles, not the
+            # system default — an override can legitimately narrow or widen the set.
+            allowed = self.resolve(project_id, DICT_KEY_PARTICIPANT_ROLES)
+            self._validate_default_web_ui_role(body.default_web_ui_role, allowed)
+            row = self._project_repo.get_by_project_and_key(pid, KEY_DEFAULT_WEB_UI_ROLE)
+            if row is None:
+                row = ProjectSettings(
+                    project_id=pid,
+                    key=KEY_DEFAULT_WEB_UI_ROLE,
+                    values=body.default_web_ui_role,
+                    updated_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                )
+            else:
+                row.values = body.default_web_ui_role
+                row.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
+            self._project_repo.save(row)
+
         # PUT returns effective settings per the contract, not just the stored override.
         return self.resolve_all(project_id)
 
@@ -169,10 +207,16 @@ class SettingsService:
         system_by_key = {
             row.key: row.values for row in self._system_repo.get_all()
         }
-        return {
+        result: dict[str, Any] = {
             key: overrides_by_key.get(key, system_by_key.get(key, []))
             for key in ALL_DICT_KEYS
         }
+        # Scalar key: same override-then-system-default resolution, empty-string
+        # fallback should only happen if the seed is missing (data integrity issue).
+        result[KEY_DEFAULT_WEB_UI_ROLE] = overrides_by_key.get(
+            KEY_DEFAULT_WEB_UI_ROLE, system_by_key.get(KEY_DEFAULT_WEB_UI_ROLE, "")
+        )
+        return result
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -188,9 +232,9 @@ class SettingsService:
 
     @staticmethod
     def _validate_key(key: str) -> None:
-        # Wraps ValueError from validate_dict_key into a domain ValidationError.
+        # Wraps ValueError from validate_settings_key into a domain ValidationError.
         try:
-            validate_dict_key(key)
+            validate_settings_key(key)
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
 
@@ -198,6 +242,21 @@ class SettingsService:
     def _validate_plain_values(values: list[Any]) -> None:
         if not values:
             raise ValidationError(_EMPTY_VALUES_MSG)
+
+    @staticmethod
+    def _validate_default_web_ui_role(value: str, allowed: list[str]) -> None:
+        # Field-level non-empty validation already happened in UpdateSettingsBody;
+        # this is the business rule (effective participant_roles membership) that
+        # Pydantic cannot know.
+        if value not in allowed:
+            allowed_str = ", ".join(allowed)
+            raise UnprocessableError(
+                _VALUE_NOT_ALLOWED_MSG.format(v=value, allowed=allowed_str)
+            )
+
+    def _system_participant_roles(self) -> list[str]:
+        row = self._system_repo.get_by_key(DICT_KEY_PARTICIPANT_ROLES)
+        return row.values if row is not None else []
 
     @staticmethod
     def _validate_link_types(values: list[LinkTypeEntry]) -> list[LinkTypeEntry]:

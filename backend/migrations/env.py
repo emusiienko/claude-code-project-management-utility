@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # Alembic autogenerates migrations. Add each new domain model import here
 # as it is implemented.
 from app.attachments.model import Attachment  # noqa: F401
+from app.comments.model import Comment  # noqa: F401
 from app.config import settings
 from app.core.database.base import Base
 from app.milestones.model import Milestone  # noqa: F401

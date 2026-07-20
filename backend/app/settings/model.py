@@ -14,8 +14,10 @@ class SystemSettings(Base):
 
     # key is the PK — one row per dictionary key (e.g. "task_statuses")
     key: Mapped[str] = mapped_column(String(50), primary_key=True)
-    # list[Any] because link_types stores structured dicts; all other keys store plain strings.
-    values: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
+    # Any because the JSON shape varies by key: link_types stores structured dicts,
+    # the four plain dictionaries store a list of strings, and the scalar
+    # default_web_ui_role setting stores a bare string.
+    values: Mapped[Any] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -32,8 +34,10 @@ class ProjectSettings(Base):
         primary_key=True,
     )
     key: Mapped[str] = mapped_column(String(50), primary_key=True)
-    # list[Any] because link_types stores structured dicts; all other keys store plain strings.
-    values: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
+    # Any because the JSON shape varies by key: link_types stores structured dicts,
+    # the four plain dictionaries store a list of strings, and the scalar
+    # default_web_ui_role setting stores a bare string.
+    values: Mapped[Any] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
