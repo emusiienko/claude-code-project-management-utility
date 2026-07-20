@@ -1,8 +1,15 @@
 """Backfill `default_web_ui_role` and `"operator"` for pre-existing databases.
 
-Revision ID: 0012_default_web_ui_role_backfill
+Revision ID: 0012_web_ui_role_backfill
 Revises: 0011_comment
 Create Date: 2026-07-20
+
+Note: the revision id was originally `0012_default_web_ui_role_backfill` (33
+chars). Alembic's `alembic_version.version_num` column defaults to
+`VARCHAR(32)`; SQLite doesn't enforce column length so the migration applied
+fine there, but PostgreSQL raised `StringDataRightTruncation` on `alembic
+upgrade head` (BUG-004). Renamed to fit within 32 characters and match the
+existing ≤26-character revision id convention.
 
 STORY-008/TASK-005 edited `0002_settings.py` in place to seed the new
 `default_web_ui_role` system setting and add `"operator"` to the seeded
@@ -39,7 +46,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0012_default_web_ui_role_backfill"
+revision: str = "0012_web_ui_role_backfill"
 down_revision: Union[str, None] = "0011_comment"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

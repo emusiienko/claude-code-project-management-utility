@@ -2,7 +2,7 @@
 id: BUG-003
 story: STORY-008
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -37,3 +37,9 @@ Added `[overflow-wrap:anywhere]` to the shared `MARKDOWN_CONTENT_CLASS` in `fron
 This class is currently consumed only by `CommentRow.tsx` (Comments feature, STORY-008), so the fix is fully scoped to the reported container with no other call sites affected.
 
 Verified: `npx vitest run` — 201/201 tests passed (no regressions); `npm run typecheck` — clean.
+
+## QA Re-verification (qa-automation, 2026-07-20)
+
+This is a visual/CSS rendering fix, explicitly out of automated scope per `docs/qa-automation-strategy.md` ("Visual rendering / appearance tests — manual QA responsibility"). No dedicated automated test applies. Full frontend suite re-run: 201/201 passed, no regressions.
+
+Status → `resolved`.

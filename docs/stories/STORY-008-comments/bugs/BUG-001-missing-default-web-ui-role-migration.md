@@ -2,7 +2,7 @@
 id: BUG-001
 story: STORY-008
 severity: critical
-status: fixed
+status: resolved
 assignee: backend-developer
 ---
 
@@ -57,7 +57,7 @@ Suggested fix direction (for the assignee to confirm): add a proper additive Ale
 
 ## Fix Applied
 
-Added `backend/migrations/versions/0012_default_web_ui_role_backfill.py`, a new additive, idempotent, data-only migration (in the style of `0008_link_types_structured`) chained after `0011_comment`:
+Added `backend/migrations/versions/0012_web_ui_role_backfill.py` (originally named/`revision`-ided `0012_default_web_ui_role_backfill`, renamed to `0012_web_ui_role_backfill` by the BUG-004 fix — see that bug file), a new additive, idempotent, data-only migration (in the style of `0008_link_types_structured`) chained after `0011_comment`:
 - If the system `participant_roles` row exists and lacks `"operator"`, appends it (no-op if already present).
 - If the system `default_web_ui_role` row is missing, inserts it seeded to `"operator"` (no-op if already present).
 - Scoped to system-level defaults only, per TASK-005's original decision not to touch project-level overrides (a project that already overrode `participant_roles` made a deliberate scoping choice; no project can have a pre-existing `default_web_ui_role` override since the setting did not exist before this story).
@@ -70,3 +70,13 @@ Also hardened `SettingsResponse.from_dict` (`backend/app/settings/schema.py`) pe
 **Verification**: ran the real `upgrade()`/`downgrade()` functions against a disposable SQLite database migrated to `0011_comment`, then manually stripped `"operator"` from `participant_roles` and deleted the `default_web_ui_role` row to reproduce the exact pre-existing-DB state described in this bug — confirmed the migration backfills both correctly, is idempotent when re-applied against an already-seeded state, and downgrades cleanly. Full backend suite: 517 passed, 2 xfailed (same baseline as before the fix — no regressions).
 
 **Note for QA re-verification**: this fix targets the underlying migration/seed data. Re-running Check Story — Execute against a *fresh* database will not reproduce the original bug (a fresh install was never affected); the meaningful regression check is against a database that predates this fix, or by inspecting that `0012_default_web_ui_role_backfill` is present and applied.
+
+## QA Re-verification (qa-automation, 2026-07-20)
+
+Full backend suite re-run: 517 passed, 2 xfailed — same baseline, no regressions.
+
+Additionally reproduced the exact pre-existing-DB repro scenario independently of the implementor's own verification: built a disposable SQLite DB migrated only to `0011_comment`, manually stripped `"operator"` from `participant_roles` and deleted the `default_web_ui_role` row, then ran `alembic upgrade head`. Confirmed `0012_default_web_ui_role_backfill` applied and:
+- `participant_roles` regained `"operator"`
+- `default_web_ui_role` was backfilled to `"operator"`
+
+Status → `resolved`.

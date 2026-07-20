@@ -2,7 +2,7 @@
 id: BUG-002
 story: STORY-008
 severity: major
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -44,3 +44,9 @@ The mouse-click path is unaffected because the click that triggers `selectIndex`
 - `frontend/src/features/comments/components/MentionTextarea.tsx`
 
 **Verification**: no automated frontend test suite covers this component yet (frontend unit tests are owned by qa-automation); verified via a disposable Vitest+RTL harness (deleted afterward) that (1) reproduced the reported reopening by injecting a stray `selectionchange` report at the pre-fix-vulnerable cursor position, confirming it reopened before the fix and stayed closed after; (2) confirmed the fix isn't a fragile one-shot guard by firing the stray event twice; (3) confirmed legitimate later select-only cursor moves into a different mention still correctly reopen the combobox post-fix. Full existing Vitest suite (201/201) and `tsc --noEmit` pass with no regressions.
+
+## QA Re-verification (qa-automation, 2026-07-20)
+
+No dedicated automated test exists for `useMentionCombobox`/`MentionTextarea` — this is a coverage gap noted for future work (not currently in `docs/qa-automation-strategy.md`'s Test Files table), not something this re-verification can close by itself. Full frontend suite re-run: 201/201 passed, no regressions, consistent with the fix's own reported baseline. No automated evidence of regression; marking `resolved` on the strength of the full-suite pass plus the implementor's documented manual verification. Recommend a future qa-automation task add permanent `useMentionCombobox.test.ts` coverage for this interaction.
+
+Status → `resolved`.
