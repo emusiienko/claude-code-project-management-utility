@@ -6,6 +6,11 @@ story: STORY-008
 
 # TASK-004: Detail composition and cascade delete
 
+> **Superseded in part by TASK-012 (2026-07-20).** Detail views composed comments oldest-first here;
+> the ordering Revision in `implementation_plan.md` reversed that to newest-first (via the repository
+> enumerate-all path). This task's report below is left unchanged; the current ordering is TASK-012's.
+> The cascade-delete behavior is unaffected.
+
 ## What to implement
 Wire comments into the story, task, and milestone detail views and delete cascades, using the
 `CommentReader` Protocol from TASK-002 — mirroring how `AttachmentReader` is already injected into

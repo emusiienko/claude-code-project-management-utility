@@ -1,6 +1,6 @@
 ## Active wait
-waiting_for: STORY-008 — all 11 tasks Done, story set to Pending Approval; qa-automation Execute mode (Stabilization loop) running
-next_step: on green, ask user about manual-qa Check Story — Execute
+waiting_for: STORY-008 — manual-qa Execute found 3 bugs (BUG-001 critical: default_web_ui_role migration doesn't retroactively apply on already-migrated DBs; BUG-002 major: mention combobox not closing on Enter; BUG-003 minor: long-word overflow) — fix agents running in parallel now. Separately, awaiting user go-ahead on TASK-012/013/014 (architect's newest-first ordering redesign, plan already updated).
+next_step: on bug fixes done, re-run qa-automation + manual-qa (Stabilization loop); once user greenlights ordering work, spawn TASK-012 → {TASK-013, TASK-014}
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start

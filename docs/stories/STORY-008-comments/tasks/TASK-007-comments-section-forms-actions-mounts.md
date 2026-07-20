@@ -6,6 +6,12 @@ story: STORY-008
 
 # TASK-007: CommentsSection with forms, actions, and host mounts
 
+> **Superseded in part by TASK-013 (2026-07-20).** The thread rendered oldest-first with the
+> Add-Comment form pinned at the bottom and new comments appended at the bottom. The ordering
+> Revision in `implementation_plan.md` reversed this: newest-first thread, form moved to the top,
+> new comment appears at the top. This task's report below is left unchanged; the current
+> render order and form placement are TASK-013's.
+
 ## What to implement
 Build a reusable `CommentsSection` (mirroring the attachments section) and mount it in the three
 host views.

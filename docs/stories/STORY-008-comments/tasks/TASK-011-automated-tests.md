@@ -6,6 +6,11 @@ story: STORY-008
 
 # TASK-011: Automated tests for comments and the new setting
 
+> **Superseded in part by TASK-014 (2026-07-20).** The list-order and detail-composition assertions
+> here expect oldest-first; the ordering Revision in `implementation_plan.md` reversed the product
+> behavior to newest-first, so those assertions are inverted by TASK-014. This task's report below is
+> left unchanged. (`after_id` semantics and the root-first ancestor assertions are unaffected.)
+
 ## What to implement
 Write automated tests covering the comment API and the new setting, exercising both the REST and MCP
 surfaces so parity is verified.

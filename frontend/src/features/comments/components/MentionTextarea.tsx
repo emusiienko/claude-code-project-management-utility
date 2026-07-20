@@ -79,6 +79,10 @@ export function MentionTextarea({
       if (!el) return;
       el.focus();
       el.setSelectionRange(cursor, cursor);
+      // Only now is the caret guaranteed to be at its final resting position;
+      // see `justSelectedRef` in useMentionCombobox for why selection-only
+      // reports before this point must be ignored (BUG-002).
+      combobox.confirmCaretRestored();
     });
   }
 
@@ -115,7 +119,7 @@ export function MentionTextarea({
 
   function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
     const el = e.currentTarget;
-    combobox.handleSelectionChange(el.value, el.selectionStart ?? el.value.length);
+    combobox.handleSelectionChange(el.value, el.selectionStart ?? el.value.length, "select");
   }
 
   return (

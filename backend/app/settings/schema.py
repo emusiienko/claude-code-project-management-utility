@@ -165,7 +165,10 @@ class SettingsResponse(BaseModel):
             story_statuses=data[DICT_KEY_STORY_STATUSES],
             link_types=_coerce_link_type_entries(raw_link_types),
             participant_roles=data[DICT_KEY_PARTICIPANT_ROLES],
-            default_web_ui_role=data[KEY_DEFAULT_WEB_UI_ROLE],
+            # Defensive default: a database whose 0012 backfill migration has not
+            # yet run (or a row deleted out-of-band) degrades to an empty string
+            # instead of a 500 (BUG-001) — the normal path always has this key.
+            default_web_ui_role=data.get(KEY_DEFAULT_WEB_UI_ROLE, ""),
         )
 
 

@@ -37,6 +37,53 @@ The system is confirmed **pre-production** (no deployed DB): the settings seed m
 in place and the whole chain is re-run as a clean install, rather than adding a data migration to
 backfill `operator`.
 
+## Revision — Comment ordering is newest-first (2026-07-19)
+
+> This section supersedes the ordering direction described throughout the rest of this plan.
+> Everything below in **Technical Approach** and the original **Ordered Tasks** documents what
+> shipped first (oldest-first); the change here is delivered as follow-up tasks TASK-012 / TASK-013 /
+> TASK-014 rather than by rewriting the already-`Done` tasks.
+
+**What changed and why.** Comments now list **newest-first everywhere** — repository/API, pagination,
+detail composition, and the Web UI. The original build listed them oldest-first (newest at the
+bottom). The product owner wants the newest comment to appear first. Because comment lists are
+paginated, a UI-only reversal is wrong: page 1 would fetch the *oldest* 50 and reverse only those,
+never showing the newest until the last page. The ordering therefore flips at the source — the
+repository — so pagination itself walks newest → oldest.
+
+**Scope of the change (small and well-contained):**
+
+- **Backend ordering** lives in exactly two places in the comments repository: the paginated
+  container list and the enumerate-all helper that also feeds detail composition. Both flip their
+  sort from ascending to descending on the same `(created_at, id)` key. Because story / task /
+  milestone detail views compose their `comments` list through that same enumerate-all helper,
+  **detail composition flips to newest-first automatically** — no service-layer change is needed.
+- **The `after_id` incremental-polling watermark is preserved unchanged** — same name, same
+  semantics. `after_id` means "comments created strictly **after** (newer than) the referenced
+  one," expressed as the keyset predicate `(created_at, id) > (ref.created_at, ref.id)`. That
+  predicate is orthogonal to display order and does **not** change. Only the surrounding `ORDER BY`
+  flips to descending, so a watermark query now returns the newer-than-ref set newest-first. The
+  sole observable difference for a polling agent: the newest comment it has seen is now the **first**
+  item in the list rather than the last, so it reads its next watermark from the top. The
+  deleted-watermark → 404 behavior is unchanged. **Decision (user-confirmed): keep the `after_id`
+  name and semantics.**
+- **Frontend** renders the server order as-is, so the thread becomes newest-first once the API
+  flips; a newly-created comment lands at the **top** after refetch. The pinned **Add-Comment form
+  moves to the top** of the section (above the thread), so the author writes at the top and their
+  new comment appears directly beneath — consistent with newest-first. **Decision
+  (user-confirmed): form at top.** The reply-prefix jump link, permalink resolution, `@role`
+  combobox, count badge, edit/delete/copy-link actions, and label filtering are all
+  order-independent and unaffected.
+- **Ancestor lineage is NOT reordered.** `GET /comments/{id}/ancestors` still returns ancestors
+  root-first (oldest ancestor → direct parent): that is a lineage path, not a chronological list.
+  The newest-first change applies only to *container comment lists* and *detail composition*.
+- **`descendant_of` sub-thread lists** ride the same list endpoint and therefore also return
+  newest-first — correct and consistent.
+
+**Spec follow-up.** Several `description.md` acceptance criteria still say "oldest first" and
+"appears at the bottom." Those are now stale and are flagged for the spec-writer to update (see
+**Spec Divergences** below) — the architect does not edit `description.md`.
+
 ## Technical Approach
 
 ### Comments domain (backend)
@@ -208,6 +255,23 @@ the spec-writer strip the implementation prescription (keeping the behavior) bef
 - Edge case "Replying inserts the link into the compose field … the author can freely edit or delete
   it" → replaced by a dismissible "replying to" chip; `content` is not pre-seeded.
 
+**Newest-first ordering (2026-07-20 Revision) — spec-writer to update `description.md`.** The
+product owner reversed the list order to newest-first everywhere. The following current
+`description.md` statements are now stale and should be updated (behavior only; no mechanism change):
+
+- Acceptance criterion "listed in chronological order (oldest first) with pagination" → newest-first
+  with pagination.
+- Acceptance criterion "appear in that work item's detail view, ordered oldest first" → ordered
+  newest-first.
+- UI/UX "Thread rendered oldest-first" → rendered newest-first.
+- UI/UX "the new comment appears at the bottom of the thread" and "Add Comment form is pinned at the
+  bottom" → the new comment appears at the top; the Add-Comment form is pinned at the top.
+- UI/UX "Submitting posts an ordinary new comment at the bottom of the (flat, oldest-first) thread"
+  → at the top of the (flat, newest-first) thread.
+
+Ancestor lineage order (`GET /comments/{id}/ancestors`, root-first) is unaffected — it is a lineage
+path, not a chronological list.
+
 ## Proposed API Surface
 
 Proposed here for the implementors to build against; the global `docs/api-contract.md` (LOCKED)
@@ -217,7 +281,9 @@ design). Errors follow the app's `DomainError`→HTTP mapping.
 Pagination follows the app convention: `page` (int, default 1, ≥1) + `limit` (int, ≥1, ≤100), with
 the standard `{ data, pagination }` envelope where `pagination = { total, page, limit, totalPages }`.
 Comment lists take a **generous default `limit` of 50** so a typical thread (≤ ~50) returns in one
-page. Filters are passed as query params.
+page. Filters are passed as query params. **Lists (and detail-composed comment lists) are ordered
+newest-first** — descending `(created_at, id)` — per the ordering Revision above; pagination walks
+newest → oldest.
 
 **Comment REST endpoints** (path params in `{…}`; query params listed per endpoint)
 
@@ -241,10 +307,12 @@ page. Filters are passed as query params.
 - `label_key` (string, optional) — return only comments carrying a label with this key.
 - `label_value` (string, optional) — return only comments carrying a label with this value.
 - `after_id` (comment id, optional) — **watermark for incremental retrieval**: returns only comments
-  positioned strictly after the referenced comment in chronological (oldest-first) order — keyset
-  `(created_at, id) > (ref.created_at, ref.id)`. Lets an agent poll "what's new since I last read"
-  by passing the last comment id it saw. Combines with the other filters and pagination. If the
-  referenced comment is not found → 404 (see the deleted-watermark gotcha below).
+  created strictly **after** (newer than) the referenced comment — keyset
+  `(created_at, id) > (ref.created_at, ref.id)`. This predicate is unchanged by the newest-first
+  Revision (it is orthogonal to display order); the matched set is simply returned newest-first like
+  every other list. Lets an agent poll "what's new since I last read" by passing the id of the
+  newest comment it has seen (now the first item in the list). Combines with the other filters and
+  pagination. If the referenced comment is not found → 404 (see the deleted-watermark gotcha below).
 - `descendant_of` (comment id, optional) — returns the sub-thread beneath the referenced comment
   (comments whose `ancestors` contains it), via the dialect-aware JSON-array filter.
 
@@ -312,6 +380,27 @@ effective `participant_roles` for the scope.
     `ancestors` derivation, ancestor traversal (`get_ancestors`), the ancestors-contains sub-thread
     filter (`descendant_of`), the `after_id` watermark (including the deleted-watermark 404), cascade
     delete, detail composition, label filtering, and `default_web_ui_role` validation.
+
+### Follow-up tasks — newest-first ordering Revision (2026-07-20)
+
+Delivered as follow-ups against the already-`Done` tasks (see the Revision section); the shipped
+`Done` tasks are not rewritten.
+
+12. **TASK-012: Flip comment list ordering to newest-first** (backend-developer, no dependencies —
+    all prerequisite backend tasks are `Done`) — reverse the sort of the comments repository's
+    paginated container list and its enumerate-all helper (which also feeds detail composition) to
+    descending `(created_at, id)`; leave the `after_id` watermark keyset predicate and name
+    unchanged. Supersedes in part the ordering behavior of TASK-001 and TASK-004.
+13. **TASK-013: Render comments newest-first and move the Add-Comment form to the top**
+    (frontend-developer, depends on TASK-012) — the `CommentsSection` thread renders newest-first
+    (server order), a newly-created comment appears at the top after refetch, and the pinned
+    Add-Comment form moves above the thread. Supersedes in part the ordering/form-placement behavior
+    of TASK-007.
+14. **TASK-014: Update automated tests for newest-first ordering** (qa-automation, depends on
+    TASK-012) — invert the ordering assertions in the comment API tests: container list and detail
+    composition now assert newest-first; the `after_id` watermark still returns the newer-than-ref
+    set (now newest-first) and the deleted-watermark 404 is unchanged; ancestor lineage stays
+    root-first. Re-run the suite green. Supersedes in part the ordering assertions of TASK-011.
 
 ## Planned ADRs
 

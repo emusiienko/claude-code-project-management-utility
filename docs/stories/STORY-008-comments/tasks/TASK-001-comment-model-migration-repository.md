@@ -6,6 +6,10 @@ story: STORY-008
 
 # TASK-001: Comment model, migration, and repository
 
+> **Superseded in part by TASK-012 (2026-07-20).** The list ordering built here (oldest-first) was
+> reversed to newest-first by the ordering Revision in `implementation_plan.md`. This task's report
+> below records what originally shipped and is left unchanged; the current ordering is TASK-012's.
+
 ## What to implement
 Create the data layer for a new `comments` domain, structurally mirroring the `attachments` domain.
 
