@@ -2,7 +2,7 @@
 id: BUG-004
 story: STORY-022
 severity: major
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -90,3 +90,12 @@ and `.top-16{top:4rem}` are emitted. `npx vitest run` — 211 passed / 2 failed,
 same 2 pre-existing failures as the baseline run before this fix (in
 `TopBar.test.tsx`, caused by the parallel BUG-003 fix's test file not yet
 being updated — unrelated to this change, no regressions introduced).
+
+## Re-verification (qa-automation, 2026-07-21, post TASK-006/007/008)
+`TopBar.tsx` was modified again by TASK-006 (global Config entry,
+`TopBarNavLink` extraction) — confirmed the fix's markers survived intact:
+`header` still carries `relative z-[110] h-12`; `StorySlideOver.tsx` panel/
+backdrop still start at `top-12`; `TaskDetailModal.tsx` backdrop/panel still
+start at `top-12`/`top-16`. Full frontend suite (`npx vitest run`) — 260/260
+passing, including `TopBar.test.tsx`, `StorySlideOver.test.tsx`. Status →
+`resolved`.

@@ -2,7 +2,7 @@
 id: BUG-005
 story: STORY-022
 severity: major
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -89,3 +89,14 @@ view" requires.
 **Verification**: `npx tsc --noEmit` passes; `npx vitest run` — 222 passed / 0
 failed, matching the 222/0 baseline before this fix (no regressions
 introduced; no pre-existing failures to carry forward).
+
+## Re-verification (qa-automation, 2026-07-21, post TASK-006/007/008)
+The `navigate(-1)` "Back" button fix recorded above was explicitly superseded
+by TASK-007, which replaced it with a "Close" control on `ProjectsPage.tsx`
+that navigates to the recorded last-main-view URL (`useLastMainViewUrl()`)
+instead of stepping through browser history — a strictly stronger fix for the
+same underlying gap ("no way back to the previous view"). Confirmed via
+`ProjectsPage.test.tsx`: renders a "Close" control (not "Back"), restores a
+deep Task Manager URL exactly, returns to Sessions when that was the
+recorded origin, and falls back to `/` on a cold load. Full frontend suite
+(`npx vitest run`) — 260/260 passing. Status → `resolved`.
