@@ -1,6 +1,10 @@
 ## Active wait
-waiting_for: none — STORY-008 fully implemented (14 tasks Done), newest-first ordering rolled out, Auto ✓ and QA ✓ both green again post-rollout. At the accept gate.
-next_step: awaiting explicit user acceptance; then Reconcile (architect → spec-writer → qa-automation/manual-qa)
+waiting_for: none
+
+## STORY-008 closed
+- 2026-07-21: STORY-008 (Work Item Comments) fully implemented (14 tasks, incl. a post-acceptance
+  newest-first ordering rollout), 4 bugs found and fixed (BUG-001-004), Accepted, fully reconciled
+  (ADR-022/023/024, api-contract v1.7), archived, story folder deleted.
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start
