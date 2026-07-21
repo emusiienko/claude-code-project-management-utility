@@ -6,10 +6,12 @@
  * handles only page-level UI state (which modal is open, which project is
  * selected for edit or delete).
  *
- * Carries a browser-history "Back" button (BUG-005) mirroring SettingsPage's —
- * since the global top-bar "Projects" entry (STORY-022) is reachable from any
- * app state, including deep inside a Story/Task view, this page needs the same
- * "return to where I was" affordance the global "Config" entry already had.
+ * Carries a "Close" control that returns to the last recorded main view
+ * (Task Manager or Sessions) rather than stepping through browser history
+ * (STORY-022 TASK-007, superseding the BUG-005 `navigate(-1)` button) —
+ * since the global top-bar "Projects" entry is reachable from any app
+ * state, including deep inside a Story/Task view, this affordance restores
+ * that exact view rather than an arbitrary preceding history entry.
  */
 
 import { useState } from "react";
@@ -27,6 +29,7 @@ import {
 import type { Project } from "@/api/types";
 import type { ProjectFormValues } from "./components/ProjectForm";
 import { extractErrorMessage } from "./utils/errorMessages";
+import { useLastMainViewUrl } from "@/shared/hooks/useLastMainViewUrl";
 
 type ModalState =
   | { type: "none" }
@@ -39,6 +42,7 @@ type ModalState =
  */
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const lastMainViewUrl = useLastMainViewUrl();
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [mutationError, setMutationError] = useState<string | undefined>();
 
@@ -107,19 +111,24 @@ export default function ProjectsPage() {
   const isEditSubmitting = updateMutation.isPending;
   const isDeleteSubmitting = deleteMutation.isPending;
 
+  // Falls back to "/" on a cold load with no recorded main view; the root
+  // redirect resolves that to a Task Manager destination.
+  function closeToLastMainView() {
+    navigate(lastMainViewUrl ?? "/");
+  }
+
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      {/* Back navigation — mirrors SettingsPage's browser-history back button so
-          the global, mode-independent Projects entry (STORY-022) offers the same
-          "return to where I was" affordance as the global Config entry (BUG-005) */}
+      {/* Close — returns to the last recorded main view (Task Manager or
+          Sessions) instead of stepping through browser history */}
       <button
         type="button"
-        onClick={() => navigate(-1)}
+        onClick={closeToLastMainView}
         className="mb-6 flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-        aria-label="Go back to previous page"
+        aria-label="Close and return to the last view"
       >
         <ArrowLeft size={16} aria-hidden="true" />
-        Back
+        Close
       </button>
 
       {/* Page heading */}

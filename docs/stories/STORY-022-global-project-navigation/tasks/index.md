@@ -8,5 +8,5 @@
 | [TASK-004](TASK-004-project-settings-standalone-screen.md) | Promote Project Settings to a standalone screen | frontend-developer | Done |
 | [TASK-005](TASK-005-tests-standalone-project-settings.md) | Extend automated tests for the standalone Project Settings screen | qa-automation | Done |
 | [TASK-006](TASK-006-global-config-and-navigation-model.md) | Global Config entry + main-view/closable-view navigation model | frontend-developer | Done |
-| [TASK-007](TASK-007-close-closable-views-to-main.md) | Close closable views to the last main view | frontend-developer | ToDo |
+| [TASK-007](TASK-007-close-closable-views-to-main.md) | Close closable views to the last main view | frontend-developer | Done |
 | [TASK-008](TASK-008-tests-closable-view-navigation-model.md) | Write automated tests | qa-automation | ToDo |
