@@ -2,16 +2,20 @@
  * ProjectShell — per-project sub-navigation shell layer.
  *
  * Rendered inside AppShell for all /projects/:id/* routes. Hosts:
- *   - A horizontal sub-nav bar with four tabs: Stories, Board, Milestones, Settings.
+ *   - A horizontal sub-nav bar with three tabs: Stories, Board, Milestones.
+ *     Project Settings is a standalone screen (STORY-022 TASK-004), not a tab
+ *     here — see /projects/:id/settings in the route table.
  *     The tab matching the current location is visually highlighted.
  *   - A nested <Outlet /> where the active tab's content renders.
  *   - An inline "Not found" message with a link back to /projects when the
  *     project ID in the URL does not resolve to an existing project.
  */
 
-import { NavLink, Outlet, Link, useParams } from "react-router-dom";
+import { NavLink, Outlet, useParams } from "react-router-dom";
 import { useProjectDetail } from "@/shared/hooks/useProjectDetail";
 import { PageLoader } from "@/shared/components/PageLoader";
+import { ProjectNotFound } from "@/shared/components/ProjectNotFound";
+import { ProjectLoadError } from "@/shared/components/ProjectLoadError";
 
 // ---------------------------------------------------------------------------
 // Sub-nav tab definitions
@@ -27,7 +31,6 @@ const SUB_NAV_TABS: SubNavTab[] = [
   { label: "Stories", segment: "stories" },
   { label: "Board", segment: "board" },
   { label: "Milestones", segment: "milestones" },
-  { label: "Settings", segment: "settings" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -39,7 +42,7 @@ interface ProjectSubNavProps {
 }
 
 /**
- * Horizontal four-tab sub-navigation bar for the project context.
+ * Horizontal three-tab sub-navigation bar for the project context.
  * Active tab is highlighted via NavLink's `isActive` state.
  */
 function ProjectSubNav({ projectId }: ProjectSubNavProps) {
@@ -74,51 +77,6 @@ function ProjectSubNav({ projectId }: ProjectSubNavProps) {
   );
 }
 
-/**
- * Inline "Project not found" message with a link back to /projects.
- * Rendered instead of the sub-nav and outlet when the project ID is invalid.
- */
-function ProjectNotFound() {
-  return (
-    <main
-      className="flex flex-1 flex-col items-center justify-center gap-3 p-8"
-      role="alert"
-      aria-live="polite"
-    >
-      <p className="text-base font-medium text-text">Project not found.</p>
-      <p className="text-sm text-text-secondary">
-        The project you are looking for does not exist or has been deleted.
-      </p>
-      <Link
-        to="/projects"
-        className="mt-2 rounded px-4 py-2 text-sm font-medium text-brand-600 underline underline-offset-4 hover:text-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-      >
-        Back to Projects
-      </Link>
-    </main>
-  );
-}
-
-/**
- * Generic fetch error message — shown for non-404 API failures.
- */
-function ProjectLoadError() {
-  return (
-    <main
-      className="flex flex-1 flex-col items-center justify-center gap-3 p-8"
-      role="alert"
-      aria-live="polite"
-    >
-      <p className="text-base font-medium text-text">
-        Could not load the project.
-      </p>
-      <p className="text-sm text-text-secondary">
-        Check your connection and refresh the page.
-      </p>
-    </main>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -126,7 +84,7 @@ function ProjectLoadError() {
 /**
  * Per-project sub-nav shell.
  *
- * Validates the project ID from the URL params, then renders the four-tab
+ * Validates the project ID from the URL params, then renders the three-tab
  * sub-nav and a nested outlet for the active tab's content. Renders an inline
  * "Not found" message when the API returns 404 for the given project ID.
  */

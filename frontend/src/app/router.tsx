@@ -9,6 +9,9 @@
  *   ├─ /sessions           → SessionsPage (no sidebar, no sub-nav)
  *   ├─ /settings           → SettingsPage (no sidebar, no sub-nav)
  *   ├─ /milestones/:id     → MilestoneDetailPage (no sidebar, back-link to project milestones)
+ *   ├─ /projects/:projectId/settings → ProjectSettingsPage (standalone screen,
+ *   │                        no sidebar, no per-project sub-nav; back-link to
+ *   │                        /projects — STORY-022 TASK-004)
  *   ├─ /comments/:id       → CommentsPage (permalink resolver; navigates to the host view)
  *   └─ AppShell (/projects/:projectId/*)
  *      └─ ProjectShell
@@ -17,8 +20,7 @@
  *         │  └─ :storyId  → StorySlideOver
  *         │     └─ tasks/:taskId → TaskDetailModal (TASK-005)
  *         ├─ /board        → BoardPage (TASK-007)
- *         ├─ /milestones   → MilestonesPage (placeholder)
- *         └─ /settings     → ProjectSettingsPage (TASK-009)
+ *         └─ /milestones   → MilestonesPage (placeholder)
  *
  * All pages are lazy-loaded with React.lazy + Suspense to keep the initial
  * bundle small.
@@ -134,6 +136,21 @@ export const router = createBrowserRouter([
         ),
       },
 
+      // Project Settings — standalone screen (STORY-022 TASK-004), a sibling
+      // of the AppShell/ProjectShell branch below rather than a child of it,
+      // so /projects/:projectId/settings renders with no Task Manager sidebar
+      // and no per-project sub-nav tab bar. Its own back-link returns to
+      // /projects, the launch surface for this screen (the project-name click
+      // on the Projects Management page).
+      {
+        path: "projects/:projectId/settings",
+        element: (
+          <SuspendedPage>
+            <ProjectSettingsPage />
+          </SuspendedPage>
+        ),
+      },
+
       // Comment permalink resolver — resolves the comment's host view and
       // navigates there (with scroll-into-view + highlight); root-relative
       // so the backend's `/comments/{id}` contract stays origin-agnostic.
@@ -213,16 +230,6 @@ export const router = createBrowserRouter([
                 element: (
                   <SuspendedPage>
                     <MilestonesPage />
-                  </SuspendedPage>
-                ),
-              },
-
-              // Project settings tab — dictionary overrides for this project
-              {
-                path: "settings",
-                element: (
-                  <SuspendedPage>
-                    <ProjectSettingsPage />
                   </SuspendedPage>
                 ),
               },
