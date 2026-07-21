@@ -1,21 +1,26 @@
 /**
  * TopBar — flat root-layout top bar.
  *
- * Renders the app-switcher combobox on the left and, on the right, a
- * mode-independent Projects link plus a ⚙ Settings text button that is only
- * interactive/visible in Task Manager mode — it stays mounted (just visually
- * hidden) outside of it so the Projects link's on-screen position never shifts
- * between modes. The top bar is always visible regardless of which route is
- * active.
+ * Renders the app-switcher combobox on the left and, on the right, two
+ * persistent entries — Projects and Config — that are visible and
+ * interactive in both Task Manager mode and Sessions mode (STORY-022
+ * Revision 2: Config is no longer Task-Manager-only). Both entries share the
+ * same active-page indication (`NavLink` `isActive` → `aria-current="page"`)
+ * and `focus-visible` treatment. Because both are always present, they hold
+ * their on-screen position by construction — the mounted-but-hidden
+ * placeholder previously used to stabilise position (BUG-003) is retired.
  *
- * App mode is derived from the current pathname:
- *  - `/sessions` prefix  → Sessions mode
- *  - everything else     → Task Manager mode
+ * The app-switcher's selected mode is derived from the current route, with
+ * one twist: while a closable view is open (`/projects`, `/settings`, or the
+ * standalone Project Settings screen — see `navigationModel`), the switcher
+ * reflects the *underlying* main view — the one recorded before the closable
+ * view was opened — rather than defaulting to Task Manager. This keeps the
+ * switcher coherent when Config or Projects is opened from Sessions.
  *
- * When switching from Sessions to Task Manager, the user is sent to the last
- * visited Task Manager URL (stored in localStorage). If no URL was ever
- * stored, the RootRedirect at `/` handles the fallback to the last project or
- * to `/projects`.
+ * When switching to Task Manager, the user is sent to the last visited
+ * Task-Manager-mode URL (stored in localStorage, closable views excluded). If
+ * no URL was ever stored, the RootRedirect at `/` handles the fallback to the
+ * last project or to `/projects`.
  *
  * Stacking: the header is an explicit-height (`h-12`), positioned
  * (`relative`) element with a z-index (`z-[110]`) higher than every overlay
@@ -28,23 +33,30 @@
  */
 
 import { useLocation, useNavigate, NavLink } from "react-router-dom";
-import { useEffect } from "react";
-import { Settings, ChevronDown, FolderKanban } from "lucide-react";
-import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
+import { Settings, ChevronDown, FolderKanban, type LucideIcon } from "lucide-react";
+import { useLastVisitedUrl } from "@/shared/hooks/useLastVisitedUrl";
+import { useLastMainViewUrl } from "@/shared/hooks/useLastMainViewUrl";
+import {
+  type AppMode,
+  deriveAppMode,
+  isClosableViewPath,
+  isMainViewPath,
+} from "@/shared/utils/navigationModel";
 
-/** localStorage key for the last-visited Task Manager URL. */
+/** localStorage key for the last-visited Task-Manager-mode URL. */
 const LAST_TASK_MANAGER_URL_KEY = "app:last_task_manager_url";
 
-/** The two app modes available in the switcher. */
-type AppMode = "task-manager" | "sessions";
-
-/** Derive the current app mode from the pathname. */
-function deriveMode(pathname: string): AppMode {
-  return pathname.startsWith("/sessions") ? "sessions" : "task-manager";
+/**
+ * Narrows the recording predicate to Task-Manager-mode main-view routes —
+ * excludes both Sessions and every closable view, so opening Projects or
+ * Config from Task Manager never overwrites this record.
+ */
+function isTaskManagerMainView(pathname: string): boolean {
+  return isMainViewPath(pathname) && deriveAppMode(pathname) === "task-manager";
 }
 
 /**
- * TopBar — app-switcher combobox + global Projects link + optional Settings button.
+ * TopBar — app-switcher combobox + global Projects and Config entries.
  *
  * Renders inside RootLayout above the main outlet. No props required —
  * reads current location from the router context internally.
@@ -52,19 +64,19 @@ function deriveMode(pathname: string): AppMode {
 export function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const mode = deriveMode(location.pathname);
 
-  const [lastTaskManagerUrl, setLastTaskManagerUrl] = useLocalStorage<
-    string | null
-  >(LAST_TASK_MANAGER_URL_KEY, null);
+  const lastMainViewUrl = useLastMainViewUrl();
+  const [lastTaskManagerUrl] = useLastVisitedUrl(
+    LAST_TASK_MANAGER_URL_KEY,
+    isTaskManagerMainView,
+  );
 
-  // While in Task Manager mode, keep the persisted URL up-to-date so that
-  // switching to Sessions and back returns to the correct project + sub-tab.
-  useEffect(() => {
-    if (mode === "task-manager") {
-      setLastTaskManagerUrl(location.pathname + location.search);
-    }
-  }, [mode, location.pathname, location.search, setLastTaskManagerUrl]);
+  // While a closable view is open, reflect the main view the user will
+  // return to (derived from the recorded last main view) instead of the
+  // closable view's own path.
+  const mode: AppMode = isClosableViewPath(location.pathname)
+    ? deriveAppMode(lastMainViewUrl ?? "/")
+    : deriveAppMode(location.pathname);
 
   function handleModeChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const selected = e.target.value as AppMode;
@@ -74,8 +86,8 @@ export function TopBar() {
       return;
     }
 
-    // Task Manager: go to the last visited URL, or fall back to / which
-    // RootRedirect will resolve to the last project.
+    // Task Manager: go to the last visited Task-Manager-mode URL, or fall
+    // back to / which RootRedirect will resolve to the last project.
     navigate(lastTaskManagerUrl ?? "/");
   }
 
@@ -102,53 +114,54 @@ export function TopBar() {
           </div>
         </div>
 
-        {/* Right: global Projects link (both modes) + Config button (Task Manager mode only) */}
+        {/* Right: global Projects + Config entries — always present in both modes */}
         <div className="flex items-center gap-1">
-          <NavLink
-            to="/projects"
-            end
-            className={({ isActive }) =>
-              [
-                "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-                isActive
-                  ? "font-medium text-brand-700"
-                  : "text-text-secondary hover:bg-surface-muted hover:text-text",
-              ].join(" ")
-            }
-          >
-            <FolderKanban size={15} aria-hidden="true" />
-            Projects
-          </NavLink>
-
-          {/*
-           * Always rendered (even outside Task Manager mode) so the right-aligned
-           * flex group's width — and therefore the Projects link's position — never
-           * changes between modes. Outside Task Manager mode it is:
-           * - visually hidden via `invisible` (visibility: hidden — keeps its
-           *   layout box, so the group's width stays constant; see BUG-003)
-           * - `disabled`, so it cannot be activated by any residual
-           *   pointer/keyboard interaction and drops out of the tab order
-           * - `aria-hidden="true"`, so it is removed from the accessibility
-           *   tree — this is an attribute-based signal (unlike `visibility`,
-           *   which requires the browser's real CSS engine to compute) so it
-           *   is verifiable in jsdom-based tests, not just real browsers.
-           */}
-          <button
-            type="button"
-            onClick={() => navigate("/settings")}
-            disabled={mode !== "task-manager"}
-            aria-hidden={mode !== "task-manager"}
-            className={[
-              "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-              mode === "task-manager" ? "" : "invisible",
-            ].join(" ")}
-            aria-label="Go to Config"
-          >
-            <Settings size={15} aria-hidden="true" />
-            Config
-          </button>
+          <TopBarNavLink to="/projects" Icon={FolderKanban} label="Projects" />
+          <TopBarNavLink
+            to="/settings"
+            Icon={Settings}
+            label="Config"
+            ariaLabel="Go to Config"
+          />
         </div>
       </div>
     </header>
+  );
+}
+
+interface TopBarNavLinkProps {
+  /** Destination route, matched exactly (`end`) for active-state purposes. */
+  to: string;
+  /** Lucide icon component, imported by name at the call site. */
+  Icon: LucideIcon;
+  /** Visible label text. */
+  label: string;
+  /** Accessible name override; defaults to the visible label when omitted. */
+  ariaLabel?: string;
+}
+
+/**
+ * Shared visual/behavioral contract for the top bar's persistent nav
+ * entries (Projects, Config) — both use exact-match active state
+ * (`aria-current="page"`) and the same focus-visible ring.
+ */
+function TopBarNavLink({ to, Icon, label, ariaLabel }: TopBarNavLinkProps) {
+  return (
+    <NavLink
+      to={to}
+      end
+      aria-label={ariaLabel}
+      className={({ isActive }) =>
+        [
+          "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
+          isActive
+            ? "font-medium text-brand-700"
+            : "text-text-secondary hover:bg-surface-muted hover:text-text",
+        ].join(" ")
+      }
+    >
+      <Icon size={15} aria-hidden="true" />
+      {label}
+    </NavLink>
   );
 }

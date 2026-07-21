@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: frontend-developer
 story: STORY-022
 ---
@@ -73,9 +73,32 @@ hard-to-reverse or non-obvious trade-off.
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
+**Date**: 2026-07-21
+
 **What was done**:
+- Introduced a single-source-of-truth navigation-model utility classifying every route as a main view or a closable view: `/projects`, `/settings`, and the standalone Project Settings sub-page (`/projects/:projectId/settings`) are closable; every other top-bar route (Task Manager routes and `/sessions`) is a main view.
+- Made Config a persistent, always-visible, active-aware top-bar entry in both Task Manager and Sessions modes, matching the Projects entry's `NavLink` `end` → `aria-current="page"` active-state and `focus-visible` treatment. Retired the mounted-but-hidden/disabled placeholder button (BUG-003's position-stabilisation hack) — both entries are now unconditionally rendered `NavLink`s, so they hold their on-screen position by construction with no visibility/disabled toggling needed.
+- Extracted a private `TopBarNavLink` sub-component inside `TopBar.tsx` so Projects and Config share one implementation of the active-state/focus-ring contract instead of duplicating the className logic.
+- Added an always-mounted recording hook (`useLastMainViewUrl`, built on a new generic `useLastVisitedUrl` primitive) that persists the current main-view URL (path + query) to localStorage on every main-view route change, skipping all closable-view routes so opening Projects or Config never overwrites the return target. This is the record TASK-007 will consume for "close returns to last main view."
+- Reworked the app-switcher's mode derivation: on a main-view route the mode is derived directly from the pathname (unchanged); on a closable-view route the mode is derived from the recorded last-main-view URL instead (falling back to Task Manager when nothing has been recorded yet), so the switcher reflects the underlying main view rather than flipping to whatever the closable view happens to be. The existing "switch to Task Manager" behavior now reads from a narrower, explicitly Task-Manager-scoped last-visited-URL record (see Technical decisions) so it isn't polluted by Sessions visits.
+
 **Deviations from plan**:
+- None from the task's stated scope. As explicitly anticipated by this task's own acceptance criteria ("test re-alignment for the inverted Config gating is handled in TASK-008"), two pre-existing `TopBar.test.tsx` assertions now fail because they assert Config-was-Task-Manager-only behavior that this task intentionally inverted, and one other assertion (`getByRole("button", { name: "Go to Config" })`) fails because Config is now rendered as a `NavLink` (`role="link"`) rather than a plain `<button>`, matching the active-state requirement in this task's AC. Per the plan, these are left for TASK-008 (qa-automation) to re-align rather than fixed here — the test file is qa-automation's artifact per the pipeline's task split, and rewriting its assertions here would pre-empt that task. Full baseline/post-implementation test results are below.
+
 **Technical decisions made**:
+- Kept two distinct localStorage records rather than collapsing to one: the broad "last main view" (`app:last_main_view_url`, both Task Manager and Sessions, closable views excluded) used for the app-switcher's underlying-main derivation and for TASK-007's close target; and the narrower pre-existing "last Task-Manager-mode view" (`app:last_task_manager_url`, Sessions and closable views excluded) still needed by the explicit "switch to Task Manager" combobox action, since that action must return to the last Task-Manager route specifically, not to whichever main view happens to be currently recorded (which could itself be `/sessions`). Both are backed by the same new generic `useLastVisitedUrl(key, shouldRecord)` hook to avoid duplicating the localStorage-recording logic.
+- Classified the standalone Project Settings screen (`/projects/:projectId/settings`) as a closable-view route for recording/mode-derivation purposes (not just `/projects` and `/settings` verbatim), per the plan's explicit constraint that this URL must be skipped by the last-main-view record. Its own back-link target (fixed to `/projects`) is unchanged and out of this task's scope (TASK-007).
+
 **Code locations**:
+- `frontend/src/shared/utils/navigationModel.ts` (new) — `AppMode`, `isClosableViewPath`, `isMainViewPath`, `deriveAppMode`
+- `frontend/src/shared/hooks/useLastVisitedUrl.ts` (new) — generic last-visited-URL recorder
+- `frontend/src/shared/hooks/useLastMainViewUrl.ts` (new) — `LAST_MAIN_VIEW_URL_KEY` + the main-view-specific recording hook, exported for TASK-007 to consume
+- `frontend/src/app/TopBar.tsx` (modified) — global Config `NavLink`, shared `TopBarNavLink` sub-component, mode derivation reworked around the closable/main classification
+
 **Technical debt noted**:
+- `TopBar.test.tsx` has 2 failing assertions (of 24 in that file) after this change, both expected per this task's AC and assigned to TASK-008: `"shows the Settings button in Task Manager mode"` and `"keeps the Settings button visible alongside the global Projects entry in Task Manager mode"` — both call `getByRole("button", { name: "Go to Config" })`, which no longer matches now that Config is a `NavLink`. (A third pre-existing assertion, `"hides the Settings button in Sessions mode"`, still passes but only vacuously — it queries for a button that no longer exists in either mode.) No other regressions were introduced.
+
+**Test results**:
+- Baseline (`npx vitest run`, before this task's changes): 20 test files, 222 tests, all passing.
+- Post-implementation (`npx vitest run`, after this task's changes): 20 test files, 220 passing / 2 failing (both in `TopBar.test.tsx`, both pre-identified above as expected-and-deferred to TASK-008). No other test file changed status.
+- `npx tsc --noEmit`: passes with no errors.
