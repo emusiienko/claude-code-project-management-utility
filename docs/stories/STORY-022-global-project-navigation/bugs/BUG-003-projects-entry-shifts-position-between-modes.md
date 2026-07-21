@@ -2,7 +2,7 @@
 id: BUG-003
 story: STORY-022
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 

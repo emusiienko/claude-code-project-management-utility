@@ -1,14 +1,20 @@
 /**
- * ProjectsPage — entry point for the / (root) route.
+ * ProjectsPage — entry point for the /projects route.
  *
  * Orchestrates the project list, create/edit modal, and delete confirmation
  * dialog. All server state lives in TanStack Query hooks; this component
  * handles only page-level UI state (which modal is open, which project is
  * selected for edit or delete).
+ *
+ * Carries a browser-history "Back" button (BUG-005) mirroring SettingsPage's —
+ * since the global top-bar "Projects" entry (STORY-022) is reachable from any
+ * app state, including deep inside a Story/Task view, this page needs the same
+ * "return to where I was" affordance the global "Config" entry already had.
  */
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Plus } from "lucide-react";
 import { ProjectList } from "./components/ProjectList";
 import { ProjectModal } from "./components/ProjectModal";
 import { DeleteProjectDialog } from "./components/DeleteProjectDialog";
@@ -32,6 +38,7 @@ type ModalState =
  * Project Management screen — lists projects and provides create/edit/delete actions.
  */
 export default function ProjectsPage() {
+  const navigate = useNavigate();
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [mutationError, setMutationError] = useState<string | undefined>();
 
@@ -102,6 +109,19 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
+      {/* Back navigation — mirrors SettingsPage's browser-history back button so
+          the global, mode-independent Projects entry (STORY-022) offers the same
+          "return to where I was" affordance as the global Config entry (BUG-005) */}
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="mb-6 flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+        aria-label="Go back to previous page"
+      >
+        <ArrowLeft size={16} aria-hidden="true" />
+        Back
+      </button>
+
       {/* Page heading */}
       <div className="mb-6 flex items-center justify-between">
         <div>
