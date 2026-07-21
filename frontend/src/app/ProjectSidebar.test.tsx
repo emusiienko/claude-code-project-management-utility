@@ -2,20 +2,27 @@
  * ProjectSidebar — unit tests
  *
  * Covers:
- * - Shows the project list and "Manage Projects" link in expanded state.
+ * - Shows the project list in expanded state.
  * - Shows empty-state text when no projects exist.
  * - Collapse toggle button is present and accessible.
  * - Clicking the toggle collapses the sidebar (only toggle button remains).
  * - Collapsed state persists in localStorage.
  * - Clicking a project button navigates to /projects/:id/stories.
  * - Active project is highlighted with aria-current="page".
- * - "Manage Projects" link is always present.
+ * - No "Manage Projects" link is rendered — project management is reached via
+ *   the global top-bar Projects entry instead (STORY-022).
  */
 
 import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ProjectSidebar } from "./ProjectSidebar";
+
+/** Exposes the current router pathname for navigation assertions. */
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location-display">{location.pathname}</div>;
+}
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -68,6 +75,7 @@ function renderSidebar(activeProjectId = "proj-001") {
             <div style={{ display: "flex" }}>
               <ProjectSidebar />
               <div data-testid="content-outlet" />
+              <LocationDisplay />
             </div>
           }
         />
@@ -97,11 +105,19 @@ describe("ProjectSidebar", () => {
     expect(screen.getByText("Beta")).toBeInTheDocument();
   });
 
-  it("renders the Manage Projects link", () => {
+  it("does not render a Manage Projects link (STORY-022 — relocated to the global top bar)", () => {
     renderSidebar();
-    const link = screen.getByRole("link", { name: /manage projects/i });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/projects");
+    expect(
+      screen.queryByRole("link", { name: /manage projects/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("navigates to the project's Stories view when a project is selected from the list (regression guard — landing destination unaffected by STORY-022)", () => {
+    renderSidebar();
+    fireEvent.click(screen.getByRole("button", { name: "Beta" }));
+    expect(screen.getByTestId("location-display")).toHaveTextContent(
+      "/projects/proj-002/stories",
+    );
   });
 
   it("highlights the active project with aria-current=page", () => {
@@ -160,9 +176,11 @@ describe("ProjectSidebar", () => {
     expect(screen.getByText(/no projects yet/i)).toBeInTheDocument();
   });
 
-  it("still shows Manage Projects link when no projects exist", () => {
+  it("does not render a Manage Projects link when no projects exist either", () => {
     mockUseProjectList.mockReturnValue({ data: [] } as never);
     renderSidebar();
-    expect(screen.getByRole("link", { name: /manage projects/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /manage projects/i }),
+    ).not.toBeInTheDocument();
   });
 });

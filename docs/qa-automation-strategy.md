@@ -2,7 +2,7 @@
 
 > Owned by **qa-automation**. Update only at the user's explicit request.
 > Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
-> Last updated: 2026-07-21 (rev 10)
+> Last updated: 2026-07-21 (rev 11)
 
 ---
 
@@ -278,13 +278,13 @@ One test file per component/hook/utility module. Test file name mirrors the sour
 | File | Story | Coverage |
 |------|-------|----------|
 | `frontend/src/shared/components/IconButton.test.tsx` | STORY-015 | Shared primitive: accessible label, aria-label+title, click handler, disabled state |
-| `frontend/src/features/projects/components/ProjectList.test.tsx` | STORY-015 | Row actions: edit/delete icon buttons by aria-label, correct callback routing, multi-row isolation, empty state, error state |
+| `frontend/src/features/projects/components/ProjectList.test.tsx` | STORY-015 + STORY-022 | Row actions: edit/delete icon buttons by aria-label, correct callback routing, multi-row isolation, empty state, error state; project-name link targets `/projects/:id/settings` (not `/stories`, STORY-022 TASK-003) |
 | `frontend/src/features/settings/components/DictionaryEditor.test.tsx` | STORY-015 | Edit mode toggle, Clear override button (enabled/disabled/in-flight), chip remove buttons, save/cancel flows |
 | `frontend/src/shared/hooks/useLocalStorage.test.ts` | STORY-016 | Default value, read from storage, corrupted JSON fallback, setValue persistence, functional updater, intra-tab and cross-tab event sync |
 | `frontend/src/app/RootRedirect.test.tsx` | STORY-016 | Redirect to /projects (no stored ID, no projects), redirect to /projects/:lastId/stories (stored ID), redirect to /projects/:firstId/stories (no stored ID but projects exist), null/corrupted stored value |
 | `frontend/src/app/ProjectShell.test.tsx` | STORY-016 | Loading indicator, 4-tab sub-nav renders when project found, navigation landmark, 404 not-found message, back-to-projects link, generic load-error message |
-| `frontend/src/app/TopBar.test.tsx` | STORY-016 | App switcher renders, task-manager/sessions mode from pathname, Settings button visible/hidden by mode, switching to Sessions, switching to Task Manager with/without stored last URL |
-| `frontend/src/app/ProjectSidebar.test.tsx` | STORY-016 | Project list renders, Manage Projects link, active project aria-current, collapse/expand toggle, collapsed state persisted in localStorage, pre-collapsed from localStorage, empty-state text, Manage Projects still present when empty |
+| `frontend/src/app/TopBar.test.tsx` | STORY-016 + STORY-022 | App switcher renders, task-manager/sessions mode from pathname, Settings button visible/hidden by mode, switching to Sessions, switching to Task Manager with/without stored last URL; global Projects entry (STORY-022): renders in both modes, accessible link name, click navigates to `/projects`, `aria-current="page"` on exact `/projects`, absent in Sessions mode, `href="/projects"`, Settings stays gated to Task Manager mode alongside it. **Known gap (BUG-001)**: `test.fails` documents that `aria-current` is still (incorrectly) present on nested project routes like `/projects/:id/stories` — the Projects `NavLink` is missing an `end` prop; flip back to a normal `it` once fixed |
+| `frontend/src/app/ProjectSidebar.test.tsx` | STORY-016 + STORY-022 | Project list renders, active project aria-current, collapse/expand toggle, collapsed state persisted in localStorage, pre-collapsed from localStorage, empty-state text; Manage Projects link removed (STORY-022 — asserted absent, incl. empty-projects case), sidebar project selection still navigates to the project's Stories view (regression guard, STORY-022) |
 | `frontend/src/features/stories/components/StorySlideOver.test.tsx` | STORY-016 | Dialog renders, title/status badge, close button accessible label, breadcrumb button, Escape key navigates back, close/breadcrumb click navigates back, not-found on error/undefined, loading indicator, backdrop click |
 | `frontend/src/features/board/hooks/useBoardDrag.test.ts` | STORY-016 | resolveTargetStatus utility (4 cases); useBoardDrag: initial state, dragStart/End state, valid cross-column drop, same-column no-op, invalid status triggers onInvalidDrop, null over target, card-to-card fallback |
 | `frontend/src/features/board/BoardPage.test.tsx` | STORY-016 | Loading guard (settings/stories), error alert, empty-statuses message, one column per status, Board heading, story count summary, kanban region landmark |
