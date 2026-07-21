@@ -6,4 +6,4 @@
 | [TASK-003](TASK-003-project-name-lands-on-settings.md) | Change the Projects Management project-name landing destination to Settings | frontend-developer | Done |
 | [TASK-002](TASK-002-update-nav-component-tests.md) | Write automated tests | qa-automation | Done |
 | [TASK-004](TASK-004-project-settings-standalone-screen.md) | Promote Project Settings to a standalone screen | frontend-developer | Done |
-| [TASK-005](TASK-005-tests-standalone-project-settings.md) | Extend automated tests for the standalone Project Settings screen | qa-automation | ToDo |
+| [TASK-005](TASK-005-tests-standalone-project-settings.md) | Extend automated tests for the standalone Project Settings screen | qa-automation | Done |

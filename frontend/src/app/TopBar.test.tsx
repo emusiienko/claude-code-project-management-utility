@@ -173,6 +173,16 @@ describe("TopBar", () => {
     expect(link).not.toHaveAttribute("aria-current");
   });
 
+  // BUG-001 guard extended to the standalone Project Settings URL (STORY-022
+  // TASK-005): /projects/:id/settings is still under the /projects prefix, so
+  // the exact-match `end` prop must keep the top-bar Projects entry inactive
+  // there too, just as it does for /projects/:id/stories.
+  it("omits aria-current on the Projects entry on the standalone Project Settings URL (BUG-001)", () => {
+    renderTopBar("/projects/proj-1/settings");
+    const link = screen.getByRole("link", { name: /projects/i });
+    expect(link).not.toHaveAttribute("aria-current");
+  });
+
   it("the Projects entry links to /projects", () => {
     renderTopBar("/sessions");
     const link = screen.getByRole("link", { name: /projects/i });
