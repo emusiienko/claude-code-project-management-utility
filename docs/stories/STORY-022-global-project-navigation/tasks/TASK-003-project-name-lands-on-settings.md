@@ -6,6 +6,11 @@ story: STORY-022
 
 # TASK-003: Change the Projects Management project-name landing destination to Settings
 
+> Refined by TASK-004 (2026-07-21): the destination URL below (`/projects/:id/settings`)
+> is unchanged, but TASK-004 relocates that route to render Project Settings as a
+> standalone screen rather than a per-project sub-navigation tab. This task's work and
+> report stand as-is.
+
 ## What to implement
 On the Projects Management page (`/projects`), clicking a project's name currently
 navigates into that project and lands on its Stories view. Change that single click
