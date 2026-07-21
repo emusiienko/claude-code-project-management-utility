@@ -1,6 +1,12 @@
 ## Active wait
 waiting_for: none
 
+## Recent changes
+- 2026-07-21: SESSION-017/018/019 — STORY-009 spec finished (mandatory project_id, topic
+  immutability, independent-update ACs); product-strategist confirmed Project stays an unchanged
+  CRUD entity (validated-idea v2). New STORY-022 (Global Project Navigation Entry) created,
+  Planned, implementing the "reachable independent of any module" decision.
+
 ## STORY-008 closed
 - 2026-07-21: STORY-008 (Work Item Comments) fully implemented (14 tasks, incl. a post-acceptance
   newest-first ordering rollout), 4 bugs found and fixed (BUG-001-004), Accepted, fully reconciled

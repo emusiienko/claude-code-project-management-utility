@@ -1,7 +1,7 @@
 # Validated Idea: AI Agent Coordination Utility
 
 > **Status:** Validated — core problem and scope confirmed through discovery session
-> **Date:** 2026-06-27
+> **Date:** 2026-07-21
 > **Prepared by:** Product Strategist
 
 ## Problem Statement
@@ -15,7 +15,7 @@ AI agents in a multi-agent development pipeline have no persistent memory betwee
 
 ## Core Value Proposition
 
-**1. Cross-repository coordination** — today each repository has its own isolated task stack (markdown files). Work that spans multiple repositories has no shared home: the orchestrator agent must mentally merge across repos, and there is no single view of all in-flight work. The utility provides one authoritative coordination space across all projects, enabling orchestration that was structurally impossible before.
+**1. Cross-repository coordination** — today each repository has its own isolated task stack (markdown files). Work that spans multiple repositories has no shared home: the orchestrator agent must mentally merge across repos, and there is no single view of all in-flight work. The utility provides one authoritative coordination space across all projects, enabling orchestration that was structurally impossible before. **Project is the universal top-level anchor for every module in the utility** — Tasks and Sessions today, any future module tomorrow (e.g. a dedicated test-case tracking module) — not a construct owned by or nested inside any single module. Managing projects and connecting other modules to them must remain possible without routing through any one module's view. *(Confirmed 2026-07-21, SESSION-018.)*
 
 **2. Persistent state outside git** — an external, persistent store that lives entirely outside any repository. Agents read context on startup (via MCP) and write results directly — no git diffs, no approval gate for routine operations. The orchestrator's attention is reserved for decisions, not file approvals.
 
@@ -36,7 +36,8 @@ Compared to the current markdown-file approach: the utility eliminates both the 
 - Aggregated story state computed from task statuses (on demand)
 
 **Sessions Module**
-- Session record with: start artifact (topic + context), optional result artifact (decisions + summary), status label, optional link to story or task
+- Session record scoped to a project (**mandatory** — a session is never created "just for its own sake" outside a project context), with: start artifact (topic + context), optional result artifact (decisions + summary), status label, optional link to a story or task within that project
+- Sessions retrievable per project, in addition to cross-project queries — supports agents and the orchestrator reviewing project-specific session history
 - Ability to find sessions started but not yet completed (cross-restart continuity)
 
 **Settings Module**
@@ -98,7 +99,7 @@ Compared to the current markdown-file approach: the utility eliminates both the 
 - **Automated migration from markdown** — Deferred because the utility must prove its value before investing in tooling to import historical data. Revisit in V2 once steady-state usage is established.
 - **Team distribution / multi-user** — Deferred because V1 is single-orchestrator. Revisit when there is a concrete second user.
 - **Event-driven notifications** — Deferred because the pull-on-startup pattern is sufficient for the current agent design. Revisit if agents need real-time triggers.
-- **Test run history as a first-class entity** — Open question (from source document): current model uses task type "testing task" + attachments for results. A dedicated "run" entity may be needed later for regression analysis; deferred until need is confirmed.
+- **Test run history as a first-class entity** — Open question (from source document): current model uses task type "testing task" + attachments for results. A dedicated "run" entity may be needed later for regression analysis; deferred until need is confirmed. If built, it would follow the same project-anchoring pattern confirmed for Sessions (SESSION-018) — scoped to a project, reachable independent of any single module's view.
 
 ## Open Questions
 
