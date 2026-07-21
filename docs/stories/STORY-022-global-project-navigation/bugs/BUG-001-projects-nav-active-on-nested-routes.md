@@ -2,7 +2,7 @@
 id: BUG-001
 story: STORY-022
 severity: minor
-status: open
+status: fixed
 assignee: frontend-developer
 ---
 
@@ -44,3 +44,18 @@ Reproduced automatically in `frontend/src/app/TopBar.test.tsx` via
 — kept as an expected-fail so the suite stays green; flip it back to a normal
 `it` once fixed. Likely one-line fix: add `end` to the Projects `NavLink` in
 `frontend/src/app/TopBar.tsx`.
+
+## Fix
+
+Added the `end` prop to the Projects `NavLink` in `frontend/src/app/TopBar.tsx`,
+so react-router now requires an exact match against `/projects` before marking
+the entry active — nested routes like `/projects/:id/stories` no longer set
+`aria-current="page"`.
+
+The `test.fails` placeholder in `frontend/src/app/TopBar.test.tsx` was flipped
+back to a normal `it("omits aria-current on the Projects entry when not on
+/projects (BUG-001)", ...)`.
+
+**Verification**: baseline run of `frontend/src/app/TopBar.test.tsx` was 17
+passed / 1 expected-fail; after the fix, all 18 tests pass. Full frontend
+suite (`npx vitest run`) — 213 passed across 20 files, no regressions.

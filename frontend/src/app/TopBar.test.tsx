@@ -158,20 +158,14 @@ describe("TopBar", () => {
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  // Known gap (BUG-001): TASK-002's spec requires aria-current to be absent
-  // whenever the active route is not exactly /projects. The Projects NavLink
-  // has no `end` prop, so react-router's default prefix matching (`/projects/*`)
-  // marks it active on every nested project route too (e.g. /projects/:id/stories).
-  // `test.fails` keeps the suite green while documenting the discrepancy — flip
-  // this back to a normal `it` once BUG-001 is fixed (adding `end` to the NavLink).
-  it.fails(
-    "omits aria-current on the Projects entry when not on /projects (BUG-001 — currently active on nested project routes too)",
-    () => {
-      renderTopBar("/projects/proj-1/stories");
-      const link = screen.getByRole("link", { name: /projects/i });
-      expect(link).not.toHaveAttribute("aria-current");
-    },
-  );
+  // BUG-001 fix verification: the Projects NavLink now has an `end` prop, so
+  // react-router's exact matching no longer marks it active on nested project
+  // routes (e.g. /projects/:id/stories).
+  it("omits aria-current on the Projects entry when not on /projects (BUG-001)", () => {
+    renderTopBar("/projects/proj-1/stories");
+    const link = screen.getByRole("link", { name: /projects/i });
+    expect(link).not.toHaveAttribute("aria-current");
+  });
 
   it("omits aria-current on the Projects entry in Sessions mode (not on /projects)", () => {
     renderTopBar("/sessions");

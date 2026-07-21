@@ -95,6 +95,7 @@ export function TopBar() {
         <div className="flex items-center gap-1">
           <NavLink
             to="/projects"
+            end
             className={({ isActive }) =>
               [
                 "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
