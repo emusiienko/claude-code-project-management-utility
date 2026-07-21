@@ -1,6 +1,6 @@
 ## Active wait
-waiting_for: none — STORY-008 Auto ✓ and QA ✓ both green (BUG-001/002/003/004 all fixed and verified). Awaiting user go-ahead on TASK-012/013/014 (newest-first ordering redesign) and the accept decision.
-next_step: once user greenlights ordering work, spawn TASK-012 → {TASK-013, TASK-014}, then re-run Stabilization loop again before the accept gate
+waiting_for: none — STORY-008 fully implemented (14 tasks Done), newest-first ordering rolled out, Auto ✓ and QA ✓ both green again post-rollout. At the accept gate.
+next_step: awaiting explicit user acceptance; then Reconcile (architect → spec-writer → qa-automation/manual-qa)
 
 ## STORY-004 design notes
 - Plan confirmed, no revision — implementation can start
