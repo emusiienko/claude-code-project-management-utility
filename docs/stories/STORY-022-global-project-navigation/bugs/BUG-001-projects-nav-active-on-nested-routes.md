@@ -2,7 +2,7 @@
 id: BUG-001
 story: STORY-022
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -59,3 +59,7 @@ back to a normal `it("omits aria-current on the Projects entry when not on
 **Verification**: baseline run of `frontend/src/app/TopBar.test.tsx` was 17
 passed / 1 expected-fail; after the fix, all 18 tests pass. Full frontend
 suite (`npx vitest run`) — 213 passed across 20 files, no regressions.
+
+**Re-verified (qa-automation, Execute mode, 2026-07-21)**: full frontend
+suite re-run — 213 passed across 20 files, including the flipped `it` in
+`TopBar.test.tsx`. Confirmed resolved.
