@@ -17,6 +17,13 @@
  * Escape closes only this slide-over, and only when it is topmost — the
  * shared `useModalEscape` stack lets the Task Detail Modal or an attachment
  * viewer mounted on top of it take precedence instead.
+ *
+ * The backdrop and panel start below the global top bar (`top-12`, matching
+ * its `h-12` height) rather than at the true viewport top (`inset-0`/
+ * `inset-y-0`) — otherwise both fully cover it, making the global Projects
+ * entry unclickable while this is open (BUG-004). The top bar itself sits
+ * above both at z-[110], so this offset also prevents this panel's own
+ * header from being visually clipped by the top bar.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -144,7 +151,7 @@ export function StorySlideOver() {
     <>
       {/* Dimmed backdrop — click to close */}
       <div
-        className="fixed inset-0 z-40 bg-black/40"
+        className="fixed inset-x-0 bottom-0 top-12 z-40 bg-black/40"
         aria-hidden="true"
         onClick={handleClose}
       />
@@ -154,7 +161,7 @@ export function StorySlideOver() {
         role="dialog"
         aria-modal="true"
         aria-label={story?.title ?? "Story detail"}
-        className="fixed inset-y-0 right-0 z-50 flex w-[90vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
+        className="fixed bottom-0 right-0 top-12 z-50 flex w-[90vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
       >
         {/* ------------------------------------------------------------------ */}
         {/* Fixed header                                                         */}

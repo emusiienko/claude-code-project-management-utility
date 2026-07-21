@@ -2,7 +2,7 @@
 id: BUG-004
 story: STORY-022
 severity: major
-status: open
+status: fixed
 assignee: frontend-developer
 ---
 
@@ -43,3 +43,50 @@ The Story slide-over (and, stacked on top of it, the Task Detail modal) renders 
 - The link is still present in the accessibility tree/DOM (not removed), it is purely a visual/pointer-event stacking issue.
 - Found while executing tc-007 (`docs/stories/STORY-022-global-project-navigation/test-cases/tc-007-dismisses-open-slideover-and-modal.md`).
 - Severity judgment call: classified `major` because it defeats an explicitly written acceptance edge case in a very commonly-reached app state (any time a story or task is open), even though a manual workaround (close the overlay first) exists. Re-triage to `minor` if the team considers the workaround sufficient.
+
+## Fix
+
+Root cause: the top bar `<header>` (`frontend/src/app/TopBar.tsx`) has no
+`position` set (static), and CSS paints positioned elements — including any
+`position: fixed` element, regardless of its own z-index value — after all
+static elements within the same stacking context. Both the Story slide-over
+and the Task Detail modal render their backdrop/panel with `fixed inset-0` /
+`fixed inset-y-0` / `fixed inset-4`, i.e. `position: fixed` starting at the
+true viewport top (`y=0`). Since the top bar is static, these fixed overlays
+always paint above it and intercept the click regardless of any z-index the
+header carried — explaining why `document.elementFromPoint()` resolved to the
+overlay's own header, not the "Projects" link.
+
+Fix, two parts:
+1. `TopBar.tsx`: the header is now `relative` (a positioned element, so its
+   z-index takes effect) with `z-[110]` — higher than every overlay z-index
+   already in use in the app (Story slide-over `z-40`/`z-50`, Task Detail
+   modal `z-[60]`/`z-[70]`, nested confirmation dialogs `z-[90]`, the Toast
+   `z-[100]`). It also now has an explicit height (`h-12`, matching its prior
+   rendered height) so overlays can offset against a known value.
+2. `StorySlideOver.tsx` and `TaskDetailModal.tsx`: their backdrop/panel now
+   start below the top bar (`top-12` for the slide-over and the Task Detail
+   backdrop; `top-16` for the Task Detail panel, which also carries its own
+   1rem margin) instead of at the true viewport top. This is needed in
+   addition to (1) — raising only the top bar's z-index without this offset
+   would make the (opaque) top bar visually clip the top of these two
+   overlays' own headers, since both currently start their own header at
+   `y=0`, the same position as the top bar.
+
+Other, smaller centered dialogs in the app (`TaskModal`, `DeleteTaskDialog`,
+`AttachmentViewerModal`, etc.) needed no changes — their panels are centered
+(`top-1/2`, translated) rather than anchored to the viewport top, so they
+don't visually collide with the top bar's header content; they incidentally
+also become click-through-safe from part (1) alone, since the top bar now
+paints above their backdrops too.
+
+**Code locations**: `frontend/src/app/TopBar.tsx`,
+`frontend/src/features/stories/components/StorySlideOver.tsx`,
+`frontend/src/features/tasks/components/TaskDetailModal.tsx`
+
+**Verification**: `tsc --noEmit` and `npm run build` pass; compiled CSS
+confirms `.z-\[110\]{z-index:110}`, `.h-12{height:3rem}`, `.top-12{top:3rem}`,
+and `.top-16{top:4rem}` are emitted. `npx vitest run` — 211 passed / 2 failed,
+same 2 pre-existing failures as the baseline run before this fix (in
+`TopBar.test.tsx`, caused by the parallel BUG-003 fix's test file not yet
+being updated — unrelated to this change, no regressions introduced).

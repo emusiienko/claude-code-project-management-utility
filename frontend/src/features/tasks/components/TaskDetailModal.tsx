@@ -11,6 +11,12 @@
  * so it closes only the topmost host — this modal, or an attachment viewer
  * layered on top of it — never the slide-over underneath.
  *
+ * The backdrop and panel start below the global top bar (`top-12`/`top-16`,
+ * accounting for its `h-12` height plus this panel's own 1rem margin) rather
+ * than at the true viewport top (`inset-0`/`inset-4`) — otherwise both fully
+ * cover it, making the global Projects entry unclickable while this is open
+ * (BUG-004). The top bar itself sits above both at z-[110].
+ *
  * Settings (task_types, task_statuses, participant_roles) are loaded from the
  * project's effective settings — the query is already in-cache from StorySlideOver,
  * so this causes no extra network request.
@@ -106,7 +112,7 @@ export function TaskDetailModal() {
        * slide-over behind the modal must not close it.
        */}
       <div
-        className="fixed inset-0 z-[60] bg-black/50"
+        className="fixed inset-x-0 bottom-0 top-12 z-[60] bg-black/50"
         aria-hidden="true"
       />
 
@@ -115,7 +121,7 @@ export function TaskDetailModal() {
         role="dialog"
         aria-modal="true"
         aria-label={task?.title ?? "Task detail"}
-        className="fixed inset-4 z-[70] flex flex-col rounded-lg bg-surface shadow-2xl overflow-hidden"
+        className="fixed inset-x-4 bottom-4 top-16 z-[70] flex flex-col rounded-lg bg-surface shadow-2xl overflow-hidden"
       >
         {/* ------------------------------------------------------------------ */}
         {/* Fixed header                                                         */}
