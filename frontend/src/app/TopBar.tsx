@@ -1,9 +1,10 @@
 /**
  * TopBar — flat root-layout top bar.
  *
- * Renders the app-switcher combobox on the left and (in Task Manager mode)
- * a ⚙ Settings text button on the right. The top bar is always visible
- * regardless of which route is active.
+ * Renders the app-switcher combobox on the left and, on the right, a
+ * mode-independent Projects link plus (in Task Manager mode only) a
+ * ⚙ Settings text button. The top bar is always visible regardless of which
+ * route is active.
  *
  * App mode is derived from the current pathname:
  *  - `/sessions` prefix  → Sessions mode
@@ -15,9 +16,9 @@
  * to `/projects`.
  */
 
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, NavLink } from "react-router-dom";
 import { useEffect } from "react";
-import { Settings, ChevronDown } from "lucide-react";
+import { Settings, ChevronDown, FolderKanban } from "lucide-react";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
 
 /** localStorage key for the last-visited Task Manager URL. */
@@ -32,7 +33,7 @@ function deriveMode(pathname: string): AppMode {
 }
 
 /**
- * TopBar — app-switcher combobox + optional Settings button.
+ * TopBar — app-switcher combobox + global Projects link + optional Settings button.
  *
  * Renders inside RootLayout above the main outlet. No props required —
  * reads current location from the router context internally.
@@ -90,18 +91,35 @@ export function TopBar() {
           </div>
         </div>
 
-        {/* Right: Config button — visible in Task Manager mode only */}
-        {mode === "task-manager" && (
-          <button
-            type="button"
-            onClick={() => navigate("/settings")}
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-            aria-label="Go to Config"
+        {/* Right: global Projects link (both modes) + Config button (Task Manager mode only) */}
+        <div className="flex items-center gap-1">
+          <NavLink
+            to="/projects"
+            className={({ isActive }) =>
+              [
+                "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
+                isActive
+                  ? "font-medium text-brand-700"
+                  : "text-text-secondary hover:bg-surface-muted hover:text-text",
+              ].join(" ")
+            }
           >
-            <Settings size={15} aria-hidden="true" />
-            Config
-          </button>
-        )}
+            <FolderKanban size={15} aria-hidden="true" />
+            Projects
+          </NavLink>
+
+          {mode === "task-manager" && (
+            <button
+              type="button"
+              onClick={() => navigate("/settings")}
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              aria-label="Go to Config"
+            >
+              <Settings size={15} aria-hidden="true" />
+              Config
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );

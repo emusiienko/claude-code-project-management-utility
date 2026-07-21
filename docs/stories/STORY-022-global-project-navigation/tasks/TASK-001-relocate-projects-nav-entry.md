@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: frontend-developer
 story: STORY-022
 ---
@@ -69,9 +69,24 @@ None.
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
+**Date**: 2026-07-21
+
 **What was done**:
-**Deviations from plan**:
+- Added a global "Projects" entry to `TopBar`'s right-side region, rendered unconditionally in both Task Manager and Sessions modes (the region previously rendered only in Task Manager mode, gated by `mode === "task-manager"`). It uses React Router's `NavLink` with a `FolderKanban` icon, navigating to `/projects`.
+- Reused the existing router-driven active-state pattern (`NavLink`'s `isActive` render-prop → `aria-current="page"` is set automatically by `NavLink`, same mechanism as `ProjectShell`'s sub-nav tabs and the sidebar's project list) — no new active-state or focus mechanism introduced. Focus ring reuses the top bar's existing `focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2` classes.
+- The existing "Config" (Settings) button stays gated to Task Manager mode only, unchanged in behavior — it now sits next to the new Projects link inside the same right-side flex container.
+- Removed the `ManageProjectsLink` sub-component, its `Link` and `Settings` icon imports, and its render call from `ProjectSidebar`. The sidebar's project list and collapse/expand toggle are untouched. Updated the component's JSDoc to note that project management is now reached via the top bar.
+- No changes were needed to dismiss open Story slide-overs / Task Detail modals on navigation to `/projects` — that falls out of ordinary React Router top-level navigation, per the plan's explicit "no manual dismissal logic" constraint.
+
+**Deviations from plan**: None. Implementation followed the task and implementation plan as written.
+
 **Technical decisions made**:
+- Used `lucide-react`'s `FolderKanban` icon for the new Projects link to avoid reusing `Settings` (already used for the Config button) for a visually distinct affordance; purely cosmetic, no behavioral implication.
+- Wrapped the Projects `NavLink` and the conditional Config button in a shared `<div className="flex items-center gap-1">` inside the top bar's right region so spacing stays consistent whether one or two items are visible.
+
 **Code locations**:
+- `frontend/src/app/TopBar.tsx` — global Projects `NavLink` added; right-side region now always renders; Config button unchanged, still gated to Task Manager mode.
+- `frontend/src/app/ProjectSidebar.tsx` — `ManageProjectsLink` sub-component, its render call, and its now-unused `Link`/`Settings` imports removed.
+
 **Technical debt noted**:
+- `frontend/src/app/ProjectSidebar.test.tsx` has two tests ("renders the Manage Projects link" pattern — specifically "still shows Manage Projects link when no projects exist"; the first "renders the Manage Projects link" test also asserts the removed link) that now fail because they assert the old sidebar-link behavior. Per the implementation plan's own "Constraints & Gotchas" section, updating these (plus `TopBar.test.tsx` and adding coverage for the new global entry) is explicitly assigned to TASK-002 (qa-automation), which depends on this task. Verified via a full `npx vitest run`: 199/201 tests pass; the 2 failures are exactly these two pre-existing assertions, no other regressions. `npx tsc --noEmit` passes clean.

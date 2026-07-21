@@ -3,16 +3,18 @@
  *
  * Rendered inside AppShell for all /projects/:id/* routes. Contains:
  *   - A list of all projects with the active one visually highlighted
- *   - A "Manage Projects" link at the bottom navigating to /projects
  *   - A collapse/expand toggle button (ChevronsLeft / ChevronsRight) vertically centered on the right edge
  *
  * Collapsed state is persisted in localStorage under "app:sidebar_collapsed".
  * Selecting a project navigates to /projects/:id/stories and records the
  * project as the last visited in localStorage.
+ *
+ * Project management (the "Manage Projects" journey) is reached via the
+ * global Projects entry in the top bar (STORY-022), not from this sidebar.
  */
 
-import { useNavigate, useParams, Link } from "react-router-dom";
-import { Settings, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useProjectList } from "@/shared/hooks/useProjectList";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
 import { LAST_PROJECT_KEY } from "@/app/RootRedirect";
@@ -93,23 +95,6 @@ function ProjectList({ projects, activeProjectId, onSelect }: ProjectListProps) 
   );
 }
 
-/**
- * Bottom "Manage Projects" link — navigates to /projects management page.
- */
-function ManageProjectsLink() {
-  return (
-    <div className="border-t border-border px-3 py-2">
-      <Link
-        to="/projects"
-        className="flex items-center gap-1.5 rounded px-2 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-      >
-        <Settings size={14} aria-hidden="true" />
-        Manage Projects
-      </Link>
-    </div>
-  );
-}
-
 interface CollapseToggleProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -182,8 +167,6 @@ export function ProjectSidebar() {
         activeProjectId={activeProjectId}
         onSelect={navigateToProject}
       />
-
-      <ManageProjectsLink />
     </aside>
   );
 }

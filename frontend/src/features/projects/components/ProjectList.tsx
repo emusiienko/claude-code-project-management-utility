@@ -107,7 +107,7 @@ export function ProjectList({
             >
               <td className="px-4 py-3 font-medium text-text">
                 <Link
-                  to={`/projects/${project.id}`}
+                  to={`/projects/${project.id}/settings`}
                   className="text-brand-600 hover:text-brand-700 hover:underline"
                 >
                   {project.name}
