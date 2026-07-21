@@ -1,11 +1,11 @@
 ---
-id: tc-019
+id: TC-157
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-019: Default Web UI role — Project Settings override and clear override
+# TC-157: Default Web UI role — Project Settings override and clear override
 
 ## Preconditions
 - Project Settings screen accessible at `/projects/:projectId/settings`

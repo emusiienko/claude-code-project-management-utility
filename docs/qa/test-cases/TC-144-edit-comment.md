@@ -1,11 +1,11 @@
 ---
-id: tc-006
+id: TC-144
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-006: Edit a comment — content and labels editable, author_role read-only
+# TC-144: Edit a comment — content and labels editable, author_role read-only
 
 ## Preconditions
 - A host's Comments section has at least one existing comment with a known author_role

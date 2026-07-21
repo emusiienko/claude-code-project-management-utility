@@ -1,11 +1,11 @@
 ---
-id: tc-020
+id: TC-158
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-020: operator role is usable anywhere participant_roles is used
+# TC-158: operator role is usable anywhere participant_roles is used
 
 ## Preconditions
 - The system or project's effective `participant_roles` list includes "operator"

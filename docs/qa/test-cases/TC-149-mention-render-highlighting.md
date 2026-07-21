@@ -1,11 +1,11 @@
 ---
-id: tc-011
+id: TC-149
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-011: Rendered @role mentions — accent highlight for current roles, plain text otherwise
+# TC-149: Rendered @role mentions — accent highlight for current roles, plain text otherwise
 
 ## Preconditions
 - Project Settings for the current project are reachable

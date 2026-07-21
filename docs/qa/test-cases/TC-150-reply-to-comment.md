@@ -1,11 +1,11 @@
 ---
-id: tc-012
+id: TC-150
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-012: Reply to a comment — chip, dismiss, flat posting, reply-prefix line
+# TC-150: Reply to a comment — chip, dismiss, flat posting, reply-prefix line
 
 ## Preconditions
 - A host's Comments section has at least one existing comment (the "original")

@@ -1,11 +1,11 @@
 ---
-id: tc-010
+id: TC-148
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-010: @role mention combobox — no matches, dismiss and free text after @
+# TC-148: @role mention combobox — no matches, dismiss and free text after @
 
 ## Preconditions
 - The Add Comment form's `content` field is focused

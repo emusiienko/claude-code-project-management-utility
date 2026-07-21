@@ -1,11 +1,11 @@
 ---
-id: tc-018
+id: TC-156
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-018: Default Web UI role — System Settings dropdown
+# TC-156: Default Web UI role — System Settings dropdown
 
 ## Preconditions
 - System Settings screen accessible at `/settings`

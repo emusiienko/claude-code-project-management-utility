@@ -1,11 +1,11 @@
 ---
-id: tc-014
+id: TC-152
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-014: Copy link — clipboard copy and confirmation toast
+# TC-152: Copy link — clipboard copy and confirmation toast
 
 ## Preconditions
 - A host's Comments section has at least one comment

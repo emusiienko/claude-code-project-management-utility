@@ -1,11 +1,11 @@
 ---
-id: tc-017
+id: TC-155
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-017: Comments behave consistently across Story, Task, and Milestone hosts
+# TC-155: Comments behave consistently across Story, Task, and Milestone hosts
 
 ## Preconditions
 - A story, a task, and a milestone are each reachable and have their Comments section visible

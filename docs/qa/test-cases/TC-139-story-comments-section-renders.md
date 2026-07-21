@@ -1,11 +1,11 @@
 ---
-id: tc-001
+id: TC-139
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-001: Story slide-over — Comments section renders correctly
+# TC-139: Story slide-over — Comments section renders correctly
 
 ## Preconditions
 - App is running at http://localhost:3000

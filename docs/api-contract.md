@@ -73,6 +73,33 @@
 > transport difference, not a gap). Attachments remain immutable (no `PUT`); `title` is set once at
 > create. No new ADR — a spec-mandated refinement of the shipped Attachments feature.
 
+> **v1.7 revision — ratified at STORY-008 reconcile 2026-07-21 (Work Item Comments + Settings).**
+> The Comments domain is now built for all three containers (stories, tasks, milestones) and the
+> Settings surface gains one scalar key. Changes vs. the LOCKED v1.0 Comments shape:
+> **(1) `author_role` is now required and immutable** on every comment and every create path (Web UI,
+> REST, MCP) — it was optional/nullable in v1.0. The server never substitutes a default; a
+> missing/empty value is rejected 422 ("Comment author is required."). Only `content` and `labels`
+> are updatable. **(2) Replies use a persisted, immutable materialized ancestor path.** The `Comment`
+> entity gains `ancestors: string[]` — the ordered (root-first) list of ancestor comment ids, empty
+> for a top-level comment, derived once at create as `parent.ancestors + [parent.id]`. `CreateCommentBody`
+> accepts an optional, **request-only** `in_reply_to` (a comment id); when present the server validates
+> the parent exists (404) and shares the same container (422), then persists the computed `ancestors`.
+> `in_reply_to` is never stored or returned as its own field. This is a deliberate architect override
+> of the description's schema-free "prepend a link to `content`" mechanism — see ADR-023. **(3) A
+> lineage endpoint is added** — `GET /comments/:id/ancestors` returns a bare, unpaginated `Comment[]`
+> root-first. **(4) List ordering is newest-first** — container comment lists and detail-composed
+> `comments` arrays return descending `(created_at, id)`; pagination walks newest → oldest. Default
+> `limit` is 50. Two watermark/sub-thread filters are added: `after_id` (keyset "strictly newer than
+> the referenced comment," 404 if that comment is absent) and `descendant_of` (the sub-thread beneath
+> a comment). **(5) `MilestoneDetail.comments` / `StoryDetail`/`TaskDetail` comments are now populated**
+> (newest-first), closing the previously-empty arrays. **Settings:** a new scalar key
+> **`default_web_ui_role`** is added to `Settings` (required `string`) and `SettingsOverrides`
+> (optional) — the single value the Web UI pre-fills into a comment's `author_role`. On write it must
+> be non-empty and a member of the effective `participant_roles` for the scope (422 otherwise); it is
+> the first non-list settings key. The `participant_roles` seed gains `"operator"` (the human
+> orchestrator) and the system `default_web_ui_role` seeds to `"operator"`. See ADR-022 (scalar
+> setting) and ADR-024 (`operator` role). All other domains unchanged.
+
 ---
 
 ## Shared shapes
@@ -204,13 +231,16 @@ interface Attachment {
   // file_path is server-internal and NEVER serialized
 }
 
+// v1.7 (2026-07-21, STORY-008): author_role is now REQUIRED and immutable (was nullable);
+// `ancestors` added for the persisted materialized reply path (ADR-023).
 interface Comment {
   id: string;
   container_type: ContainerType;  // story | task | milestone (NOT attachment)
   container_id: string;
-  author_role: string | null;
+  author_role: string;       // required, non-empty, immutable after create
   content: string;           // 1–50000, Markdown
   labels: Label[];
+  ancestors: string[];       // ordered root-first ancestor comment ids; [] for a top-level comment
   created_at: string;
   updated_at: string;
 }
@@ -259,14 +289,26 @@ interface LinkTypeEntry {
   inbound: string;    // label shown on the TARGET side of the relationship (1–200 chars)
 }
 
-// Heterogeneous by key: link_types is LinkTypeEntry[], all other keys are string[].
+// Heterogeneous by key: link_types is LinkTypeEntry[], the four plain keys are string[],
+// and (v1.7, STORY-008) default_web_ui_role is a single scalar string — the first non-list key.
 interface Settings extends Record<PlainDictionaryKey, string[]> {
   link_types: LinkTypeEntry[];
+  default_web_ui_role: string;   // required; the Web UI's default comment author_role
 }
 interface SettingsOverrides extends Partial<Record<PlainDictionaryKey, string[]>> {
   link_types?: LinkTypeEntry[];
+  default_web_ui_role?: string;  // project override; scalar
 }
 ```
+
+**`default_web_ui_role`** (STORY-008, ADR-022): a single-value setting living in the same
+`(key, values)` store as the dictionaries, resolved with the same system-default + project-override
+precedence (a project override fully replaces the system value). On write it must be non-empty and a
+member of the effective `participant_roles` for the scope (system `participant_roles` for a system
+write; the project's effective set for a project override) — otherwise **422** with the
+"Value '{v}' is not allowed. Allowed: {list}." message. It is never re-validated on read and never
+constrains a comment's own free-form `author_role`. Its only product effect is pre-filling the Add
+Comment form. System default is `"operator"`.
 
 **`link_types` validation** (STORY-020): each entry must be an object with all three fields
 (`value`, `outbound`, `inbound`), each a non-empty string 1–200 chars. Plain-string entries are
@@ -348,7 +390,7 @@ interface StoryAggregate {
 interface StoryDetail extends Story {
   links: EnrichedStoryLink[];  // v1.3 — outbound + inbound, enriched (STORY-006)
   attachments: Attachment[];   // the story's attachments (composed since STORY-007)
-  comments: Comment[];         // created_at ASC (empty until STORY-008)
+  comments: Comment[];         // newest-first (composed since STORY-008)
 }
 ```
 
@@ -390,7 +432,7 @@ interface UpdateTaskBody {               // story_id immutable
 interface TaskDetail extends Task {
   links: EnrichedTaskLink[];
   attachments: Attachment[];             // the task's attachments
-  comments: Comment[];                   // created_at ASC
+  comments: Comment[];                   // newest-first (composed since STORY-008)
 }
 
 // GET /tasks/:id/dependencies            -> 200 Envelope<TaskDependencies> | 404
@@ -524,23 +566,59 @@ interface CreateExternalRefAttachmentJson {
 
 ## Comments
 
-Containers: stories, tasks, milestones. Not attachable to attachments.
+<!-- v1.7 (2026-07-21, STORY-008): built for all three containers. author_role now required +
+     immutable; persisted materialized `ancestors` reply path (ADR-023); newest-first lists;
+     `after_id`/`descendant_of` filters; `GET /comments/:id/ancestors` lineage endpoint. -->
+
+Containers: stories, tasks, milestones. Not attachable to attachments. Comments store Markdown text
+only. Lists (and detail-composed comment arrays) are ordered **newest-first** — descending
+`(created_at, id)`; pagination walks newest → oldest. Default `limit` is **50** (a typical thread
+returns in one page). Labels are free-form and never dictionary-validated; `author_role` is likewise
+never validated against `participant_roles`.
 
 ```typescript
 // POST /stories/:storyId/comments
 // POST /tasks/:taskId/comments
 // POST /milestones/:id/comments          -> 201 Envelope<Comment> | 422, 404
-interface CreateCommentBody { content: string; author_role?: string; labels?: Label[]; }
+// author_role is REQUIRED (non-empty) on every path. in_reply_to is a request-only input (a comment
+// id) — never stored or returned as its own field; its only effect is the derived `ancestors` path.
+interface CreateCommentBody {
+  content: string;          // 1–50000, required
+  author_role: string;      // required, non-empty
+  labels?: Label[];
+  in_reply_to?: string;     // optional parent comment id (same container); yields `ancestors`
+}
+// Create validation precedence: container exists (404) -> content non-empty & <=50000 (422)
+//   -> author_role non-empty (422) -> in_reply_to comment exists (404) -> same container (422).
+//   404 "Comment '{id}' not found."; 422 reply-cross-container:
+//   "A reply must be on the same story, task, or milestone as the comment it replies to."
 
 // GET  /stories/:storyId/comments
 // GET  /tasks/:taskId/comments
 // GET  /milestones/:id/comments
-//   ?page&limit&label_key&label_value     -> 200 ListEnvelope<Comment> (created_at ASC) | 404
+//   ?page&limit&label_key&label_value&after_id&descendant_of
+//                                         -> 200 ListEnvelope<Comment> (newest-first) | 404
+//   after_id      — keyset watermark: only comments strictly NEWER than the referenced comment,
+//                   `(created_at, id) > (ref.created_at, ref.id)`; 404 if that comment is absent.
+//   descendant_of — the sub-thread beneath the referenced comment (comments whose `ancestors`
+//                   contains it). All filters combine, alone or together, under the new order.
 // GET  /comments/:id                      -> 200 Envelope<Comment> | 404
+// GET  /comments/:id/ancestors            -> 200 Comment[] (bare array, root-first, unpaginated) | 404
+//   The ordered ancestor bodies for a comment (oldest ancestor -> direct parent); [] for a
+//   top-level comment. A dangling ancestor id (parent since deleted) is silently skipped.
 // PUT  /comments/:id                      -> 200 Envelope<Comment> | 422, 404
-interface UpdateCommentBody { content?: string; labels?: Label[]; } // labels fully replaces
+interface UpdateCommentBody { content?: string; labels?: Label[]; } // labels fully replaces;
+//   author_role and ancestors are immutable — absent from this body, nothing to change.
+//   Updating only content leaves labels unchanged and vice versa; an empty labels array clears all.
 // DELETE /comments/:id                    -> 204 | 404
+//   Hard delete (no archive/tombstone). Deleting a story/task/milestone cascades to its comments
+//   (application-level — the container_id has no FK). A deleted comment's id may still linger in a
+//   descendant's `ancestors`; readers degrade gracefully (the id is simply unresolvable).
 ```
+
+> **Lineage traversal** is first-class in both directions: **up** via `GET /comments/:id/ancestors`
+> (ordered ancestor bodies) and **down** via `?descendant_of=` on the list endpoint (the sub-thread).
+> The thread is presentationally flat — no nesting or indentation — regardless of `ancestors` depth.
 
 ---
 
@@ -584,7 +662,11 @@ interface UpdateSessionBody {            // topic NOT updatable (business rule) 
 ```
 
 Effective resolution: for each key, use `project_settings.values` if a row exists for
-`(project_id, key)`, else `system_settings.values`.
+`(project_id, key)`, else `system_settings.values`. The same precedence applies to the scalar
+`default_web_ui_role` (v1.7, STORY-008): its write is validated against the effective
+`participant_roles` for the scope (422 if outside it); see the `default_web_ui_role` note in
+§ Entities. It is accepted in the `PUT` body of both settings endpoints and returned by both `GET`
+surfaces alongside the five dictionaries.
 
 <!-- updated: 2026-07-13 (STORY-020 reconcile): `Settings`/`SettingsOverrides` are now heterogeneous —
      `link_types` returns/accepts `LinkTypeEntry[]`, all other keys stay `string[]` (see the
@@ -594,8 +676,8 @@ Effective resolution: for each key, use `project_settings.values` if a row exist
      these settings responses. -->
 The MCP settings tools (`get_system_settings`, `set_system_settings`,
 `get_project_effective_settings`, `set_project_settings`, `clear_project_setting`) delegate to the
-same service/schemas and therefore reflect the identical structured `link_types` shape and
-validation.
+same service/schemas and therefore reflect the identical structured `link_types` shape, the scalar
+`default_web_ui_role` (v1.7), and the same validation.
 
 ---
 
@@ -644,7 +726,7 @@ interface UpdateMilestone {                 // name + description only; project_
 //   they are paginated via GET /milestones/:id/stories.
 interface MilestoneDetail extends Milestone {
   attachments: Attachment[];   // the milestone's attachments (composed since STORY-007)
-  comments: Comment[];         // created_at ASC (empty until STORY-008)
+  comments: Comment[];         // newest-first (composed since STORY-008)
 }
 ```
 

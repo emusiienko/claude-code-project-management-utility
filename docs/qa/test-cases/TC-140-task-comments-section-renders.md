@@ -1,11 +1,11 @@
 ---
-id: tc-002
+id: TC-140
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-002: Task Detail Modal — Comments section renders correctly
+# TC-140: Task Detail Modal — Comments section renders correctly
 
 ## Preconditions
 - App is running at http://localhost:3000

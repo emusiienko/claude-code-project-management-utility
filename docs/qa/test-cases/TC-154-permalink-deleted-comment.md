@@ -1,11 +1,11 @@
 ---
-id: tc-016
+id: TC-154
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-016: Permalink to a deleted comment — navigates to host view, no error
+# TC-154: Permalink to a deleted comment — navigates to host view, no error
 
 ## Preconditions
 - A comment exists on a story, task, or milestone

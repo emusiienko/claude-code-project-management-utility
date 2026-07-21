@@ -18,7 +18,7 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 | Sessions View | List, create, edit sessions; filter incomplete; link to story/task | P1 |
 | Milestones View | List, create, edit, delete milestones within a project | P1 |
 | Attachments Management | Upload documents (text or file), images, and files (PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) to stories, tasks, or milestones; view via an in-app viewer or download; delete (immutable — no edit, no archive); each attachment has a mandatory free-form title, defaulted from the uploaded file's name where applicable and editable before submit — see STORY-021 <!-- updated: 2026-07-15 (STORY-021) --> | P1 |
-| Comments Management | Create, edit, delete comments on stories and tasks | P1 |
+| Comments Management | Create, edit, delete comments on stories, tasks, or milestones; thread rendered newest-first with a pinned Add Comment form at the top; `author_role` pre-fills from a configurable default; `@role` mention autocomplete in comment content; per-comment permalink (Copy link) and Reply actions — see STORY-008 <!-- updated: 2026-07-21 (STORY-008 reconcile) --> | P1 |
 | Work Item Linking | Create and delete typed directed links between tasks (in Task Detail Modal) and between stories (in Story slide-over); linked item titles are clickable navigation targets | P1 |
 
 ---
@@ -67,9 +67,10 @@ Reads the last-visited project ID from browser local storage (key `app:last_proj
 | `/projects/:id/settings` | Project Settings | Per-project dictionary overrides |
 | `/projects/:id/stories/:storyId` | Story Detail | Full-screen slide-over on top of the current project view |
 | `/projects/:id/stories/:storyId/tasks/:taskId` | Task Detail | Modal on top of the Story Detail slide-over |
-| `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments (live, STORY-007); comments *(placeholder, pending STORY-008)* |
+| `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments (live, STORY-007) + comments (live, STORY-008) |
 | `/sessions` | Sessions | Full-screen flat list, no sidebar |
 | `/settings` | System Settings | Task Manager system-level dictionary defaults |
+| `/comments/:id` | Comment permalink resolver | <!-- new: 2026-07-21 (STORY-008) --> Not a page of its own — resolves the comment's host view (Story slide-over, Task Detail modal, or Milestone Detail page) and navigates there with the comments section expanded and that comment scrolled into view and highlighted. If the comment has since been hard-deleted (no surviving container to resolve), shows a calm `role="status"` "This comment is no longer available." message with a link back home instead of navigating. |
 
 Navigation rules:
 - Navigating to a resource that no longer exists (deleted) shows a "Not found" inline message with a link back to the parent level.
@@ -234,19 +235,19 @@ Sub-nav active tab: **Board**.
 - **View** button → opens the in-app Attachment Viewer (see Attachment Viewer below) for document/image/file kinds; opens `external_url` in a new tab for external-ref
 - **Delete** button (every kind) → confirmation dialog; permanent, no archive step
 
-**Right panel — Story Comments:**
+**Right panel — Story Comments:** <!-- updated: 2026-07-21 (STORY-008 reconcile) -->
 
 > **As-built (STORY-016):** Static placeholder section. No comments endpoint calls. Live implementation delivered by STORY-008.
+>
+> **As-built (STORY-008):** identical behavior on all three hosts (Story slide-over, Task Detail modal, Milestone Detail page) — see the shared **Comments Section** description below.
 
-- Lists comments ordered oldest-first: author_role, content (rendered Markdown), labels, timestamp
-- **Add comment** → inline form at the bottom of the list
-- **Edit** / **Delete** per comment (inline controls)
+See **Comments Section (shared)** below Milestone Detail View for the full field-level and interaction spec: heading with live count badge, thread rendered newest-first, per-comment Edit/Reply/Delete/Copy-link actions, Add Comment form pinned at the top, `@role` mention autocomplete, and permalink deep-linking.
 
 ---
 
 ### Task Detail View (`/projects/:id/stories/:storyId/tasks/:taskId`) <!-- updated: 2026-07-12 (STORY-005 reconcile) -->
 
-> **As-built notes (STORY-005):** The Task Detail modal is a full-screen modal (z-index 60/70) rendered above the slide-over (z-50). Data is fetched from `GET /tasks/:id/detail` via `useTaskDetail`. Effective settings (`task_types`, `task_statuses`, `participant_roles`) are loaded via `useProjectSettingsEffective(projectId)` — the data is already in the TanStack Query cache from StorySlideOver, so no extra network request is made at runtime. The Escape key is registered in the **capture phase** to intercept it before the slide-over's bubble-phase listener, preventing the slide-over from closing when the user dismisses the modal. The modal backdrop has no `onClick` handler — clicking the dimmed slide-over behind the modal does not close it. The inline Edit toggle replaces the metadata block with `TaskForm`; saving returns to the metadata view without a full remount. At STORY-005 time, Links, Attachments, and Comments sections were static placeholders pending STORY-006, STORY-007, and STORY-008 respectively — Links went live in STORY-006 and Attachments in STORY-007; Comments remains a placeholder pending STORY-008.
+> **As-built notes (STORY-005):** The Task Detail modal is a full-screen modal (z-index 60/70) rendered above the slide-over (z-50). Data is fetched from `GET /tasks/:id/detail` via `useTaskDetail`. Effective settings (`task_types`, `task_statuses`, `participant_roles`) are loaded via `useProjectSettingsEffective(projectId)` — the data is already in the TanStack Query cache from StorySlideOver, so no extra network request is made at runtime. The Escape key is registered in the **capture phase** to intercept it before the slide-over's bubble-phase listener, preventing the slide-over from closing when the user dismisses the modal. The modal backdrop has no `onClick` handler — clicking the dimmed slide-over behind the modal does not close it. The inline Edit toggle replaces the metadata block with `TaskForm`; saving returns to the metadata view without a full remount. At STORY-005 time, Links, Attachments, and Comments sections were static placeholders pending STORY-006, STORY-007, and STORY-008 respectively — Links went live in STORY-006, Attachments in STORY-007, and Comments in STORY-008.
 
 **Layout:** full-screen modal overlay on top of the Story Detail slide-over. The slide-over behind it is dimmed but not unmounted. The modal has a fixed header (task title + close button) and a single vertically scrollable body containing all sections.
 
@@ -300,11 +301,8 @@ Data is fetched from `GET /tasks/:id/detail` (single call — task + links + att
 - Heading "Attachments" with count badge
 - Same behaviour as Story Attachments (list, add, view, delete) — see Story Detail above
 
-**Comments section:**
-- Heading "Comments" with count badge
-- Thread ordered oldest-first: author_role, content (rendered Markdown), labels, timestamp
-- **Edit** / **Delete** per comment (inline controls)
-- Add comment form pinned at the bottom of the section (scrolls with the content)
+**Comments section:** <!-- updated: 2026-07-21 (STORY-008 reconcile) -->
+See **Comments Section (shared)** below Milestone Detail View for the full spec.
 
 ---
 
@@ -336,7 +334,45 @@ Sub-nav active tab: **Milestones**.
 - Heading "Attachments" with a count badge
 - Same behaviour as Story Attachments (list, add, view, delete) — see Story Detail slide-over above
 
-> **Deferred to STORY-008:** Comments section.
+**Comments section:** <!-- updated: 2026-07-21 (STORY-008 reconcile): live implementation, replacing the "Deferred to STORY-008" placeholder -->
+See **Comments Section** immediately below for the full spec, shared identically with the Story slide-over and Task Detail modal.
+
+---
+
+### Comments Section (shared — Story slide-over, Task Detail modal, Milestone Detail page) <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+
+Identical behavior on all three hosts.
+
+- Section heading "Comments" with a live count badge, matching the Attachments section convention; the badge updates live after every create/delete
+- Thread rendered **newest-first**: each entry shows the author role, the comment content rendered as Markdown, its label chips, a timestamp, and — for a reply — a "↩ Replying to {author_role}" line above the content, derived from the comment's stored ancestor lineage
+- Each comment has inline **Edit**, **Reply**, **Delete**, and **Copy link** icon actions (Lucide, per the icon library standard); **Delete** uses the standard destructive-action confirmation dialog and a visually distinct danger color
+- **Edit** switches that comment's entry into an inline form for `content` and `labels` only — `author_role` is displayed as read-only text in edit mode, since it cannot be changed
+- **Add Comment** form is pinned at the **top** of the section, above the thread:
+  - `author_role` text input, pre-filled with the project's effective default Web UI role (resolved the same way effective dictionary values are shown elsewhere); the user can freely edit or clear this value before submitting — it is a plain free-form text field, not a dropdown, consistent with the rule that a comment's own author role is never dictionary-validated
+  - `content` Markdown textarea, required — supports `@role` mention autocomplete (see below)
+  - Labels editor (reuses the existing key/value labels editor pattern)
+  - Submit is disabled while `content` or `author_role` is empty; inline errors appear below each field on a failed attempt
+  - On success, the new comment appears at the **top** of the thread and the form resets — `content` and `labels` clear, `author_role` resets to the effective default Web UI role again (not to whatever the user last typed)
+
+**Replying to a comment:**
+- **Reply** on any comment marks it as the target and scrolls the Add Comment form into view, showing a dismissible "↩ Replying to {author_role}'s comment" chip above the `content` field; `content` itself starts empty for the author's own words
+- The author can dismiss the chip before submitting to drop the reply relationship and post an ordinary, unrelated comment instead
+- `author_role` still pre-fills from the effective default Web UI role exactly as it does for any new comment; labels behave identically too
+- Submitting posts an ordinary new comment at the top of the (flat, newest-first) thread, carrying its lineage back to the target — there is no visual nesting, indentation, or thread structure beyond the "↩ Replying to {author_role}" line the rendered comment shows
+- That line is clickable and resolves via the comment-permalink mechanism below; if its target has since been hard-deleted, the line simply renders as plain, unlinked text (the host work item is already known from the surrounding thread, so no "no longer available" fallback is needed here)
+
+**Comment permalinks:**
+- **Copy link** on any comment copies a direct URL to the clipboard and shows a brief confirmation (e.g. a toast reading "Link copied"), consistent with the app's existing toast notification pattern
+- Opening that URL (in the same browser or a different one) navigates to `/comments/:id` (see Route Table), which resolves to that comment's host view — the Story slide-over, Task Detail modal, or Milestone Detail page, whichever owns it — with the comments section already expanded and that specific comment scrolled into view and briefly highlighted (e.g. a momentary accent background that fades)
+- Because comments have no archive or tombstone, a permalink to a comment that has since been hard-deleted has no surviving host to resolve to; opening it instead shows a calm, non-error `role="status"` message ("This comment is no longer available.") with a link back home, rather than crashing or looking like a broken page
+
+**`@role` mentions in comment content:**
+- While typing in the `content` field of the Add Comment form, or while editing an existing comment's content, typing `@` opens an inline autocomplete combobox listing the project's effective `participant_roles` values; the list narrows live as the user keeps typing after `@`
+- Selecting an entry from the combobox inserts `@<role-value>` at the cursor position; the combobox then closes. The user may also dismiss it and keep typing free text — nothing is enforced
+- The combobox never performs any action beyond inserting text — no notification is sent, nothing is linked, no other part of the utility is aware a mention exists
+- When a comment's content is rendered (in the thread, on any of the three hosts), any `@<value>` token that exactly matches a role currently in the project's effective `participant_roles` list is shown with a distinct highlight (an accent-colored inline badge) inside the rendered Markdown; a token that does not match any current role renders as plain text, identical to the rest of the content
+- This applies only to Comment content — Story and Task content fields are unaffected by this story
+- **Accessibility:** this is the app's first non-native dropdown (every other picker in the app is a native `<select>`, keyboard-accessible by default) and is built to the same WCAG 2.1 AA bar explicitly: it follows the ARIA combobox/listbox pattern, is fully operable from the keyboard (arrow keys to move through matches, `Enter` to select the highlighted match, `Escape` to dismiss the combobox without inserting anything and return focus to the textarea at the same cursor position), and never traps focus outside the textarea
 
 ---
 
@@ -353,7 +389,7 @@ No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in
 
 ---
 
-### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired) -->
+### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role row added) -->
 
 > **As-built notes (STORY-002):** Previously implemented as two tabs (`System Defaults` / `Project Overrides`) at `/settings`. The Project Overrides tab is removed from this view — project overrides now live at `/projects/:id/settings`.
 >
@@ -361,20 +397,31 @@ No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in
 >
 > **As-built notes (STORY-021):** the `attachment_types` editor is removed — the dictionary key no
 > longer exists (its sole consumer, the Attachment `type` field, was replaced by a free-form `title`).
+>
+> **As-built notes (STORY-008):** a sixth row, "Default Web UI role", is added alongside the five
+> dictionary rows — named and described generically (not "comment author"), since Comments is only
+> its first consumer. Unlike the other five keys, it renders as a **single-value dropdown** populated
+> from the effective `participant_roles` list, since it holds exactly one value, not a set. The
+> dropdown is pre-selected to the current system value (`"operator"` out of the box); Save updates
+> the system-wide default. Selecting a value not currently present in the effective `participant_roles`
+> list is prevented client-side (the dropdown only ever offers current, valid values) and rejected
+> server-side if attempted another way. For now, this row's only observable effect anywhere in the
+> product is pre-filling the Add Comment form's `author_role` field.
 
 Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only). No sidebar; no sub-navigation bar.
 
-- Five dictionary editors in a 2-column responsive grid (not accordion), one per key: `task_statuses`, `task_types`, `story_statuses`, `link_types`, `participant_roles`
-- Four keys (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`) use the generic chip-list editor: shows current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
+- Six settings rows in a 2-column responsive grid (not accordion): five dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `link_types`, `participant_roles`) plus the scalar `default_web_ui_role`
+- Four dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`) use the generic chip-list editor: shows current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
 - `link_types` uses the **three-field `LinkTypesEditor`**: renders one row per entry with three editable fields — **Value**, **Outbound label**, **Inbound label**; **Add entry** appends a blank row; **Remove** per row; all three fields must be non-empty before Save is enabled (client-side guard); server 422 surfaces above the Save button
-- **Save / Cancel** controls per editor — Save disabled when the value list is empty or any `link_types` field is blank
+- `default_web_ui_role` uses a **single-value dropdown** populated from the effective `participant_roles` list — Save disabled while no value is selected
+- **Save / Cancel** controls per editor — Save disabled when the value list is empty, any `link_types` field is blank, or (for `default_web_ui_role`) no value is selected
 - Per-key independent save state and error state (saving one key does not affect others)
 - **Save** calls `PUT /v1/system/settings` with only the changed key (partial body)
-- Server errors (400: unknown key, empty values, duplicate `link_types` value; 422: blank `link_types` field) surfaced inline below/above the relevant editor
+- Server errors (400: unknown key, empty values, duplicate `link_types` value; 422: blank `link_types` field, or `default_web_ui_role` not in the effective `participant_roles`) surfaced inline below/above the relevant editor
 
 ---
 
-### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired) -->
+### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role row added) -->
 
 > **As-built notes (STORY-002):** Previously implemented as the "Project Overrides" tab within `/settings`. Now a dedicated route accessed via the `Settings` tab in the project sub-navigation bar.
 >
@@ -382,15 +429,22 @@ Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only)
 >
 > **As-built notes (STORY-021):** the `attachment_types` row is removed along with the retired
 > dictionary key.
+>
+> **As-built notes (STORY-008):** a sixth row, "Default Web UI role", is added — same single-value
+> dropdown as the System Settings page, populated from the effective `participant_roles` list. It
+> shows the current project override (if set) with an `Override` badge, or the inherited system value
+> otherwise, and uses the same **Override/Edit** and **Clear override** controls as the other five keys
+> (inheriting the same known backend gap described below — this story does not close it).
 
 Sub-nav active tab: **Settings**.
 
-- Lists all five dictionary keys with their effective values
+- Lists all six settings keys with their effective values: five dictionaries plus the scalar `default_web_ui_role`
 - Four plain-string keys use the generic chip-list editor
 - `link_types` uses the **three-field `LinkTypesEditor`** (same behaviour as System Settings — three-column rows, Add/Remove, client-side guard before Save)
+- `default_web_ui_role` uses the same **single-value dropdown** as the System Settings page, populated from the effective `participant_roles` list
 - Each key row shows: key name, current override value (if set) with an `Override` badge, or the inherited system default value
 - **Override / Edit button** per key → activates inline editor for that key
-- **Clear override** button (visible when override is set) → intended to revert to system default; calls `DELETE /v1/projects/:projectId/settings/:key` — **this endpoint does not exist on the backend as of STORY-002; the action fails at runtime** (see Known Gaps in backend requirements)
+- **Clear override** button (visible when override is set) → intended to revert to system default; calls `DELETE /v1/projects/:projectId/settings/:key` — **this endpoint does not exist on the backend as of STORY-002; the action fails at runtime** (see Known Gaps in backend requirements). `default_web_ui_role`'s Clear override control is wired identically and fails the same way.
 - **Save** button per key → calls `PUT /v1/projects/:id/settings` with only the changed key
 - Effective values always visible via `GET /v1/projects/:id/settings/effective`
 
@@ -476,6 +530,9 @@ any parent modal/slide-over open, and returns keyboard focus to the row's **View
 | Network unreachable | Toast notification: "Cannot connect to the server. Make sure the utility is running." |
 | File > 10 MB selected for image or file upload | Inline error below file input before upload is attempted: "File must be smaller than 10 MB." |
 | Attachment title left empty on submit | Inline error below the Title field before API call is made: "A title is required for every attachment." <!-- new: 2026-07-15 (STORY-021) --> |
+| Comment content or author_role left empty on submit | Inline error below the relevant field before the API call is made; Submit stays disabled while either is empty <!-- new: 2026-07-21 (STORY-008) --> |
+| Comment permalink whose target has been hard-deleted | Calm, non-error `role="status"` message ("This comment is no longer available.") with a link back home, instead of a navigation or a crash <!-- new: 2026-07-21 (STORY-008) --> |
+| Default Web UI role set to a value outside the effective `participant_roles` | Prevented client-side (dropdown only offers current valid values); a server-side 422 would surface as an inline error above the dropdown <!-- new: 2026-07-21 (STORY-008) --> |
 | Confirmation dialog — user cancels | Dialog closes; no action taken |
 | Activating a milestone when one is already active | Confirmation dialog: "This will deactivate '{current active name}'. Continue?" — cancel keeps current state; confirm swaps active milestone |
 | Board tab accessed with no active milestone | Board shows all stories without any filter applied; no filter indicator is visible; the Board tab is always enabled |
@@ -498,6 +555,7 @@ any parent modal/slide-over open, and returns keyboard focus to the row's **View
 - Story Detail slide-over traps keyboard focus while open; `Escape` closes it and returns focus to the triggering element
 - Task Detail modal traps keyboard focus while open; `Escape` closes it and returns focus to the triggering task card
 - **Stacked modals/panels:** when panels or modals are layered on top of one another (e.g. the Attachment Viewer opened from within the Task Detail modal, itself opened from within the Story Detail slide-over), pressing `Escape` closes only the topmost layer — every parent layer stays open, and keyboard focus returns to the control that opened the topmost layer. This rule applies uniformly regardless of which host the topmost layer was opened from. <!-- added: 2026-07-15 (STORY-007 reconcile, BUG-002/003/004) -->
+- **`@role` mention combobox (STORY-008):** the app's first non-native dropdown — every other picker in the app is a native `<select>`, keyboard-accessible by default — and is held to the same WCAG 2.1 AA bar explicitly: it follows the ARIA combobox/listbox pattern, is fully operable from the keyboard (arrow keys to move through matches, `Enter` to select the highlighted match, `Escape` to dismiss without inserting anything and return focus to the textarea at the same cursor position), and never traps focus outside the textarea. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
 - Status badges and icons have accessible text alternatives (not colour-only indicators)
 - Error messages are announced to screen readers via ARIA live regions
 

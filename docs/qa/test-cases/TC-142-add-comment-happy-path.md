@@ -1,11 +1,11 @@
 ---
-id: tc-004
+id: TC-142
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-004: Add a comment — happy path, author_role pre-fill, form reset
+# TC-142: Add a comment — happy path, author_role pre-fill, form reset
 
 ## Preconditions
 - App is running at http://localhost:3000

@@ -1,11 +1,11 @@
 ---
-id: tc-021
+id: TC-159
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-021: Long content and thread volume do not break the Comments section layout
+# TC-159: Long content and thread volume do not break the Comments section layout
 
 ## Preconditions
 - A host's Comments section is accessible

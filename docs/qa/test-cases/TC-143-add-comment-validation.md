@@ -1,11 +1,11 @@
 ---
-id: tc-005
+id: TC-143
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-005: Add Comment form validation — disabled submit and inline errors
+# TC-143: Add Comment form validation — disabled submit and inline errors
 
 ## Preconditions
 - App is running at http://localhost:3000

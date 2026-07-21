@@ -140,3 +140,24 @@
 | [TC-136](test-cases/TC-136-attachment-rows-display-title.md) | Attachment rows display Title instead of Type across Story, Task, and Milestone Attachments sections | @smoke @regression | STORY-021 | Active |
 | [TC-137](test-cases/TC-137-settings-no-attachment-types-editor.md) | System and Project Settings screens show five dictionary editors, with no attachment_types editor | @smoke @regression | STORY-021 | Active |
 | [TC-138](test-cases/TC-138-regression-attachments-viewer-and-modal-stack.md) | Regression: Attachments viewer, download, delete, and modal-stack Escape behavior are unaffected | @smoke @regression | STORY-021 | Active |
+| [TC-139](test-cases/TC-139-story-comments-section-renders.md) | Story slide-over — Comments section renders correctly | @smoke @regression | STORY-008 | Active |
+| [TC-140](test-cases/TC-140-task-comments-section-renders.md) | Task Detail Modal — Comments section renders correctly | @smoke @regression | STORY-008 | Active |
+| [TC-141](test-cases/TC-141-milestone-comments-section-renders.md) | Milestone Detail — Comments section renders correctly, placeholder note gone | @smoke @regression | STORY-008 | Active |
+| [TC-142](test-cases/TC-142-add-comment-happy-path.md) | Add a comment — happy path, author_role pre-fill, form reset | @smoke @regression | STORY-008 | Active |
+| [TC-143](test-cases/TC-143-add-comment-validation.md) | Add Comment form validation — disabled submit and inline errors | @regression | STORY-008 | Active |
+| [TC-144](test-cases/TC-144-edit-comment.md) | Edit a comment — content and labels editable, author_role read-only | @regression | STORY-008 | Active |
+| [TC-145](test-cases/TC-145-comment-labels-independent-update.md) | Comment labels — independent update from content, empty array clears labels | @regression | STORY-008 | Active |
+| [TC-146](test-cases/TC-146-delete-comment.md) | Delete a comment — confirmation dialog, permanent removal, count updates | @smoke @regression | STORY-008 | Active |
+| [TC-147](test-cases/TC-147-mention-combobox-core-behavior.md) | @role mention combobox — opens, filters, keyboard operable, inserts text | @smoke @regression | STORY-008 | Active |
+| [TC-148](test-cases/TC-148-mention-combobox-edge-cases.md) | @role mention combobox — no matches, dismiss and free text after @ | @regression | STORY-008 | Active |
+| [TC-149](test-cases/TC-149-mention-render-highlighting.md) | Rendered @role mentions — accent highlight for current roles, plain text otherwise | @smoke @regression | STORY-008 | Active |
+| [TC-150](test-cases/TC-150-reply-to-comment.md) | Reply to a comment — chip, dismiss, flat posting, reply-prefix line | @smoke @regression | STORY-008 | Active |
+| [TC-151](test-cases/TC-151-multiple-replies-flat-thread.md) | Multiple replies and reply-to-reply — thread stays flat, newest-first | @regression | STORY-008 | Active |
+| [TC-152](test-cases/TC-152-copy-link-toast.md) | Copy link — clipboard copy and confirmation toast | @regression | STORY-008 | Active |
+| [TC-153](test-cases/TC-153-permalink-navigation.md) | Comment permalink navigation — deep link scrolls and highlights the comment | @smoke @regression | STORY-008 | Active |
+| [TC-154](test-cases/TC-154-permalink-deleted-comment.md) | Permalink to a deleted comment — navigates to host view, no error | @regression | STORY-008 | Active |
+| [TC-155](test-cases/TC-155-comments-consistency-across-hosts.md) | Comments behave consistently across Story, Task, and Milestone hosts | @regression | STORY-008 | Active |
+| [TC-156](test-cases/TC-156-default-web-ui-role-system-settings.md) | Default Web UI role — System Settings dropdown | @regression | STORY-008 | Active |
+| [TC-157](test-cases/TC-157-default-web-ui-role-project-override.md) | Default Web UI role — Project Settings override and clear override | @regression | STORY-008 | Active |
+| [TC-158](test-cases/TC-158-operator-role-usable-elsewhere.md) | operator role is usable anywhere participant_roles is used | @regression | STORY-008 | Active |
+| [TC-159](test-cases/TC-159-long-content-and-thread-volume.md) | Long content and thread volume do not break the Comments section layout | @regression | STORY-008 | Active |

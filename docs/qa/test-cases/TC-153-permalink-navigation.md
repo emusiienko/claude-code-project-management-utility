@@ -1,11 +1,11 @@
 ---
-id: tc-015
+id: TC-153
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-015: Comment permalink navigation — deep link scrolls and highlights the comment
+# TC-153: Comment permalink navigation — deep link scrolls and highlights the comment
 
 ## Preconditions
 - A story, a task, and a milestone each have at least one comment

@@ -21,11 +21,11 @@ The following assumptions were made where the validated idea or conceptual docum
 | Project Management | CRUD for projects — the top-level namespace for all work items | P0 |
 | Stories | Top-level work containers within a project; dedicated `status` field (dictionary-validated); free-form labels; on-demand aggregated task state | P0 |
 | Tasks | Atomic work items within a story; `type`, `status`, `assignee_role`, `creator_role` from per-project dictionaries; validated at write | P0 |
-| Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, link types, participant roles); system defaults; project-level overrides <!-- updated: 2026-07-15 (STORY-021: attachment_types retired — see STORY-021 section) --> | P0 |
+| Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, link types, participant roles); system defaults; project-level overrides; plus one scalar (non-list) key, `default_web_ui_role`, resolved with the same system-default + project-override precedence <!-- updated: 2026-07-15 (STORY-021: attachment_types retired — see STORY-021 section); updated: 2026-07-21 (STORY-008: default_web_ui_role scalar key added) --> | P0 |
 | MCP Server | Full MCP protocol access surface exposing all operations for AI agents | P0 |
 | Work Item Linking | Typed directed links between tasks (`task_links`) and between stories (`story_links`); same semantic model — typed, directed, same-project-only, passive; detail endpoints return enriched link lists with id, title, and status of the linked item | P1 |
 | Attachments | Document (Markdown/text), image, and file (curated binary formats: PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) attachments — stored on filesystem — plus external-reference attachments (URL + status) attached to stories, tasks, or milestones; immutable once created (a single stored file per attachment, no update, no version history); create + delete only, delete permanently removes every kind; agents get full base64 upload/download parity over MCP; every attachment carries a mandatory free-form `title` (defaults to the uploaded file name, editable; agents must supply it explicitly) — see STORY-021 | P1 |
-| Comments | Author + text notes attached to stories or tasks; support labels | P1 |
+| Comments | Markdown text notes attached to stories, tasks, or milestones; required-and-immutable `author_role`; free-form labels; a reply carries a persisted, immutable materialized ancestor path (`ancestors`); newest-first listing with a keyset `after_id` watermark and a `descendant_of` sub-thread filter; a dedicated lineage (ancestors) endpoint; the Web UI pre-fills `author_role` from a new `default_web_ui_role` setting — see STORY-008 <!-- updated: 2026-07-21 (STORY-008 reconcile) --> | P1 |
 | Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
 | Milestones | Named planning markers scoped to exactly one project; each milestone has a lifecycle status (`planned` / `active` / `finished`); at most one milestone per project may be `active` at a time (activate action demotes the previous one atomically); stories are optionally assigned to a milestone via nullable FK; `story_count` is server-derived | P1 |
 | Cross-project Queries | List stories and tasks across all projects in a single query; project-scoped is the default | P2 |
@@ -133,20 +133,23 @@ Unique constraint: (source_story_id, target_story_id, link_type).
 
 ---
 
-### Comment
+### Comment <!-- updated: 2026-07-21 (STORY-008 reconcile) -->
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
-| container_type | enum | Yes | "story" \| "task" | |
-| container_id | UUID | Yes | FK → Story or Task (per container_type) | |
-| author_role | string | No | free-form | |
-| content | text | Yes | 1–50,000 chars; Markdown | |
+| container_type | enum | Yes | "story" \| "task" \| "milestone"; immutable | polymorphic, no FK (same convention as Attachment) |
+| container_id | UUID | Yes | FK → Story, Task, or Milestone (per container_type); immutable | |
+| author_role | string | Yes | free-form; **required and immutable after create** (was optional/nullable pre-STORY-008) | never validated against the `participant_roles` dictionary |
+| content | text | Yes | 1–50,000 chars; Markdown | the only field besides `labels` that is updatable after create |
 | labels | JSON array | No | array of `{key: string, value: string}`; all keys free-form | e.g. key="requires-action" |
+| ancestors | JSON array | Yes | ordered (root-first) list of ancestor comment ids; `[]` for a top-level comment; immutable, derived once at create | the persisted materialized reply path — see ADR-023; FK-less, referential integrity not DB-enforced |
 | created_at | timestamp | Yes | set on create | |
 | updated_at | timestamp | Yes | set on update | |
 
-Comments cannot be attached to Attachments — only to Stories and Tasks.
+Comments attach to Stories, Tasks, or Milestones — never to Attachments or to other Comments (a reply's relationship to its parent is expressed entirely through `ancestors`, not through a container reference).
+
+**Reply lineage (`ancestors`):** a reply is an ordinary comment whose `ancestors` is computed once at create as `parent.ancestors + [parent.id]`; the direct parent is always `ancestors[-1]`. This is a deliberate architect override of an earlier schema-free "prepend a link to `content`" design once described for this feature — see ADR-023. The create request accepts an optional, **request-only** `in_reply_to` (a comment id) that is never itself stored or returned; only the derived `ancestors` list is. `content` is always stored exactly as submitted, with no server-added text. A dangling ancestor id (its comment since deleted) lingers harmlessly — readers degrade gracefully.
 
 ---
 
@@ -173,18 +176,23 @@ Sessions do not belong to a project. A project may be mentioned in `topic` or `c
 
 ---
 
-### SystemSettings <!-- updated: 2026-07-15 (STORY-021: attachment_types retired) -->
+### SystemSettings <!-- updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role scalar key added) -->
 
-One row per dictionary key. Pre-seeded at install time; updatable.
+One row per settings key. Pre-seeded at install time; updatable.
 
 > **STORY-021:** The `attachment_types` key is removed. It had exactly one consumer — the
 > Attachment `type` field — which is itself removed in favor of a free-form `title`. Five dictionary
 > keys remain.
+>
+> **STORY-008:** A sixth key, `default_web_ui_role`, is added — the first (and so far only) **scalar**
+> key in the store: its `values` cell holds a single bare string, not an array. It is resolved with
+> the same system-default + project-override precedence as the five dictionaries, but validated
+> differently — see the dedicated note below the pre-seeded defaults table.
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
-| key | string | Yes | PK; one of the five keys below | |
-| values | JSON array | Yes | see per-key format below; min 1 item | format is heterogeneous: `link_types` is `LinkTypeEntry[]`; the other four keys are `string[]` |
+| key | string | Yes | PK; one of the five dictionary keys or the one scalar key below | |
+| values | JSON array \| JSON scalar | Yes | see per-key format below; dictionaries: array, min 1 item; `default_web_ui_role`: a single non-empty string | format is heterogeneous: `link_types` is `LinkTypeEntry[]`; the other four dictionary keys are `string[]`; `default_web_ui_role` is a bare `string` |
 | updated_at | timestamp | Yes | set on update | |
 
 **LinkTypeEntry** — the structured format used exclusively for `link_types` values:
@@ -205,7 +213,22 @@ Symmetric entries (`outbound == inbound`, e.g. `"context"`) are valid.
 | task_types | `["task", "bug", "testing-task"]` |
 | story_statuses | `["planned", "in-progress", "pending-approval", "accepted"]` |
 | link_types | `[{"value":"depends-on","outbound":"depends on","inbound":"dependent"},{"value":"dependent","outbound":"dependent","inbound":"depends on"},{"value":"created-by","outbound":"created by","inbound":"creates"},{"value":"creates","outbound":"creates","inbound":"created by"},{"value":"context","outbound":"context","inbound":"context for"}]` |
-| participant_roles | `["orchestrator", "architect", "backend-developer", "frontend-developer", "devops", "spec-writer", "qa-automation", "manual-qa"]` |
+| participant_roles | `["orchestrator", "architect", "backend-developer", "frontend-developer", "devops", "spec-writer", "qa-automation", "manual-qa", "operator"]` <!-- updated: 2026-07-21 (STORY-008): "operator" added — the human orchestrator driving the Web UI, distinct from the "orchestrator" agent-coordination role. As an ordinary dictionary entry it is thereafter selectable anywhere `participant_roles` is used (task `assignee_role`/`creator_role`, `@role` mentions, the default Web UI role setting) --> |
+| default_web_ui_role (scalar) | `"operator"` <!-- new: 2026-07-21 (STORY-008) --> |
+
+**`default_web_ui_role`** (STORY-008): a single-value setting, not a list — stored as a bare JSON
+string in the same `(key, values)` row mechanism as the five dictionaries, and resolved with the same
+system-default + project-override precedence (a project override fully replaces the system value; no
+merging). It supplies the value the Web UI's Add Comment form pre-fills into a new comment's
+`author_role`; the comment's own `author_role` is never re-validated against it. On write it must be
+non-empty and a member of the effective `participant_roles` for that scope (system `participant_roles`
+for a system-level write; the project's effective set for a project override) — **422** otherwise:
+"Value '{v}' is not allowed. Allowed: {list}." It is never re-validated on read, so an inherited system
+default can legitimately sit outside a project's later-overridden `participant_roles` set — this is
+benign, since a comment's own `author_role` is free-form. This is deliberately named and scoped
+generically (not "comment author role") so a future story can point another entity's author/creator
+field at the same setting without introducing a second one; STORY-008 is its first and, for now, only
+consumer.
 
 > **As-built notes (STORY-020):** `link_types` changed from a flat string array to a `LinkTypeEntry[]` array in migration `0008_link_types_structured`. The migration converts existing flat-string entries to structured objects (best-effort: `"depends-on"` → `{"value":"depends-on","outbound":"depends-on","inbound":"depends-on"}`); the five canonical slugs receive their correct directional labels. Migration seed in `0002_settings` was updated so fresh installs start with the five canonical structured defaults. The migration is reversible: downgrade converts structured objects back to flat strings using only the `value` field. See ADR-019.
 >
@@ -213,15 +236,15 @@ Symmetric entries (`outbound == inbound`, e.g. `"context"`) are valid.
 
 ---
 
-### ProjectSettings <!-- updated: 2026-07-13 (STORY-020 reconcile) -->
+### ProjectSettings <!-- updated: 2026-07-13 (STORY-020 reconcile); updated: 2026-07-21 (STORY-008: default_web_ui_role scalar key added) -->
 
 One row per (project, key) pair. Absent rows fall through to system defaults.
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | project_id | UUID | Yes | FK → Project; composite PK (project_id, key) | |
-| key | string | Yes | same five keys as SystemSettings; composite PK | <!-- updated: 2026-07-15 (STORY-021: attachment_types retired) --> |
-| values | JSON array | Yes | see per-key format (same heterogeneous rule as SystemSettings); min 1 item | completely replaces (does not merge with) the system default for that key |
+| key | string | Yes | same six keys as SystemSettings (five dictionaries + the `default_web_ui_role` scalar); composite PK | <!-- updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role scalar key added) --> |
+| values | JSON array \| JSON scalar | Yes | see per-key format (same heterogeneous rule as SystemSettings); dictionaries: min 1 item; `default_web_ui_role`: a single non-empty string | completely replaces (does not merge with) the system default for that key |
 | updated_at | timestamp | Yes | set on update | |
 
 **Effective dictionary resolution:** for each key, if a ProjectSettings row exists for `(project_id, key)`, its `values` is used; otherwise the SystemSettings row for that `key` is used.
@@ -261,10 +284,11 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | Project → Story | 1:N | CASCADE |
 | Story → Task | 1:N | CASCADE |
 | Story → Attachment (container_type = story) | 1:N | CASCADE |
-| Story → Comment (container_type = story) | 1:N | CASCADE |
+| Story → Comment (container_type = story) | 1:N | CASCADE (application-level — see STORY-008) <!-- updated: 2026-07-21 (STORY-008 reconcile) --> |
 | Task → Attachment (container_type = task) | 1:N | CASCADE |
-| Task → Comment (container_type = task) | 1:N | CASCADE |
+| Task → Comment (container_type = task) | 1:N | CASCADE (application-level — see STORY-008) <!-- updated: 2026-07-21 (STORY-008 reconcile) --> |
 | Milestone → Attachment (container_type = milestone) | 1:N | CASCADE <!-- updated: 2026-07-14 (STORY-007 spec) --> |
+| Milestone → Comment (container_type = milestone) | 1:N | CASCADE (application-level — see STORY-008) <!-- new: 2026-07-21 (STORY-008 reconcile) --> |
 | Task → TaskLink (source or target) | 1:N | CASCADE (link deleted when either task is deleted) |
 | Story → StoryLink (source or target) | 1:N | CASCADE (link deleted when either story is deleted) |
 | Project → ProjectSettings | 1:N | CASCADE |
@@ -290,7 +314,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | StoryLink | (source_story_id, link_type) | outbound links per story |
 | StoryLink | (target_story_id, link_type) | inbound links per story |
 | Attachment | (container_type, container_id, kind) | attachments per container filtered by kind <!-- updated: 2026-07-15 (STORY-021: was filtered by type, now type is removed) --> |
-| Comment | (container_type, container_id, created_at ASC) | comment thread per container |
+| Comment | (container_type, container_id, created_at) | comment thread per container, scanned descending for the newest-first list <!-- updated: 2026-07-21 (STORY-008 reconcile): list ordering flipped to newest-first --> |
 | Session | (archived_at, result_decisions) | find incomplete sessions (WHERE result_decisions IS NULL AND archived_at IS NULL) |
 | Session | (linked_story_id) | sessions for a story |
 | Session | (linked_task_id) | sessions for a task |
@@ -426,7 +450,8 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 > - The route was added in STORY-006 TASK-003 alongside the `StoryDetail` schema (`StoryDetail(Story)` Pydantic model in `stories/schema.py`). The endpoint is registered in `stories/controller.py` before the existing `/aggregate` route, and mirrored as the `get_story_detail` MCP tool.
 > - `links` is populated by `StoryService.get_detail` via the injected `StoryLinkReaderProtocol`; returns `[]` when the reader is not wired.
 > - **BUG-001 fix (2026-07-13):** `LinkedStorySummary.status` is declared `str | None` (nullable). The original spec described `status` as a string; however `story.status` is nullable, causing a 500 when any linked story has no status. The fix is a one-line type change in `story_links/schema.py`. All enriched story-link responses must tolerate `null` in the `status` field.
-> - **As-built notes (STORY-007):** `attachments` is now populated by `StoryService.get_detail` via the injected `AttachmentReader` Protocol (mirrors the `StoryLinkReaderProtocol` pattern) — no longer an empty placeholder array. `comments` remains `[]` pending STORY-008.
+> - **As-built notes (STORY-007):** `attachments` is now populated by `StoryService.get_detail` via the injected `AttachmentReader` Protocol (mirrors the `StoryLinkReaderProtocol` pattern) — no longer an empty placeholder array.
+> - **As-built notes (STORY-008):** `comments` is now populated (newest-first) via an injected `CommentReaderProtocol`, closing the previously-empty placeholder array.
 
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:**
@@ -443,11 +468,11 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
         }
       ],
       "attachments": [ active Attachment objects ],
-      "comments": [ Comment objects ordered by created_at ASC ]
+      "comments": [ Comment objects, newest-first ]
     }
   }
   ```
-  Composite read — story entity plus its outbound and inbound story links (enriched with `id`, `title`, and nullable `status` of the linked story), active attachments, and comments. Large child collections (tasks) are excluded and served by their own paginated endpoint.
+  Composite read — story entity plus its outbound and inbound story links (enriched with `id`, `title`, and nullable `status` of the linked story), active attachments, and comments (newest-first, see STORY-008). Large child collections (tasks) are excluded and served by their own paginated endpoint.
 - **Response errors:** 404
 
 ---
@@ -459,7 +484,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 > - The controller uses two separate routers: `stories_router` for `POST /stories/{story_id}/tasks` and `GET /stories/{story_id}/tasks`; `tasks_router` for `GET/PUT/DELETE /tasks/{task_id}` and `GET /tasks/{task_id}/detail`.
 > - `PUT /tasks/:id` omitting `assignee_role` or `creator_role` leaves the current value unchanged. Sending `null` clears the field (always allowed — not dictionary-validated when clearing). The `"field" in data.model_fields_set` guard ensures null-clearing and omission remain distinct.
 > - `PUT /tasks/:id` with `story_id` in the body is silently ignored (`UpdateTask` schema does not declare it). The owning story never changes.
-> - `GET /tasks/:id/detail` `links` field is populated by STORY-006 (TASK-003) via the injected `TaskLinkReaderProtocol`. `attachments` is populated by STORY-007 (TASK-003) via the injected `AttachmentReader` Protocol; `comments` remains `[]` pending STORY-008.
+> - `GET /tasks/:id/detail` `links` field is populated by STORY-006 (TASK-003) via the injected `TaskLinkReaderProtocol`. `attachments` is populated by STORY-007 (TASK-003) via the injected `AttachmentReader` Protocol. `comments` is populated (newest-first) by STORY-008 via the injected `CommentReaderProtocol`.
 > - The `delete_task` MCP tool (and all task MCP tools) return appropriate values; the MCP protocol does not support void returns.
 > - Cascade delete (`task ON DELETE CASCADE`) is implemented in migration `0005_task` at the DB schema level. SQLite WAL mode requires `PRAGMA foreign_keys = ON` at connection time to enforce FK cascade; the conftest engine setup does not yet set this pragma — the cascade test is marked `xfail(strict=True)` pending that fix.
 
@@ -502,7 +527,7 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
       "...all Task fields...",
       "links": [ TaskLink objects enriched with linked task id/title/status ],
       "attachments": [ active Attachment objects ],
-      "comments": [ Comment objects ordered by created_at ASC ]
+      "comments": [ Comment objects, newest-first ]
     }
   }
   ```
@@ -667,37 +692,79 @@ Attachments are immutable once created — there is no update endpoint and no ar
 
 ---
 
-### Comments
+### Comments <!-- updated: 2026-07-21 (STORY-008 reconcile) -->
+
+Comments attach to stories, tasks, or milestones (`container_type`). Lists (and detail-composed
+`comments` arrays) are ordered **newest-first** — descending `(created_at, id)`; pagination walks
+newest → oldest. Default `limit` is **50** (a typical thread returns in one page). Labels are
+free-form and never dictionary-validated; `author_role` is likewise never validated against
+`participant_roles`.
+
+> **As-built notes (STORY-008):** `author_role` is now **required and immutable** (was optional in
+> the pre-STORY-008 forward-spec placeholder). A reply is modeled as a persisted, immutable
+> materialized ancestor path (`ancestors`) rather than as text prepended to `content` — a deliberate
+> architect override of an earlier schema-free design (see ADR-023); the create-time `in_reply_to`
+> input is request-only and never itself stored or returned. List ordering was flipped to newest-first
+> after initial acceptance testing (a product decision, no ADR). See `docs/architecture.md` §
+> Known Divergences for the full list of as-built vs. originally-specified behavior.
 
 #### POST /stories/:storyId/comments
 #### POST /tasks/:taskId/comments
+#### POST /milestones/:milestoneId/comments
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** `{ "content": "string (required, 1–50000 chars)", "author_role", "labels": [...] }`
-- **Response 201:** `{ "data": { Comment } }`
-- **Response errors:** 404 (container), 422 (content missing or out of range — Pydantic)
+- **Request body:**
+  ```json
+  {
+    "content": "string (required, 1–50000 chars)",
+    "author_role": "string (required, non-empty)",
+    "labels": [ { "key": "string", "value": "string" } ],
+    "in_reply_to": "uuid (optional — another comment's id, request-only, never stored as its own field)"
+  }
+  ```
+- **Response 201:** `{ "data": { Comment } }` — `ancestors` is `[]` unless `in_reply_to` was supplied
+- **Validation precedence:** container exists (404) → `content` non-empty and ≤ 50,000 chars (422) →
+  `author_role` non-empty (422) → when `in_reply_to` is supplied: the referenced comment exists (404)
+  and shares the same container as the comment being created (422). On a valid reply,
+  `ancestors = parent.ancestors + [parent.id]` is computed and persisted; `content` is stored exactly
+  as submitted, with no server-added text.
+- **Response errors:**
+  - 404: container not found; or `in_reply_to` references a comment that does not exist → `{ "error": "Comment '{id}' not found.", "code": "NOT_FOUND" }`
+  - 422: `content` missing/empty/over-length or `author_role` missing/empty (Pydantic field validation); `in_reply_to` references a comment in a different container → `{ "error": "A reply must be on the same story, task, or milestone as the comment it replies to.", "code": "UNPROCESSABLE" }`
 
 #### GET /stories/:storyId/comments
 #### GET /tasks/:taskId/comments
+#### GET /milestones/:milestoneId/comments
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Query params:** `page`, `limit`, `label_key`, `label_value`
-- **Response 200:** paginated Comment list ordered by created_at ASC
-- **Response errors:** 404
+- **Query params:** `page` (default 1), `limit` (default 50, max 100), `label_key`, `label_value`, `after_id`, `descendant_of`
+  - `after_id` (comment id, optional) — keyset watermark: returns only comments created strictly **after** (newer than) the referenced comment — `(created_at, id) > (ref.created_at, ref.id)`. Orthogonal to display order; the matched set is still returned newest-first. 404 if the referenced comment does not exist (including if it was since deleted).
+  - `descendant_of` (comment id, optional) — returns the sub-thread beneath the referenced comment (every comment whose `ancestors` contains it).
+  - All filters combine freely, alone or together.
+- **Response 200:** paginated Comment list, **newest-first**
+- **Response errors:** 404 (container not found; or `after_id`/`descendant_of` references a comment that does not exist)
 
 #### GET /comments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:** `{ "data": { Comment } }`
 - **Response errors:** 404
 
+#### GET /comments/:id/ancestors
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 200:** `{ "data": [ Comment, ... ] }` — a **bare, unpaginated array**, ordered root-first (oldest ancestor → direct parent); `[]` for a top-level comment. A dangling ancestor id (its comment since deleted) is silently skipped. This lineage order is unaffected by the newest-first Revision — it is a lineage path, not a chronological list.
+- **Response errors:** 404 (comment not found)
+
 #### PUT /comments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** `content`, `labels` — optional; `labels` fully replaces when provided
+- **Request body:** `content`, `labels` — optional; `labels` fully replaces when provided; `author_role` and `ancestors` are not fields on this body — any value supplied for either is silently ignored (both immutable)
 - **Response 200:** `{ "data": { Comment } }`
 - **Response errors:** 404, 422 (content out of range — Pydantic)
 
 #### DELETE /comments/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
+- **Behavior:** hard delete — no archive or tombstone. Deleting a story, task, or milestone cascades to its comments (application-level — the polymorphic `container_id` has no FK). A deleted comment's id may still linger in a descendant's `ancestors`; readers degrade gracefully (the id is simply unresolvable, and a standalone permalink to the deleted comment has no surviving container to resolve to — see the Web UI requirements for the resulting fallback behavior).
 - **Response 204**
 - **Response errors:** 404
+
+**MCP tools** (behavior-identical mirror): `create_comment`, `list_comments`, `get_comment`, `get_comment_ancestors`, `update_comment`, `delete_comment`. Create/list take `container_type` + `container_id` as arguments (rather than a path); `list_comments` accepts the same filters (`page`, `limit`, `label_key`, `label_value`, `after_id`, `descendant_of`); `create_comment` carries the same fields as the REST create body, including the optional `in_reply_to`.
 
 ---
 
@@ -732,7 +799,7 @@ Attachments are immutable once created — there is no update endpoint and no ar
 
 ---
 
-### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile); updated: 2026-07-13 (STORY-020: link_types structured); updated: 2026-07-15 (STORY-021: attachment_types retired) -->
+### Settings <!-- updated: 2026-06-30 (STORY-002 reconcile); updated: 2026-07-13 (STORY-020: link_types structured); updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role scalar key added) -->
 
 > **As-built notes (STORY-020):** Settings responses are now **heterogeneous** — `link_types` is returned and accepted as `LinkTypeEntry[]`; the other four keys remain plain `string[]`. The MCP tools (`get_system_settings`, `set_system_settings`, `get_project_effective_settings`, `set_project_settings`, `clear_project_setting`) mirror this shape; validation for `link_types` delegates entirely to the service layer. See ADR-019.
 >
@@ -743,45 +810,52 @@ Attachments are immutable once created — there is no update endpoint and no ar
 > **422**, not 400 — the existing unknown-key rejection is a Pydantic `model_validator` that FastAPI
 > surfaces as 422 for every dictionary key, not a status this story changed. The error line below is
 > corrected accordingly; see api-contract v1.6.
+>
+> **As-built notes (STORY-008):** A sixth key, `default_web_ui_role`, is added — a single **scalar**
+> string, not a list, the first settings key shaped that way. On write it must be non-empty and a
+> member of the effective `participant_roles` for that scope; **422** otherwise:
+> "Value '{v}' is not allowed. Allowed: {list}." It is accepted in the `PUT` body of both settings
+> endpoints and returned by both `GET` surfaces alongside the five dictionaries; the MCP settings tools
+> mirror it identically. See ADR-022.
 
 #### GET /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** `{ "data": { task_statuses: string[], task_types: string[], story_statuses: string[], link_types: LinkTypeEntry[], participant_roles: string[] } }`
+- **Response 200:** `{ "data": { task_statuses: string[], task_types: string[], story_statuses: string[], link_types: LinkTypeEntry[], participant_roles: string[], default_web_ui_role: string } }`
 
 #### PUT /system/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** partial — only provided keys updated; `link_types` must be `LinkTypeEntry[]` (plain strings → 422); other keys must be `string[]`
+- **Request body:** partial — only provided keys updated; `link_types` must be `LinkTypeEntry[]` (plain strings → 422); the four other dictionary keys must be `string[]`; `default_web_ui_role` must be a non-empty string that is a member of the effective `participant_roles`
 - **Response 200:** `{ "data": { all system settings } }`
-- **Response errors:** 400 (empty values array; duplicate `link_types` value); 422 (unknown key — e.g. the retired `attachment_types` key, rejected by the same Pydantic `model_validator` as any other unknown key, not 400 <!-- corrected: 2026-07-15 (STORY-021 reconcile) -->; plain string in `link_types`; missing/blank `LinkTypeEntry` field)
+- **Response errors:** 400 (empty values array; duplicate `link_types` value); 422 (unknown key — e.g. the retired `attachment_types` key, rejected by the same Pydantic `model_validator` as any other unknown key, not 400 <!-- corrected: 2026-07-15 (STORY-021 reconcile) -->; plain string in `link_types`; missing/blank `LinkTypeEntry` field; `default_web_ui_role` empty or not in the effective `participant_roles`)
 
 #### GET /projects/:projectId/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** project-level overrides only; `{}` if none set; `link_types` override (if set) is `LinkTypeEntry[]`
+- **Response 200:** project-level overrides only; `{}` if none set; `link_types` override (if set) is `LinkTypeEntry[]`; `default_web_ui_role` override (if set) is a bare string
 - **Response errors:** 404
 
 #### GET /projects/:projectId/settings/effective
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Response 200:** merged effective dictionaries for all five keys; `link_types` is `LinkTypeEntry[]`
+- **Response 200:** merged effective settings for all six keys; `link_types` is `LinkTypeEntry[]`; `default_web_ui_role` is a bare string
 - **Response errors:** 404
 
 #### PUT /projects/:projectId/settings
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Request body:** partial settings object; same heterogeneous format as PUT /system/settings
 - **Response 200:** `{ "data": { effective settings after update } }`
-- **Response errors:** 400 (empty values; duplicate `link_types` value), 404; 422 (unknown key — same Pydantic rejection as system settings, not 400 <!-- corrected: 2026-07-15 (STORY-021 reconcile) -->; Pydantic validation on `link_types`)
+- **Response errors:** 400 (empty values; duplicate `link_types` value), 404; 422 (unknown key — same Pydantic rejection as system settings, not 400 <!-- corrected: 2026-07-15 (STORY-021 reconcile) -->; Pydantic validation on `link_types`; `default_web_ui_role` empty or not in the project's effective `participant_roles`)
 
 #### DELETE /projects/:projectId/settings/:key *(not yet implemented — see Known Gaps)*
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Behavior:** removes the project-level override for the given key; effective value reverts to system default; other keys' overrides are unaffected; clearing a key with no override is a no-op
 - **Response 204:** no body
 - **Response errors:** 404 (project not found or key not a valid dictionary key)
-- **Status:** the backend service implements `clear_project_setting`; no REST route or MCP tool exposes it as of STORY-002; the frontend calls this endpoint and receives an error at runtime
+- **Status:** the backend service implements `clear_project_setting`; no REST route or MCP tool exposes it as of STORY-002; the frontend calls this endpoint and receives an error at runtime. The new `default_web_ui_role` scalar key (STORY-008) inherits this gap unchanged — its "Clear override" control is wired identically to the five dictionaries and fails the same way; the only end-to-end coverage of clear-override (any key) is via the MCP `clear_project_setting` tool.
 
 ---
 
 ### Milestones <!-- updated: 2026-07-11 (STORY-012 reconcile); updated: 2026-07-15 (STORY-007 reconcile: detail endpoint added) -->
 
-> **As-built notes (STORY-012):** The previously planned M:N (milestone ↔ project) model was replaced with a single-project model before implementation. Each milestone carries a `project_id` FK (not a join table). A `status` lifecycle field was added (`planned` / `active` / `finished`). Lifecycle transitions are exposed as action endpoints (POST activate / POST finish), not via PUT. `story_count` is a server-derived field present on both list and detail responses. `container_type = "milestone"` for attachments was deferred at STORY-012 time and implemented in STORY-007 (comments remain deferred, pending STORY-008).
+> **As-built notes (STORY-012):** The previously planned M:N (milestone ↔ project) model was replaced with a single-project model before implementation. Each milestone carries a `project_id` FK (not a join table). A `status` lifecycle field was added (`planned` / `active` / `finished`). Lifecycle transitions are exposed as action endpoints (POST activate / POST finish), not via PUT. `story_count` is a server-derived field present on both list and detail responses. `container_type = "milestone"` for attachments was deferred at STORY-012 time and implemented in STORY-007; comments followed in STORY-008 — milestones now support both side collections identically to stories and tasks.
 
 #### POST /milestones
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -846,14 +920,15 @@ Attachments are immutable once created — there is no update endpoint and no ar
     "data": {
       "...all Milestone fields, plus story_count...",
       "attachments": [ active Attachment objects ],
-      "comments": []
+      "comments": [ Comment objects, newest-first ]
     }
   }
   ```
-  Composite read — milestone entity plus its attachments. `comments` is always `[]` pending STORY-008 (Milestones has no comment container support yet).
+  Composite read — milestone entity plus its attachments and comments (newest-first). Assigned stories are not included — they are paginated via `GET /milestones/:id/stories`.
 - **Response errors:** 404
 
 > **As-built notes (STORY-007):** This endpoint did not exist prior to STORY-007; it closes the Known Divergence left open at STORY-012 (deferred pending the attachments domain). `attachments` is populated via the same injected `AttachmentReader` Protocol used by the Story and Task detail endpoints.
+> **As-built notes (STORY-008):** `comments` is now populated (newest-first) via an injected `CommentReaderProtocol`, fully closing the `GET /milestones/:id/detail` Known Divergence — both side collections are now live on all three detail views.
 
 #### Story list — milestone filter (extension to existing GET /projects/:projectId/stories)
 The story list endpoint accepts an optional `milestone_id` query parameter. An unknown or malformed `milestone_id` yields an empty page (not an error).
@@ -899,6 +974,9 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 | Attachment | mime_type | Required when kind = document, image, or file; allowed values per kind | "MIME type '{v}' is not supported for {kind} attachments." |
 | Attachment | external_url | Required when kind = external-ref; valid URI | "A valid URL is required for external reference attachments." |
 | Comment | content | Required; 1–50,000 chars | "Comment content is required." |
+| Comment | author_role | Required; non-empty; every caller (Web UI, REST, MCP); immutable after create <!-- updated: 2026-07-21 (STORY-008): was optional pre-STORY-008 --> | "Comment author is required." |
+| Comment | in_reply_to | Optional, request-only; if supplied, the referenced comment must exist (404) and share the same container as the comment being created (422) <!-- new: 2026-07-21 (STORY-008) --> | "A reply must be on the same story, task, or milestone as the comment it replies to." |
+| SystemSettings / ProjectSettings | values (default_web_ui_role) | Required; non-empty string; must be a member of the effective `participant_roles` for the scope <!-- new: 2026-07-21 (STORY-008) --> | "Value '{v}' is not allowed. Allowed: {list}." |
 | Session | topic | Required; 1–500 chars | "Session topic is required." |
 | SystemSettings / ProjectSettings | values (non-link_types keys) | Array; min 1 non-empty string | "Dictionary values cannot be empty." |
 | SystemSettings / ProjectSettings | values (link_types key) | Array of `LinkTypeEntry` objects; min 1 entry; plain strings rejected | "link_types entries must be objects with 'value', 'outbound', and 'inbound' fields" (422) |
@@ -911,7 +989,7 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 ### Business-Level
 
 1. A task's project is determined transitively via `task.story_id → story.project_id`. All dictionary lookups use that project's effective settings.
-2. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments. Sessions linked to deleted Stories or Tasks have links set to null.
+2. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments and Comments. Sessions linked to deleted Stories or Tasks have links set to null. <!-- updated: 2026-07-21 (STORY-008): milestones now also cascade-delete their comments -->
 3. `GET /stories/:id/aggregate` is always computed on demand; never stored.
 4. `GET /tasks/:id/dependencies` returns raw data only — the utility never enforces blocking.
 5. A session where both `result_decisions` and `result_summary` are null is incomplete.
@@ -929,6 +1007,13 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 17. `author_role` on an Attachment is optional, free-form, accepted on every create path (all kinds), and immutable once set — descriptive metadata only, not access control. <!-- new: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
 18. `title` on an Attachment is mandatory, free-form, and not dictionary-validated; it replaces the removed `type` field. For file-based create paths (multipart upload), an omitted `title` defaults to the uploaded file's name (truncated to 500 chars); every other create path (document-as-text JSON, external-ref JSON, and every MCP argument shape) requires it explicitly with no default. `title` is immutable once set — like every other attachment field, changing it means deleting the attachment and creating a new one. <!-- new: 2026-07-15 (STORY-021 reconcile) -->
 19. The `attachment_types` dictionary key is removed from `SystemSettings` and `ProjectSettings`; sending it to a settings `PUT` is rejected as an unknown key with **422** (the same Pydantic `model_validator` path as any other unknown key — not 400). Existing attachments created before this change (which have a `type` but no `title`) are backfilled with a non-null `title` (derived from their former `type` value) so every attachment has one after this change ships. <!-- new: 2026-07-15 (STORY-021 reconcile); confirmed by migration tests against the real Alembic upgrade/downgrade -->
+20. Comments attach to a story, task, **or milestone** (`container_type`); the `container_id` reference is FK-less (polymorphic, same convention as Attachment). Deleting a story, task, or milestone permanently removes all of its comments (application-level cascade — there is no DB FK to enforce it). <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+21. `author_role` on a Comment is required (non-empty) on every create call, for every caller — Web UI, REST, or MCP — with no exception. The server never substitutes a default for a missing/empty value; the request is rejected the same way regardless of caller. It is immutable once set: any attempt to change it via update is silently ignored, matching the same rule on `Attachment.author_role`. It is never validated against the `participant_roles` dictionary. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+22. A reply's lineage is a persisted, immutable **materialized ancestor path** (`ancestors`) — an ordered, root-first list of ancestor comment ids, computed once at create as `parent.ancestors + [parent.id]`; the direct parent is always `ancestors[-1]`. The create-time `in_reply_to` input (a comment id) is request-only: it is validated (referenced comment exists, shares the same container) and then reflected only through the derived `ancestors` — it is never itself stored or returned, though the derived relationship it produces is. `content` is always stored exactly as submitted, with no server-added text. This supersedes an earlier schema-free "prepend a link to `content`, store nothing" design considered for this feature; see ADR-023. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+23. Comment container lists and detail-composed `comments` arrays are ordered **newest-first** (descending `(created_at, id)`); pagination walks newest → oldest. The `after_id` watermark filter keeps its keyset meaning ("strictly newer than the referenced comment") regardless of display direction; it 404s if the referenced comment does not exist (including if it was since deleted) — a caller polling with a now-deleted watermark must re-list without it to recover. `descendant_of` returns the sub-thread beneath a given comment (every comment whose `ancestors` contains it) and combines freely with the other filters. Ancestor-lineage traversal (`GET /comments/:id/ancestors`) always stays root-first — a lineage path, not a chronological list — and is unaffected by this ordering rule. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+24. A standalone permalink to a comment that has since been hard-deleted cannot resolve to a host work item, because comments have no archive/tombstone and `GET /comments/:id` for a deleted id returns a plain 404 with no surviving container information. This is a graceful, non-error condition — see the Web UI requirements for the resulting fallback UI. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+25. `default_web_ui_role` is a single-value (scalar) setting resolved with the same system-default + project-override precedence as the five dictionaries. On write it must be non-empty and a member of the effective `participant_roles` for that scope; it is never re-validated on read and never constrains a comment's own free-form `author_role`. Its only product effect is pre-filling the Web UI's Add Comment form. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+26. The `participant_roles` dictionary's system-seeded defaults gain a new entry, `"operator"`, representing the human orchestrator (distinct from the pre-existing `"orchestrator"` agent-coordination role). As an ordinary dictionary entry it is thereafter selectable anywhere `participant_roles` is used — not restricted to the default Web UI role. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
 
 ---
 

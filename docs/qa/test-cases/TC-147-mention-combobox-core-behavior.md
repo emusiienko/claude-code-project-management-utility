@@ -1,11 +1,11 @@
 ---
-id: tc-009
+id: TC-147
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-009: @role mention combobox — opens, filters, keyboard operable, inserts text
+# TC-147: @role mention combobox — opens, filters, keyboard operable, inserts text
 
 ## Preconditions
 - The Add Comment form's `content` field is focused (or an existing comment is in Edit mode)

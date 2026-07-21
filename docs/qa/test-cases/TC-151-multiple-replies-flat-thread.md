@@ -1,11 +1,11 @@
 ---
-id: tc-013
+id: TC-151
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-013: Multiple replies and reply-to-reply — thread stays flat, newest-first
+# TC-151: Multiple replies and reply-to-reply — thread stays flat, newest-first
 
 ## Preconditions
 - A host's Comments section has at least one existing comment ("Comment A")

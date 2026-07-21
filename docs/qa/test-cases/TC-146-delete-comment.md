@@ -1,11 +1,11 @@
 ---
-id: tc-008
+id: TC-146
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-008: Delete a comment — confirmation dialog, permanent removal, count updates
+# TC-146: Delete a comment — confirmation dialog, permanent removal, count updates
 
 ## Preconditions
 - A host's Comments section has at least two comments

@@ -1,11 +1,11 @@
 ---
-id: tc-003
+id: TC-141
 tags: @smoke @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-003: Milestone Detail — Comments section renders correctly, placeholder note gone
+# TC-141: Milestone Detail — Comments section renders correctly, placeholder note gone
 
 ## Preconditions
 - App is running at http://localhost:3000

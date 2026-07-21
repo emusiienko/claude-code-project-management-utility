@@ -1,11 +1,11 @@
 ---
-id: tc-007
+id: TC-145
 tags: @regression
 story: STORY-008
 status: Active
 ---
 
-# tc-007: Comment labels — independent update from content, empty array clears labels
+# TC-145: Comment labels — independent update from content, empty array clears labels
 
 ## Preconditions
 - A host's Comments section has at least one existing comment with both content and at least one label
