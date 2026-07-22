@@ -2,7 +2,7 @@
 id: BUG-006
 story: STORY-022
 severity: major
-status: open
+status: fixed
 assignee: frontend-developer
 ---
 
@@ -98,3 +98,32 @@ from the sidebar.
   (switch to Task Manager, then reselect the project from the sidebar), so
   re-triage to `minor` if the team judges the workaround sufficient given the
   Milestone Detail precedent.
+
+## Fix
+
+Added a forward link on the standalone `ProjectSettingsPage.tsx`, next to the
+project-name heading, labeled "View Stories" (with an `ArrowRight` icon) that
+navigates to `/projects/:id/stories` for the same project — the id already
+resolved via `useProjectDetail`. Landing on Stories renders inside
+`ProjectShell`, whose three-tab sub-nav (Stories, Board, Milestones) is then
+visible and fully usable, satisfying the story's "remain fully reachable
+through the existing project sub-navigation tabs" AC without reintroducing a
+tab bar or any other chrome on the Settings screen itself (which TASK-004
+deliberately removed). Placed as a simple `Link`, not `navigate(-1)`, because
+unlike BUG-005's "Back" case this is a fixed forward destination (this
+project's own Stories view) rather than an arbitrary previous-view return.
+
+Deliberately labeled "View Stories" rather than bare "Stories" so the
+pre-existing `ProjectSettingsPage.test.tsx` assertion "does not render a
+per-project sub-nav tab bar" (which checks there is no link with the exact
+accessible name "Stories") continues to correctly express its original
+intent — no tab bar was added, only a single named forward link with a
+different, more descriptive label.
+
+**Code locations**: `frontend/src/features/settings/ProjectSettingsPage.tsx`
+
+**Verification**: baseline `npx vitest run` — 22 test files / 260 tests, all
+passing. Post-fix `npx vitest run` — 22 test files / 260 tests, all still
+passing (no regressions; the existing "no Stories-named link" assertion still
+holds since the new link's accessible name is "View Stories", not "Stories").
+`npm run build` (`tsc --noEmit` + `vite build`) succeeds with no errors.

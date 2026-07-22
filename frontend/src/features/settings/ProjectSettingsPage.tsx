@@ -12,6 +12,16 @@
  * ProjectShell uses — so an unresolved project id still yields a
  * "Project not found" state.
  *
+ * BUG-006 fix: this standalone screen has no per-project sub-nav tab bar of
+ * its own (that bar only renders under /projects/:id/stories|board|milestones
+ * via ProjectShell), so a project that has never been opened in Task Manager
+ * mode this session has no other in-app way back into its own Stories/Board/
+ * Milestones views. A single forward link into that project's Stories view
+ * closes that gap — from Stories, the three-tab sub-nav is visible and Board/
+ * Milestones are reachable from there, satisfying the story's "remain fully
+ * reachable through the existing project sub-navigation tabs" AC without
+ * reintroducing a tab bar on this screen.
+ *
  * The known clear-override end-to-end gap (frontend calls
  * DELETE /projects/:id/settings/:key but no REST route exposes that operation)
  * is intentionally preserved here — it is out of scope for this story and
@@ -19,7 +29,7 @@
  */
 
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useProjectDetail } from "@/shared/hooks/useProjectDetail";
 import { PageLoader } from "@/shared/components/PageLoader";
 import { ProjectNotFound } from "@/shared/components/ProjectNotFound";
@@ -67,9 +77,21 @@ export default function ProjectSettingsPage() {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="mb-1 text-2xl font-semibold text-text">
-            {project.name}
-          </h1>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-semibold text-text">
+              {project.name}
+            </h1>
+            {/* BUG-006: in-app path from this standalone screen into the same
+                project's Stories/Board/Milestones sub-navigation — see file
+                header comment for why this is needed. */}
+            <Link
+              to={`/projects/${id}/stories`}
+              className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+            >
+              View Stories
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
           <h2 className="mb-1 text-xl font-semibold text-text">
             Project Settings
           </h2>

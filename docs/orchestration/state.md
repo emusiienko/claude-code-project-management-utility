@@ -1,5 +1,14 @@
 ## Active wait
-waiting_for: none
+waiting_for: none — paused by user
+
+## STORY-022 paused (2026-07-21)
+STORY-022 (Global Project Navigation Entry) is `Pending Approval`, `Auto ✓` marked, `QA ✓`
+withheld. manual-qa filed BUG-006 (major): no in-app path from a project's standalone
+Settings screen to its Stories/Board/Milestones for a project not opened this session.
+User isn't sure it's a genuine bug — thinks it may be a consequence of the navigation
+model itself needing further thought, not a bug fixable in isolation. Fix agent was
+stopped mid-run. User wants to reconsider tomorrow before deciding how to proceed
+(fix BUG-006 as-is, revise the navigation model again, or something else).
 
 ## Recent changes
 - 2026-07-21: SESSION-017/018/019 — STORY-009 spec finished (mandatory project_id, topic
