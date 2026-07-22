@@ -27,7 +27,7 @@
 | [TC-023](test-cases/TC-023-top-bar-app-switcher.md) | Top bar and app switcher | @smoke @regression | STORY-016 | Active |
 | [TC-024](test-cases/TC-024-collapsible-sidebar.md) | Collapsible sidebar | @smoke @regression | STORY-016 | Active |
 | [TC-025](test-cases/TC-025-sub-nav-four-tabs.md) | Sub-nav — four tabs, active highlight, Milestones placeholder | @smoke @regression | STORY-016 | Active |
-| [TC-026](test-cases/TC-026-projects-full-page.md) | /projects — full-page management, no sidebar, no sub-nav | @smoke @regression | STORY-016 | Active |
+| [TC-026](test-cases/TC-026-projects-full-page.md) | /projects — full-page management, no sidebar, no sub-nav | @smoke @regression | STORY-016 | Inactive — superseded by STORY-022 (route removed; project management is now a global overlay) |
 | [TC-027](test-cases/TC-027-stories-list-crud.md) | Stories list at /projects/:id/stories — CRUD preserved, title click opens slide-over | @smoke @regression | STORY-016 | Active |
 | [TC-028](test-cases/TC-028-board-view.md) | Board view — kanban columns by status, card click opens slide-over | @smoke @regression | STORY-016 | Active |
 | [TC-029](test-cases/TC-029-story-detail-slideover.md) | Story Detail slide-over — animation, header, close behaviors, right panel, deep-link | @smoke @regression | STORY-016 | Active |
@@ -161,3 +161,18 @@
 | [TC-157](test-cases/TC-157-default-web-ui-role-project-override.md) | Default Web UI role — Project Settings override and clear override | @regression | STORY-008 | Active |
 | [TC-158](test-cases/TC-158-operator-role-usable-elsewhere.md) | operator role is usable anywhere participant_roles is used | @regression | STORY-008 | Active |
 | [TC-159](test-cases/TC-159-long-content-and-thread-volume.md) | Long content and thread volume do not break the Comments section layout | @regression | STORY-008 | Active |
+| [TC-160](test-cases/TC-160-global-entry-task-manager-mode.md) | Global Projects entry opens the Projects overlay in Task Manager mode | @smoke @regression | STORY-022 | Active |
+| [TC-161](test-cases/TC-161-global-entry-sessions-mode.md) | Global Projects and Config entries visible and functional in Sessions mode | @smoke @regression | STORY-022 | Active |
+| [TC-162](test-cases/TC-162-active-page-indication.md) | Open/active indication on both entries, driven by overlay state | @regression | STORY-022 | Active |
+| [TC-163](test-cases/TC-163-keyboard-accessibility.md) | Keyboard accessibility of the top-bar triggers and panel controls | @regression | STORY-022 | Active |
+| [TC-164](test-cases/TC-164-sidebar-link-removed.md) | Task Manager sidebar "Manage projects" link removed | @smoke @regression | STORY-022 | Active |
+| [TC-165](test-cases/TC-165-mode-switch-position-stable.md) | Mode switching does not move or hide the global Projects/Config entries | @regression | STORY-022 | Active |
+| [TC-166](test-cases/TC-166-dismisses-open-slideover-and-modal.md) | The overlay opens on top of and stays usable over an open Story slide-over / Task Detail modal | @regression | STORY-022 | Active |
+| [TC-167](test-cases/TC-167-visible-in-empty-state.md) | Cold start with zero projects auto-opens the Projects overlay; entries stay functional with/without projects | @regression | STORY-022 | Active |
+| [TC-168](test-cases/TC-168-project-name-click-lands-on-settings.md) | Projects overlay: selecting a project pushes its Settings panel (no route change) | @smoke @regression | STORY-022 | Active |
+| [TC-169](test-cases/TC-169-sidebar-selection-still-lands-on-stories.md) | Task Manager sidebar project selection still lands on Stories | @regression | STORY-022 | Active |
+| [TC-170](test-cases/TC-170-no-overrides-project-lands-on-inherited-settings.md) | Project with no settings overrides — Settings panel shows inherited defaults, no crash | @regression | STORY-022 | Active |
+| [TC-171](test-cases/TC-171-top-bar-visual-both-modes.md) | Visual: global entries and the ~70vw overlay panel, across breakpoints and both modes | @regression | STORY-022 | Active |
+| [TC-172](test-cases/TC-172-back-vs-dismiss.md) | Back vs Dismiss — distinct stack-pop vs full-close behavior on both overlays | @regression | STORY-022 | Active |
+| [TC-173](test-cases/TC-173-open-in-task-manager-bridge.md) | "Open in Task Manager" bridge resolves BUG-006 for a project not yet opened this session | @smoke @regression | STORY-022 | Active |
+| [TC-174](test-cases/TC-174-main-view-stays-mounted.md) | The main view never unmounts or navigates while the Projects/Config overlay is open | @regression | STORY-022 | Active |
