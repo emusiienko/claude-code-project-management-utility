@@ -2,7 +2,7 @@
 id: BUG-007
 story: STORY-022
 severity: major
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -72,3 +72,33 @@ a Task Detail modal is open appears to silently do nothing.
 - `frontend/src/app/OverlayHost.tsx`'s own doc comment states it copies "z-indexing below the top bar (see StorySlideOver)" — this was a reasonable starting point but doesn't account for the Task Detail modal's higher `z-[70]`, which the Story slide-over itself never needs to out-rank (a Task Detail modal only ever opens on top of an already-open Story slide-over, never independently).
 - Escape's own stack ordering is unaffected by this bug: dispatching Escape while the Projects overlay is open behind the Task Detail modal correctly closes the (invisible) Projects overlay first, one level per press, leaving the Story slide-over and Task Detail modal open underneath exactly as `useModalEscape`'s registration-order design intends — confirmed by inspecting the `role="dialog"` list before/after. This is purely a visual (`z-index`) defect, not a functional stacking-order defect.
 - Severity judgment: classified `major`, consistent with how BUG-004 (the direct predecessor of this exact reachability guarantee) was classified — it defeats the core premise of the whole story (Projects/Config reachable from any state) for a commonly-reached state (any open task), and gives no visible error or feedback, which is arguably more confusing than BUG-004's original symptom (at least there the click visibly failed to register at all).
+
+## Re-verification (manual-qa, 2026-07-22)
+
+Fix confirmed: `frontend/src/app/OverlayHost.tsx` now renders the backdrop at
+`z-[95]` and the panel at `z-[99]` (up from `z-40`/`z-50`) — above the Task
+Detail modal (`z-[70]`) and its own nested confirmation dialogs (`z-[90]`),
+below the Toast (`z-[100]`) and the top bar (`z-[110]`).
+
+Re-tested the exact repro: opened a Story slide-over, then a Task Detail
+modal on top of it, then clicked the global "Projects" entry. Confirmed via
+`getComputedStyle(dialog).zIndex`: `test-2` (slide-over) `z: 50`, `task-1`
+(Task Detail modal) `z: 70`, `Projects` (overlay) `z: 99` — now correctly
+above both. Screenshot confirms the panel is fully visible on top of both
+underlying layers (`docs/qa/results/STORY-022-evidence/bug007-fixed-projects-overlay-on-top-of-task-modal.png`).
+Beyond just visibility, confirmed the panel is genuinely interactive in this
+stacked state — clicked a project row in the list, which correctly pushed
+the Settings level (`<h3>` updated to the selected project's name) while
+the Task Detail modal and Story slide-over remained open underneath.
+Repeated with "Config" instead of "Projects": same `z: 99` result, and
+"Dismiss" correctly closed only the Config overlay, leaving the Story
+slide-over and Task Detail modal untouched underneath.
+
+No regressions found elsewhere — the fix commit (`c4f8fff`) touched only
+`OverlayHost.tsx` (z-index values) and a `TopBar.tsx` doc comment; all other
+Revision 3 behavior previously verified (Back/Dismiss, BUG-006 resolution,
+panel width, main-view persistence) is unaffected by this change and was not
+re-tested end-to-end again in this pass since the diff shows no other
+production code touched.
+
+Status: `resolved`.

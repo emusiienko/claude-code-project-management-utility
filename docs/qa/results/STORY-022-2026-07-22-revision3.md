@@ -55,5 +55,20 @@ Measured via `getBoundingClientRect()` on both the Projects and Config `role="di
 
 **BUG-007** (new, `open`, `major`, assignee `frontend-developer`): the Projects/Config overlay (`OverlayHost`, backdrop `z-40` / panel `z-50`) renders correctly on top of an open Story slide-over alone (`z-50` — same level, later in DOM order), but is rendered **completely hidden behind** an already-open Task Detail modal (`z-[70]`), since `z-50 < z-[70]`. The overlay does open (confirmed via DOM inspection — a `role="dialog"` element with the right `aria-label` and content mounts), but nothing changes visibly on screen beyond the top-bar trigger's active-state styling — the user gets no indication anything happened, and cannot see or interact with the panel until manually closing the Task Detail modal first. Reproduces identically for both "Projects" and "Config". Escape's own stack ordering is unaffected (it still correctly closes the invisible overlay first) — this is purely a visual/z-index defect. See `docs/stories/STORY-022-global-project-navigation/bugs/BUG-007-overlay-hidden-behind-open-task-detail-modal.md` for full repro steps and screenshots.
 
-## Outcome
+## Outcome (initial)
 QA ✓ **withheld** pending BUG-007 resolution. BUG-006 is independently re-confirmed `resolved` against the new overlay model. All prior bugs (BUG-001 through BUG-006) remain in their previously-recorded final states (`resolved`/`wont-fix`) — no new regressions found in those areas. Story test cases (`docs/stories/STORY-022-global-project-navigation/test-cases.md` and all 15 `tc-*.md` files) were rewritten this pass to match Revision 3's actual behavior; the prior routing-based versions are superseded.
+
+---
+
+## BUG-007 re-verification — 2026-07-22 (same day, following the fix rebuild)
+
+Web image rebuilt 2026-07-22 15:35:43 CEST, confirmed newer than the fix commit `c4f8fff` (15:30:36 CEST, "overlay z-index below Task Detail modal — raised to z-[95]/z-[99]").
+
+Re-ran the exact BUG-007 repro: opened a Story slide-over, then a Task Detail modal on top of it, then clicked the global "Projects" entry. `getComputedStyle(dialog).zIndex` now reads `test-2` (slide-over) `50`, `task-1` (Task Detail modal) `70`, `Projects` (overlay) `99` — correctly above both. Screenshot confirms the panel renders fully visible on top (`docs/qa/results/STORY-022-evidence/bug007-fixed-projects-overlay-on-top-of-task-modal.png`). Beyond visibility, confirmed genuine interactivity in this stacked state: clicked a project row, which correctly pushed the Settings level while the Task Detail modal and Story slide-over remained open and unaffected underneath. Repeated for "Config" — same `z: 99` result, and "Dismiss" correctly closed only the Config overlay without disturbing the layers beneath.
+
+The fix commit's diff (`git show --stat`) touched only `OverlayHost.tsx` (z-index values) and a `TopBar.tsx` doc-comment update — no other production code changed, so the rest of this pass's findings (Back/Dismiss, BUG-006 resolution via "Open in Task Manager", panel width, main-view persistence, cold-start logic) still hold without needing full re-execution.
+
+BUG-007 marked `resolved`. All bugs on this story (BUG-001 through BUG-007) are now `resolved` or `wont-fix` (BUG-002 only).
+
+## Final Outcome
+**QA ✓ marked.** All test cases pass (or are disclosed coverage gaps consistent with prior QA judgment on this story — tc-008's cold-start scenario verified by code reading rather than destructive testing against the shared environment, and tc-012's full mobile/tablet breakpoint sweep not exhaustively re-run due to no viewport-resize tool being available this session). No open bugs remain.
