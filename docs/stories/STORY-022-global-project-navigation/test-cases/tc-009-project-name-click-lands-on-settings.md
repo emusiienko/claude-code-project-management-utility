@@ -5,22 +5,18 @@ story: STORY-022
 status: Active
 ---
 
-# tc-009: Projects Management page — clicking a project's name navigates to Settings
+# tc-009: Projects overlay — selecting a project pushes its Settings panel (no route change)
 
 ## Preconditions
 - App is running at http://localhost:3000
 - At least one project exists
 
 ## Steps
-1. Navigate to `/projects`.
-2. Locate a project row and click its name (the click target that previously navigated to Stories).
-3. Verify the app navigates to `/projects/:id/settings` for that project — not `/projects/:id/stories`.
-4. Verify the Project Settings view renders (dictionary overrides section, etc.).
-5. From within the project, use the project's sub-navigation tabs to reach Stories.
-6. Verify the Stories view loads normally.
-7. Use the sub-navigation tabs to reach Board, then Milestones.
-8. Verify both load normally.
+1. Open the Projects overlay (from any main view).
+2. Click a project's name in the list (the row is a `<button>`, not a route link).
+3. Verify the panel pushes to that project's Settings level: a heading with the project's name, the dictionary-override editor, a "Back" control (now present, since the stack has depth), and an "Open in Task Manager" button. Verify the URL has not changed (no route navigation occurred — this is an internal overlay-stack push, not a page navigation).
+4. Click "Open in Task Manager". Verify the main view navigates to that project's Stories, the overlay is dismissed in the same action, and the three-tab sub-navigation (Stories/Board/Milestones) is present and functional (use it to reach Board, then Milestones — both load normally).
 
 ## Expected Result
-- Clicking a project's name on `/projects` lands on that project's Settings view (`/projects/:id/settings`), not Stories.
-- Once inside the project, Stories, Board, and Milestones remain fully reachable via the existing sub-navigation tabs — no functionality is removed, only the initial landing destination changed.
+- Selecting a project in the Projects overlay pushes its Settings panel without any route/URL change.
+- "Open in Task Manager" is the resolved path from the Settings panel into that project's Stories/Board/Milestones (see also tc-014, which tests this specifically for a project not yet opened this session — the BUG-006 scenario).

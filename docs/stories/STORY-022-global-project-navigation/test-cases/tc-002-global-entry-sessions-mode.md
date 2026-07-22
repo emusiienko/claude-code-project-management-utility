@@ -5,7 +5,7 @@ story: STORY-022
 status: Active
 ---
 
-# tc-002: Global Projects entry — visible and functional in Sessions mode
+# tc-002: Global Projects and Config entries — visible and functional in Sessions mode
 
 ## Preconditions
 - App is running at http://localhost:3000
@@ -14,12 +14,11 @@ status: Active
 
 ## Steps
 1. Navigate to `/sessions`.
-2. Observe the top bar.
-3. Verify a "Projects" entry is visible in the top bar.
-4. Verify the "Settings" button is NOT visible (Settings stays Task-Manager-only; this story does not change that).
-5. Click the "Projects" entry.
-6. Verify the app navigates to `/projects`.
+2. Observe the top bar — both "Projects" and "Config" entries are visible (Config is now global, not Task-Manager-only).
+3. Click "Projects". Verify the project-list overlay opens over the Sessions main view; the URL stays `/sessions`.
+4. Dismiss the panel. Click "Config". Verify the system dictionary overlay opens over the Sessions main view; the URL stays `/sessions`.
+5. Dismiss the panel.
 
 ## Expected Result
-- The "Projects" entry is visible and clickable in Sessions mode, even though the Settings button is absent.
-- Clicking it navigates to `/projects` from Sessions mode too.
+- Both "Projects" and "Config" are visible and clickable in Sessions mode.
+- Each opens its respective overlay over the Sessions main view without navigating away from `/sessions`.

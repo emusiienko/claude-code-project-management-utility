@@ -5,7 +5,7 @@ story: STORY-022
 status: Active
 ---
 
-# tc-001: Global Projects entry — visible and functional in Task Manager mode
+# tc-001: Global Projects entry — opens the Projects overlay in Task Manager mode
 
 ## Preconditions
 - App is running at http://localhost:3000
@@ -14,13 +14,14 @@ status: Active
 
 ## Steps
 1. Navigate to `/projects/:id/stories` for an existing project (Task Manager mode).
-2. Observe the top bar.
-3. Verify a "Projects" entry is visible in the top bar, positioned near the "Settings" button.
-4. Click the "Projects" entry.
-5. Verify the app navigates to `/projects`.
-6. Verify the Projects Management page renders as before (project list, "New project" button) — unaffected by this story.
+2. Observe the top bar — a "Projects" entry (button) is visible, positioned near "Config".
+3. Click the "Projects" entry.
+4. Verify a right-side slide-over panel opens showing the project list (name, description, edit/delete actions, "New project"), and the underlying Stories view remains visible and unchanged behind a dimmed backdrop.
+5. Verify the URL does not change when the panel opens.
+6. Click "Dismiss" (the X icon in the panel header).
+7. Verify the panel closes and the Stories view underneath is exactly as it was, with no navigation having occurred.
 
 ## Expected Result
-- A "Projects" entry is visible in the top bar in Task Manager mode, near Settings.
-- Clicking it navigates to `/projects`.
-- The Projects Management page itself behaves exactly as it did before this story.
+- The "Projects" entry is visible in the top bar in Task Manager mode, near Config.
+- Clicking it opens a slide-over panel with the project list, without changing the URL or unmounting the main view.
+- Dismiss closes the panel and reveals the main view unchanged.

@@ -6,3 +6,4 @@
 | [BUG-004](BUG-004-projects-entry-unreachable-behind-open-slideover-modal.md) | Global Projects top-bar entry is covered and unclickable while a Story slide-over or Task Detail modal is open | major | resolved | frontend-developer |
 | [BUG-005](BUG-005-projects-missing-back-capability.md) | Global Projects entry has no way back to the previous view, unlike the global Config entry | major | resolved | frontend-developer |
 | [BUG-006](BUG-006-no-path-from-settings-to-stories-for-unvisited-project.md) | No in-app path from a project's Settings screen back to its own Stories/Board/Milestones for a project not yet opened in Task Manager mode | major | resolved | frontend-developer |
+| [BUG-007](BUG-007-overlay-hidden-behind-open-task-detail-modal.md) | Projects/Config overlay panel opens successfully but renders invisibly behind an already-open Task Detail modal | major | fixed | frontend-developer |

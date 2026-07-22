@@ -5,7 +5,7 @@ story: STORY-022
 status: Active
 ---
 
-# tc-006: Mode switching does not move or hide the global Projects entry
+# tc-006: Mode switching does not move or hide the global Projects/Config entries
 
 ## Preconditions
 - App is running at http://localhost:3000
@@ -13,12 +13,11 @@ status: Active
 - Viewport at 1280px (desktop)
 
 ## Steps
-1. Navigate to `/projects/:id/stories` (Task Manager mode). Note the position and appearance of the "Projects" entry in the top bar.
+1. Navigate to `/projects/:id/stories` (Task Manager mode). Measure the on-screen position of both "Projects" and "Config" in the top bar.
 2. Switch to Sessions mode via the app switcher combobox.
-3. Verify the "Projects" entry remains in the exact same position in the top bar, with the same label and appearance (aside from the Settings button now being absent next to it).
+3. Verify both entries remain in the exact same position, with the same labels and appearance — Config is now global (always mounted in both modes), so there is no sibling-visibility change to account for either.
 4. Switch back to Task Manager mode via the app switcher.
-5. Verify the "Projects" entry is still in the same position, unaffected by the round trip through Sessions mode.
+5. Verify both entries are still in the same position, unaffected by the round trip through Sessions mode.
 
 ## Expected Result
-- The global Projects entry's position and appearance are identical in both modes.
-- Only the presence of the sibling Settings button changes (visible in Task Manager mode, absent in Sessions mode) — the Projects entry itself never moves or changes appearance.
+- Both global entries' positions and appearance are pixel-identical in both modes at every step.

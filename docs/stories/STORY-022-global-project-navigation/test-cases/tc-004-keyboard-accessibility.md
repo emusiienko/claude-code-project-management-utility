@@ -5,7 +5,7 @@ story: STORY-022
 status: Active
 ---
 
-# tc-004: Global Projects entry — keyboard accessibility
+# tc-004: Global Projects/Config entries and their panels — keyboard accessibility
 
 ## Preconditions
 - App is running at http://localhost:3000
@@ -13,12 +13,14 @@ status: Active
 
 ## Steps
 1. Navigate to `/projects/:id/stories` for an existing project.
-2. Click into the page body, then press Tab repeatedly until keyboard focus reaches the "Projects" entry in the top bar.
-3. Verify a visible focus indicator (ring/outline) appears on the entry, consistent with the styling of other focusable top-bar controls (e.g. the Settings button).
-4. With focus on the "Projects" entry, press Enter (or Space).
-5. Verify the app navigates to `/projects`.
+2. Click into the page body, then press Tab repeatedly until keyboard focus reaches the "Projects" entry in the top bar (it is a `<button>`, not a link, but is still natively focusable).
+3. Verify a visible focus indicator (ring/outline) appears, consistent with the styling of the "Config" entry beside it.
+4. With focus on "Projects", press Enter (or Space). Verify the overlay opens.
+5. Tab into the panel — verify "Dismiss" is focusable with a visible focus ring, and (once a project is selected, pushing the Settings level) "Back" is also focusable with a visible ring.
+6. With focus on "Dismiss", press Enter — verify the panel closes.
+7. Press Escape while the panel is open — verify it closes one level per press (Back-equivalent when the stack has depth, Dismiss-equivalent at the root).
 
 ## Expected Result
-- The "Projects" entry is reachable via keyboard Tab navigation.
-- A visible focus indicator appears, matching the styling used by other top-bar controls.
-- Activating it via keyboard navigates to `/projects`.
+- Both top-bar entries are keyboard-reachable and show a visible focus ring, matching each other's styling.
+- The panel's own controls (Back, Dismiss) are keyboard-operable with visible focus rings.
+- Escape closes exactly one overlay level per press.

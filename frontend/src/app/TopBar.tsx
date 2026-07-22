@@ -21,11 +21,13 @@
  * Stacking: the header is an explicit-height (`h-12`), positioned
  * (`relative`) element with a z-index (`z-[110]`) higher than every overlay
  * in the app (Story slide-over/Task Detail modal top out at z-[70], nested
- * confirmation dialogs at z-[90], the Toast at z-[100], the Projects/Config
- * overlay at z-[50]) — see BUG-004. This keeps the top bar clickable no
- * matter what is open on top of it. Overlays additionally offset their own
- * fixed backdrop/panel to start below `h-12` (`top-12`) so their own headers
- * don't get visually clipped by this one.
+ * confirmation dialogs at z-[90], the Projects/Config overlay at z-[99]
+ * (BUG-007 — raised above the Task Detail modal and its nested confirmation
+ * dialogs since it must be reachable from any of those states), the Toast at
+ * z-[100]) — see BUG-004. This keeps the top bar clickable no matter what is
+ * open on top of it. Overlays additionally offset their own fixed backdrop/
+ * panel to start below `h-12` (`top-12`) so their own headers don't get
+ * visually clipped by this one.
  */
 
 import { useLocation, useNavigate } from "react-router-dom";

@@ -5,10 +5,22 @@
  * Always mounted in RootLayout, layered over the main-view outlet. Renders
  * nothing while the overlay stack is empty. Reuses the Story slide-over's
  * panel chrome — right-side panel, dimmed backdrop starting below the top
- * bar so the top bar stays clickable and unclipped, the slide-in animation,
- * and z-indexing below the top bar (see StorySlideOver) — and registers with
- * the shared `useModalEscape` stack so Escape composes correctly with any
- * Story slide-over / Task Detail modal open in the main view underneath.
+ * bar so the top bar stays clickable and unclipped, the slide-in animation —
+ * and registers with the shared `useModalEscape` stack so Escape composes
+ * correctly with any Story slide-over / Task Detail modal open in the main
+ * view underneath.
+ *
+ * Stacking (BUG-007): unlike the Story slide-over, this overlay is reachable
+ * "from anywhere," including while a Task Detail modal (`z-[70]`) or one of
+ * its own nested confirmation dialogs (`z-[90]`) is already open underneath.
+ * It therefore cannot reuse the Story slide-over's `z-40`/`z-50` verbatim —
+ * that was only ever correct because a Task Detail modal never opens
+ * independently of an already-open Story slide-over. This panel's backdrop/
+ * panel (`z-[95]`/`z-[99]`) sit above every other in-view surface — Story
+ * slide-over, Task Detail modal, nested confirmation dialogs — while staying
+ * below the Toast (`z-[100]`, so a toast triggered from inside this overlay,
+ * e.g. project deleted, stays visible) and below the top bar itself
+ * (`z-[110]`, see BUG-004), which must stay clickable no matter what is open.
  *
  * Back pops one internal level of the current stack and is rendered only
  * once the stack has depth beyond its root (the Projects stack is two levels
@@ -52,7 +64,7 @@ export function OverlayHost({ overlay }: OverlayHostProps) {
     <>
       {/* Dimmed backdrop — click to dismiss the whole stack */}
       <div
-        className="fixed inset-x-0 bottom-0 top-12 z-40 bg-black/40"
+        className="fixed inset-x-0 bottom-0 top-12 z-[95] bg-black/40"
         aria-hidden="true"
         onClick={dismiss}
       />
@@ -62,7 +74,7 @@ export function OverlayHost({ overlay }: OverlayHostProps) {
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className="fixed bottom-0 right-0 top-12 z-50 flex w-[70vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
+        className="fixed bottom-0 right-0 top-12 z-[99] flex w-[70vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
       >
         <header className="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-3">
           {showBack && (
