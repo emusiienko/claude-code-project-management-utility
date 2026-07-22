@@ -2,7 +2,7 @@
 id: BUG-006
 story: STORY-022
 severity: major
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -127,3 +127,23 @@ passing. Post-fix `npx vitest run` — 22 test files / 260 tests, all still
 passing (no regressions; the existing "no Stories-named link" assertion still
 holds since the new link's accessible name is "View Stories", not "Stories").
 `npm run build` (`tsc --noEmit` + `vite build`) succeeds with no errors.
+
+## Re-verification (qa-automation, TASK-011, 2026-07-22)
+
+The fix above (`ProjectSettingsPage.tsx`'s "View Stories" link) was itself
+superseded by TASK-009's state-driven overlay model, which removed the
+standalone `/projects/:id/settings` route and `ProjectSettingsPage.tsx`
+entirely. TASK-010 re-implemented the same resolution against the new
+overlay shell: `ProjectSettingsPanelBody` (the Projects overlay's Settings
+level) now carries an "Open in Task Manager" action that navigates to
+`/projects/:id/stories` and dismisses the overlay in the same action —
+landing on `ProjectShell`'s three-tab sub-nav (Stories/Board/Milestones),
+exactly satisfying the original acceptance criterion.
+
+Verified via `frontend/src/features/settings/components/ProjectSettingsPanelBody.test.tsx`
+(new, TASK-011): clicking "Open in Task Manager" navigates to the project's
+Stories and dismisses the overlay in one action, confirmed for a project id
+with no prior recorded session state (the exact BUG-006 scenario) as well as
+a normal case; also confirmed no sub-navigation tab bar is added to the
+Settings panel itself. All 8 tests in that file pass; full suite (22 files /
+252 tests) passes; `npm run build` succeeds. Status moved to `resolved`.

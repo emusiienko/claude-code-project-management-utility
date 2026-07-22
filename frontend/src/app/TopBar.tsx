@@ -3,92 +3,61 @@
  *
  * Renders the app-switcher combobox on the left and, on the right, two
  * persistent entries — Projects and Config — that are visible and
- * interactive in both Task Manager mode and Sessions mode (STORY-022
- * Revision 2: Config is no longer Task-Manager-only). Both entries share the
- * same active-page indication (`NavLink` `isActive` → `aria-current="page"`)
- * and `focus-visible` treatment. Because both are always present, they hold
- * their on-screen position by construction — the mounted-but-hidden
- * placeholder previously used to stabilise position (BUG-003) is retired.
+ * interactive in both Task Manager mode and Sessions mode. Since STORY-022
+ * Revision 3, both entries are **overlay triggers**, not route `NavLink`s:
+ * clicking one opens its slide-over overlay (see `OverlayHost`) over
+ * whichever main view is currently active, without changing the route. Their
+ * open/active indication is driven by the overlay stack's `kind`, not by
+ * route matching. Both share the same `focus-visible` treatment.
  *
- * The app-switcher's selected mode is derived from the current route, with
- * one twist: while a closable view is open (`/projects`, `/settings`, or the
- * standalone Project Settings screen — see `navigationModel`), the switcher
- * reflects the *underlying* main view — the one recorded before the closable
- * view was opened — rather than defaulting to Task Manager. This keeps the
- * switcher coherent when Config or Projects is opened from Sessions.
- *
- * When switching to Task Manager, the user is sent to the last visited
- * Task-Manager-mode URL (stored in localStorage, closable views excluded). If
- * no URL was ever stored, the RootRedirect at `/` handles the fallback to the
- * last project or to `/projects`.
+ * The app-switcher derives its mode from the current route only — Projects
+ * and Config have no dedicated URL to special-case, since they are overlay
+ * state rather than routes (this simplifies away the Revision-2 main-view/
+ * closable-view classification and last-main-view recording entirely).
+ * Switching to Task Manager navigates to "/", which RootRedirect resolves to
+ * the last-visited or first project's Stories (or an empty Task Manager view
+ * with the Projects overlay auto-opened when no project exists yet).
  *
  * Stacking: the header is an explicit-height (`h-12`), positioned
  * (`relative`) element with a z-index (`z-[110]`) higher than every overlay
  * in the app (Story slide-over/Task Detail modal top out at z-[70], nested
- * confirmation dialogs at z-[90], the Toast at z-[100]) — see BUG-004. This
- * keeps the top bar clickable no matter what is open on top of it. The Story
- * slide-over and Task Detail modal additionally offset their own fixed
- * backdrop/panel to start below `h-12` (`top-12`/`top-16`) so their own
- * headers don't get visually clipped by this one.
+ * confirmation dialogs at z-[90], the Toast at z-[100], the Projects/Config
+ * overlay at z-[50]) — see BUG-004. This keeps the top bar clickable no
+ * matter what is open on top of it. Overlays additionally offset their own
+ * fixed backdrop/panel to start below `h-12` (`top-12`) so their own headers
+ * don't get visually clipped by this one.
  */
 
-import { useLocation, useNavigate, NavLink } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Settings, ChevronDown, FolderKanban, type LucideIcon } from "lucide-react";
-import { useLastVisitedUrl } from "@/shared/hooks/useLastVisitedUrl";
-import { useLastMainViewUrl } from "@/shared/hooks/useLastMainViewUrl";
-import {
-  type AppMode,
-  deriveAppMode,
-  isClosableViewPath,
-  isMainViewPath,
-} from "@/shared/utils/navigationModel";
+import type { OverlayControls } from "@/shared/hooks/useOverlayStack";
 
-/** localStorage key for the last-visited Task-Manager-mode URL. */
-const LAST_TASK_MANAGER_URL_KEY = "app:last_task_manager_url";
+/** The two app modes the top-bar app-switcher chooses between. */
+type AppMode = "task-manager" | "sessions";
 
-/**
- * Narrows the recording predicate to Task-Manager-mode main-view routes —
- * excludes both Sessions and every closable view, so opening Projects or
- * Config from Task Manager never overwrites this record.
- */
-function isTaskManagerMainView(pathname: string): boolean {
-  return isMainViewPath(pathname) && deriveAppMode(pathname) === "task-manager";
+interface TopBarProps {
+  /** Overlay stack + controls, owned by RootLayout and shared with OverlayHost. */
+  overlay: OverlayControls;
 }
 
 /**
- * TopBar — app-switcher combobox + global Projects and Config entries.
+ * TopBar — app-switcher combobox + global Projects and Config overlay triggers.
  *
- * Renders inside RootLayout above the main outlet. No props required —
- * reads current location from the router context internally.
+ * Renders inside RootLayout above the main outlet. Reads the current route
+ * for the app-switcher's selected mode; receives the overlay stack as a prop
+ * so its triggers can open Projects/Config and reflect whichever is active.
  */
-export function TopBar() {
+export function TopBar({ overlay }: TopBarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const lastMainViewUrl = useLastMainViewUrl();
-  const [lastTaskManagerUrl] = useLastVisitedUrl(
-    LAST_TASK_MANAGER_URL_KEY,
-    isTaskManagerMainView,
-  );
-
-  // While a closable view is open, reflect the main view the user will
-  // return to (derived from the recorded last main view) instead of the
-  // closable view's own path.
-  const mode: AppMode = isClosableViewPath(location.pathname)
-    ? deriveAppMode(lastMainViewUrl ?? "/")
-    : deriveAppMode(location.pathname);
+  const mode: AppMode = location.pathname.startsWith("/sessions")
+    ? "sessions"
+    : "task-manager";
 
   function handleModeChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const selected = e.target.value as AppMode;
-
-    if (selected === "sessions") {
-      navigate("/sessions");
-      return;
-    }
-
-    // Task Manager: go to the last visited Task-Manager-mode URL, or fall
-    // back to / which RootRedirect will resolve to the last project.
-    navigate(lastTaskManagerUrl ?? "/");
+    navigate(selected === "sessions" ? "/sessions" : "/");
   }
 
   return (
@@ -114,14 +83,20 @@ export function TopBar() {
           </div>
         </div>
 
-        {/* Right: global Projects + Config entries — always present in both modes */}
+        {/* Right: global Projects + Config overlay triggers — always present in both modes */}
         <div className="flex items-center gap-1">
-          <TopBarNavLink to="/projects" Icon={FolderKanban} label="Projects" />
-          <TopBarNavLink
-            to="/settings"
+          <TopBarTrigger
+            Icon={FolderKanban}
+            label="Projects"
+            isActive={overlay.state.kind === "projects"}
+            onClick={overlay.openProjects}
+          />
+          <TopBarTrigger
             Icon={Settings}
             label="Config"
             ariaLabel="Go to Config"
+            isActive={overlay.state.kind === "config"}
+            onClick={overlay.openConfig}
           />
         </div>
       </div>
@@ -129,39 +104,40 @@ export function TopBar() {
   );
 }
 
-interface TopBarNavLinkProps {
-  /** Destination route, matched exactly (`end`) for active-state purposes. */
-  to: string;
+interface TopBarTriggerProps {
   /** Lucide icon component, imported by name at the call site. */
   Icon: LucideIcon;
   /** Visible label text. */
   label: string;
   /** Accessible name override; defaults to the visible label when omitted. */
   ariaLabel?: string;
+  /** Whether this entry's overlay is currently open — drives the active-page indication. */
+  isActive: boolean;
+  /** Opens this entry's overlay. */
+  onClick: () => void;
 }
 
 /**
- * Shared visual/behavioral contract for the top bar's persistent nav
- * entries (Projects, Config) — both use exact-match active state
- * (`aria-current="page"`) and the same focus-visible ring.
+ * Shared visual/behavioral contract for the top bar's persistent overlay
+ * triggers (Projects, Config) — both use `aria-current="page"` while their
+ * overlay is open and the same focus-visible ring.
  */
-function TopBarNavLink({ to, Icon, label, ariaLabel }: TopBarNavLinkProps) {
+function TopBarTrigger({ Icon, label, ariaLabel, isActive, onClick }: TopBarTriggerProps) {
   return (
-    <NavLink
-      to={to}
-      end
+    <button
+      type="button"
+      onClick={onClick}
       aria-label={ariaLabel}
-      className={({ isActive }) =>
-        [
-          "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-          isActive
-            ? "font-medium text-brand-700"
-            : "text-text-secondary hover:bg-surface-muted hover:text-text",
-        ].join(" ")
-      }
+      aria-current={isActive ? "page" : undefined}
+      className={[
+        "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
+        isActive
+          ? "font-medium text-brand-700"
+          : "text-text-secondary hover:bg-surface-muted hover:text-text",
+      ].join(" ")}
     >
       <Icon size={15} aria-hidden="true" />
       {label}
-    </NavLink>
+    </button>
   );
 }

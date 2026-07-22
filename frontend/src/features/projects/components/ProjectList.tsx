@@ -2,11 +2,12 @@
  * ProjectList — renders the paginated list of projects.
  *
  * Handles loading, error, and empty states. Delegates row actions
- * (edit, delete) to the parent via callbacks.
+ * (edit, delete, select-by-name-click) to the parent via callbacks — the
+ * name click no longer navigates a route (STORY-022 Revision 3): the
+ * Projects overlay's list body pushes the Settings level instead.
  */
 
 import { Pencil, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
 import type { Project } from "@/api/types";
 import { IconButton } from "@/shared/components/IconButton";
 import { PageLoader } from "@/shared/components/PageLoader";
@@ -19,6 +20,12 @@ interface ProjectListProps {
   error: unknown;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
+  /**
+   * Called with a project's id when its name is clicked. Pushes that
+   * project's Settings as the second level of the Projects overlay stack
+   * (STORY-022 Revision 3) — no route navigation.
+   */
+  onSelectProject: (projectId: string) => void;
   /** Called when the user clicks "Create your first project" in the empty state. */
   onCreateFirst?: () => void;
 }
@@ -34,6 +41,7 @@ export function ProjectList({
   error,
   onEdit,
   onDelete,
+  onSelectProject,
   onCreateFirst,
 }: ProjectListProps) {
   if (isLoading) {
@@ -106,12 +114,13 @@ export function ProjectList({
               className="border-b border-border last:border-0 hover:bg-surface-muted/50"
             >
               <td className="px-4 py-3 font-medium text-text">
-                <Link
-                  to={`/projects/${project.id}/settings`}
-                  className="text-brand-600 hover:text-brand-700 hover:underline"
+                <button
+                  type="button"
+                  onClick={() => onSelectProject(project.id)}
+                  className="text-brand-600 hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
                 >
                   {project.name}
-                </Link>
+                </button>
               </td>
               <td className="hidden px-4 py-3 text-text-secondary sm:table-cell">
                 {project.description ? (

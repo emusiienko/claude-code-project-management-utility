@@ -22,6 +22,7 @@ const defaultProps = {
   error: null,
   onEdit: vi.fn(),
   onDelete: vi.fn(),
+  onSelectProject: vi.fn(),
 };
 
 describe("ProjectList", () => {
@@ -86,18 +87,26 @@ describe("ProjectList", () => {
     expect(handleEdit).not.toHaveBeenCalledWith(projects[0]);
   });
 
-  it("links the project name to its Settings view, not its Stories view (STORY-022)", () => {
+  it("calls onSelectProject with the project's id when its name is clicked, not a route Link (STORY-022 Revision 3)", async () => {
+    const handleSelect = vi.fn();
     const project = makeProject({
       id: "00000000-0000-0000-0000-000000000003",
       name: "Delta",
     });
-    render(<MemoryRouter><ProjectList {...defaultProps} projects={[project]} /></MemoryRouter>);
-
-    const nameLink = screen.getByRole("link", { name: "Delta" });
-    expect(nameLink).toHaveAttribute(
-      "href",
-      "/projects/00000000-0000-0000-0000-000000000003/settings",
+    render(
+      <MemoryRouter>
+        <ProjectList {...defaultProps} projects={[project]} onSelectProject={handleSelect} />
+      </MemoryRouter>,
     );
+
+    // The name cell is a plain button now — pushing the overlay's Settings
+    // level does not navigate a route, so there is no "link" role for it.
+    expect(screen.queryByRole("link", { name: "Delta" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delta" }));
+
+    expect(handleSelect).toHaveBeenCalledTimes(1);
+    expect(handleSelect).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000003");
   });
 
   it("shows empty state when projects list is empty", () => {

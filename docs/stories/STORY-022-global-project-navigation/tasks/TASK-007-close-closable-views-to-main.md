@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-007: Close closable views to the last main view
 
+> **Superseded by Revision 3 (TASK-009, 2026-07-22).** With the state-driven overlay, closing Projects or Config is a Dismiss that removes the overlay and reveals the still-mounted main view — no navigation and no recorded-URL return. The close-to-last-main-view affordance built here is removed. Work and report below are unchanged historical record — see implementation_plan.md § Revision 3.
+
 ## What to implement
 Replace the browser-history "Back" affordance on the two top-level closable
 views — the Projects management page and the system Config page — with a

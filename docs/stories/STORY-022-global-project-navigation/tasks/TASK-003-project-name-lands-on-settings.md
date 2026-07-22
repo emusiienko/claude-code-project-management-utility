@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-003: Change the Projects Management project-name landing destination to Settings
 
+> **Superseded in part by Revision 3 (TASK-009, 2026-07-22).** The project-name click still leads to that project's Settings, but as an overlay panel push (Projects list → project settings), not a route navigation. Work and report below are unchanged historical record — see implementation_plan.md § Revision 3.
+
 > Refined by TASK-004 (2026-07-21): the destination URL below (`/projects/:id/settings`)
 > is unchanged, but TASK-004 relocates that route to render Project Settings as a
 > standalone screen rather than a per-project sub-navigation tab. This task's work and

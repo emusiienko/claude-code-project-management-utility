@@ -10,3 +10,6 @@
 | [TASK-006](TASK-006-global-config-and-navigation-model.md) | Global Config entry + main-view/closable-view navigation model | frontend-developer | Done |
 | [TASK-007](TASK-007-close-closable-views-to-main.md) | Close closable views to the last main view | frontend-developer | Done |
 | [TASK-008](TASK-008-tests-closable-view-navigation-model.md) | Write automated tests | qa-automation | Done |
+| [TASK-009](TASK-009-state-driven-overlay.md) | State-driven slide-over overlay for Projects and Config | frontend-developer | Done |
+| [TASK-010](TASK-010-open-in-task-manager-bridge.md) | Forward bridge from the Projects overlay into a project's Task Manager view | frontend-developer | Done |
+| [TASK-011](TASK-011-tests-state-driven-overlay.md) | Write automated tests | qa-automation | Done |

@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-005: Extend automated tests for the standalone Project Settings screen
 
+> **Superseded by Revision 3 (TASK-011, 2026-07-22).** The standalone Project Settings screen is gone; its route/heading/back-link assertions are replaced by overlay-panel assertions in TASK-011. Work and report below are unchanged historical record.
+
 ## What to implement
 Extend the component tests to cover Project Settings as a standalone screen. This
 builds on TASK-002's coverage (which stays valid) — add the new assertions and

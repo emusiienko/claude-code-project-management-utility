@@ -5,7 +5,9 @@
  * - Sub-nav renders exactly three tabs (Stories, Board, Milestones) when the
  *   project is found; Settings is not among them (STORY-022 TASK-004 — Settings
  *   is now a standalone screen, not a sub-nav tab).
- * - Inline "Not found" message + link back to /projects when the project is not found.
+ * - Inline "Not found" message + link back to "/" when the project is not
+ *   found — "/" rather than "/projects" since STORY-022 Revision 3 retired
+ *   the standalone Projects route; "/" always resolves via RootRedirect.
  * - Loading spinner while the project is being fetched.
  * - Generic load-error message for non-404 API errors.
  * - A bare /projects/:id still redirects to the Stories tab (regression guard,
@@ -139,7 +141,7 @@ describe("ProjectShell", () => {
     expect(screen.getByText("Project not found.")).toBeInTheDocument();
   });
 
-  it("includes a Back to Projects link in the not-found state", () => {
+  it("includes a Back to Projects link targeting \"/\" in the not-found state (STORY-022 Revision 3 — no /projects route)", () => {
     mockUseProjectDetail.mockReturnValue({
       project: undefined,
       isLoading: false,
@@ -149,7 +151,7 @@ describe("ProjectShell", () => {
     renderProjectShell("nonexistent-id");
     const link = screen.getByRole("link", { name: "Back to Projects" });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/projects");
+    expect(link).toHaveAttribute("href", "/");
   });
 
   it("shows inline load-error message for non-404 errors", () => {

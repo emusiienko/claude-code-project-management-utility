@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-008: Write automated tests
 
+> **Superseded by Revision 3 (TASK-011, 2026-07-22).** The closable-view routing model this suite covers (last-main-view recording, close-to-last-main-view, underlying-main app-switcher derivation) is retired; TASK-011 covers the state-driven overlay instead. Work and report below are unchanged historical record.
+
 ## What to implement
 Write automated tests covering the redesigned closable-view navigation model
 (TASK-006, TASK-007), and re-align the existing top-bar tests that encode the

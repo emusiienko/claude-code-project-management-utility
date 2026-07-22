@@ -1,35 +1,28 @@
 /**
- * ProjectsPage — entry point for the /projects route.
+ * ProjectsPanelBody — root level of the Projects overlay stack (STORY-022
+ * Revision 3): the project list plus create/edit/delete actions.
  *
- * Orchestrates the project list, create/edit modal, and delete confirmation
- * dialog. All server state lives in TanStack Query hooks; this component
- * handles only page-level UI state (which modal is open, which project is
- * selected for edit or delete).
- *
- * Carries a "Close" control that returns to the last recorded main view
- * (Task Manager or Sessions) rather than stepping through browser history
- * (STORY-022 TASK-007, superseding the BUG-005 `navigate(-1)` button) —
- * since the global top-bar "Projects" entry is reachable from any app
- * state, including deep inside a Story/Task view, this affordance restores
- * that exact view rather than an arbitrary preceding history entry.
+ * Renders inside OverlayHost, which owns the panel chrome (title, Back,
+ * Dismiss). This component owns only the list content and its create/edit/
+ * delete modal orchestration — the same responsibilities the former routed
+ * ProjectsPage carried, minus the page heading and "Close" control the
+ * overlay frame now owns.
  */
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus } from "lucide-react";
-import { ProjectList } from "./components/ProjectList";
-import { ProjectModal } from "./components/ProjectModal";
-import { DeleteProjectDialog } from "./components/DeleteProjectDialog";
+import { Plus } from "lucide-react";
+import { ProjectList } from "./ProjectList";
+import { ProjectModal } from "./ProjectModal";
+import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import {
   useCreateProject,
   useDeleteProject,
   useProjectListFull,
   useUpdateProject,
-} from "./hooks/useProjects";
+} from "../hooks/useProjects";
 import type { Project } from "@/api/types";
-import type { ProjectFormValues } from "./components/ProjectForm";
-import { extractErrorMessage } from "./utils/errorMessages";
-import { useLastMainViewUrl } from "@/shared/hooks/useLastMainViewUrl";
+import type { ProjectFormValues } from "./ProjectForm";
+import { extractErrorMessage } from "../utils/errorMessages";
 
 type ModalState =
   | { type: "none" }
@@ -37,12 +30,18 @@ type ModalState =
   | { type: "edit"; project: Project }
   | { type: "delete"; project: Project };
 
+interface ProjectsPanelBodyProps {
+  /**
+   * Called with a project's id when its name is clicked. Pushes that
+   * project's Settings as the next overlay level — no route navigation.
+   */
+  onSelectProject: (projectId: string) => void;
+}
+
 /**
- * Project Management screen — lists projects and provides create/edit/delete actions.
+ * Projects overlay root: lists projects and provides create/edit/delete actions.
  */
-export default function ProjectsPage() {
-  const navigate = useNavigate();
-  const lastMainViewUrl = useLastMainViewUrl();
+export function ProjectsPanelBody({ onSelectProject }: ProjectsPanelBodyProps) {
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [mutationError, setMutationError] = useState<string | undefined>();
 
@@ -111,46 +110,23 @@ export default function ProjectsPage() {
   const isEditSubmitting = updateMutation.isPending;
   const isDeleteSubmitting = deleteMutation.isPending;
 
-  // Falls back to "/" on a cold load with no recorded main view; the root
-  // redirect resolves that to a Task Manager destination.
-  function closeToLastMainView() {
-    navigate(lastMainViewUrl ?? "/");
-  }
-
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      {/* Close — returns to the last recorded main view (Task Manager or
-          Sessions) instead of stepping through browser history */}
-      <button
-        type="button"
-        onClick={closeToLastMainView}
-        className="mb-6 flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-        aria-label="Close and return to the last view"
-      >
-        <ArrowLeft size={16} aria-hidden="true" />
-        Close
-      </button>
-
-      {/* Page heading */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-text">Projects</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Manage the projects that group your stories, tasks, and work artifacts.
-          </p>
-        </div>
+    <div>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <p className="text-sm text-text-secondary">
+          Manage the projects that group your stories, tasks, and work artifacts.
+        </p>
         <button
           type="button"
           onClick={openCreate}
           aria-label="New project"
           title="New project"
-          className="inline-flex items-center justify-center rounded-md bg-brand-600 p-2 text-white hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          className="inline-flex shrink-0 items-center justify-center rounded-md bg-brand-600 p-2 text-white hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
           <Plus size={16} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
 
-      {/* Project list */}
       <ProjectList
         projects={projects}
         isLoading={isLoading}
@@ -158,10 +134,10 @@ export default function ProjectsPage() {
         error={error}
         onEdit={openEdit}
         onDelete={openDelete}
+        onSelectProject={onSelectProject}
         onCreateFirst={openCreate}
       />
 
-      {/* Create modal */}
       {modal.type === "create" && (
         <ProjectModal
           onSubmit={handleCreateSubmit}
@@ -171,7 +147,6 @@ export default function ProjectsPage() {
         />
       )}
 
-      {/* Edit modal */}
       {modal.type === "edit" && (
         <ProjectModal
           project={modal.project}
@@ -182,7 +157,6 @@ export default function ProjectsPage() {
         />
       )}
 
-      {/* Delete confirmation */}
       {modal.type === "delete" && (
         <DeleteProjectDialog
           project={modal.project}

@@ -1,8 +1,8 @@
 /**
  * ProjectLoadError — generic fetch-error message shown for non-404 failures
- * while resolving a `:projectId` route param. Shared by every standalone
- * screen that validates the project via `useProjectDetail` (ProjectShell,
- * ProjectSettingsPage).
+ * while resolving a project id. Shared by every screen that validates the
+ * project via `useProjectDetail` (ProjectShell; the Projects overlay's
+ * Settings level).
  */
 
 export function ProjectLoadError() {

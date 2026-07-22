@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-002: Write automated tests
 
+> **Superseded in part by Revision 3 (TASK-011, 2026-07-22).** Assertions that Projects/Config are route `NavLink`s with route-based active state are replaced by overlay-trigger assertions in TASK-011. The sidebar-link-removal coverage stays valid. Work and report below are unchanged historical record.
+
 ## What to implement
 Update and extend the existing component tests to cover the relocated Projects
 navigation entry. Two existing test files encode pre-STORY-022 expectations and

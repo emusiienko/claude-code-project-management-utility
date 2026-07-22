@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-001: Relocate the Projects navigation entry to the global top bar
 
+> **Superseded in part by Revision 3 (TASK-009, 2026-07-22).** The Projects entry stays in the top bar but becomes an overlay trigger (opens a slide-over) rather than a route `NavLink`. The sidebar-link removal below still stands. Work and report below are unchanged historical record — see implementation_plan.md § Revision 3.
+
 ## What to implement
 Move the single navigation entry point for project management from the Task
 Manager left sidebar to the persistent top bar, so it is reachable identically

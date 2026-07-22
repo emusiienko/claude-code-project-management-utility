@@ -4,14 +4,11 @@
  * Three nesting levels of layout shells as established in STORY-016 TASK-001:
  *
  *   RootLayout (/)
- *   ├─ index               → RootRedirect (→ /projects/:lastId/stories or /projects)
- *   ├─ /projects           → ProjectsPage (no sidebar, no sub-nav)
+ *   ├─ index               → RootRedirect (→ /projects/:lastId/stories, or an
+ *   │                        empty Task Manager view with the Projects
+ *   │                        overlay auto-opened when no project exists yet)
  *   ├─ /sessions           → SessionsPage (no sidebar, no sub-nav)
- *   ├─ /settings           → SettingsPage (no sidebar, no sub-nav)
  *   ├─ /milestones/:id     → MilestoneDetailPage (no sidebar, back-link to project milestones)
- *   ├─ /projects/:projectId/settings → ProjectSettingsPage (standalone screen,
- *   │                        no sidebar, no per-project sub-nav; back-link to
- *   │                        /projects — STORY-022 TASK-004)
  *   ├─ /comments/:id       → CommentsPage (permalink resolver; navigates to the host view)
  *   └─ AppShell (/projects/:projectId/*)
  *      └─ ProjectShell
@@ -21,6 +18,13 @@
  *         │     └─ tasks/:taskId → TaskDetailModal (TASK-005)
  *         ├─ /board        → BoardPage (TASK-007)
  *         └─ /milestones   → MilestonesPage (placeholder)
+ *
+ * Projects management and system Config are no longer routes (STORY-022
+ * Revision 3, TASK-009): `/projects`, `/settings`, and
+ * `/projects/:projectId/settings` are retired. Their content renders only
+ * inside the state-driven slide-over overlay owned by RootLayout
+ * (`useOverlayStack` + `OverlayHost`), opened via the top-bar Projects/Config
+ * triggers — it covers whichever route below is active without unmounting it.
  *
  * All pages are lazy-loaded with React.lazy + Suspense to keep the initial
  * bundle small.
@@ -38,17 +42,11 @@ import { PageLoader } from "@/shared/components/PageLoader";
 // Lazy page imports — code-split at route level
 // ---------------------------------------------------------------------------
 
-const ProjectsPage = React.lazy(
-  () => import("@/features/projects/ProjectsPage"),
-);
 const StoriesPage = React.lazy(
   () => import("@/features/stories/StoriesPage"),
 );
 const SessionsPage = React.lazy(
   () => import("@/features/sessions/SessionsPage"),
-);
-const SettingsPage = React.lazy(
-  () => import("@/features/settings/SettingsPage"),
 );
 const MilestonesPage = React.lazy(
   () => import("@/features/milestones/MilestonesPage"),
@@ -58,9 +56,6 @@ const MilestoneDetailPage = React.lazy(
 );
 const CommentsPage = React.lazy(() => import("@/features/comments/CommentsPage"));
 const BoardPage = React.lazy(() => import("@/features/board/BoardPage"));
-const ProjectSettingsPage = React.lazy(
-  () => import("@/features/settings/ProjectSettingsPage"),
-);
 const StorySlideOver = React.lazy(
   () =>
     import("@/features/stories/components/StorySlideOver").then((m) => ({
@@ -92,7 +87,8 @@ export const router = createBrowserRouter([
     path: "/",
     element: <RootLayout />,
     children: [
-      // `/` → redirect to last-visited project or /projects
+      // `/` → redirect to last-visited or first project's Stories, or an
+      // empty Task Manager view with the Projects overlay auto-opened
       {
         index: true,
         element: <RootRedirect />,
@@ -100,26 +96,10 @@ export const router = createBrowserRouter([
 
       // Full-page management routes — no sidebar, no sub-nav
       {
-        path: "projects",
-        element: (
-          <SuspendedPage>
-            <ProjectsPage />
-          </SuspendedPage>
-        ),
-      },
-      {
         path: "sessions",
         element: (
           <SuspendedPage>
             <SessionsPage />
-          </SuspendedPage>
-        ),
-      },
-      {
-        path: "settings",
-        element: (
-          <SuspendedPage>
-            <SettingsPage />
           </SuspendedPage>
         ),
       },
@@ -132,21 +112,6 @@ export const router = createBrowserRouter([
         element: (
           <SuspendedPage>
             <MilestoneDetailPage />
-          </SuspendedPage>
-        ),
-      },
-
-      // Project Settings — standalone screen (STORY-022 TASK-004), a sibling
-      // of the AppShell/ProjectShell branch below rather than a child of it,
-      // so /projects/:projectId/settings renders with no Task Manager sidebar
-      // and no per-project sub-nav tab bar. Its own back-link returns to
-      // /projects, the launch surface for this screen (the project-name click
-      // on the Projects Management page).
-      {
-        path: "projects/:projectId/settings",
-        element: (
-          <SuspendedPage>
-            <ProjectSettingsPage />
           </SuspendedPage>
         ),
       },

@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-004: Promote Project Settings to a standalone screen
 
+> **Superseded by Revision 3 (TASK-009, 2026-07-22).** Project Settings is no longer a standalone route; its editor content renders as the second level of the Projects slide-over overlay, and the `/projects/:id/settings` route is removed. The "View Stories" forward patch added here for BUG-006 is replaced by the overlay's "Open in Task Manager" bridge (TASK-010). Work and report below are unchanged historical record — see implementation_plan.md § Revision 3.
+
 ## What to implement
 Make the project's Settings view a standalone screen instead of the fourth tab in
 the per-project sub-navigation. The destination URL introduced by TASK-003

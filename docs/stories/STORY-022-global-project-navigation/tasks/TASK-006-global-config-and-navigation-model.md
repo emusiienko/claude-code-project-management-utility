@@ -6,6 +6,8 @@ story: STORY-022
 
 # TASK-006: Global Config entry + main-view/closable-view navigation model
 
+> **Superseded in part by Revision 3 (TASK-009, 2026-07-22).** Config stays a global top-bar entry, but the main-view/closable-view classification, last-main-view recording, and the app-switcher's underlying-main derivation are retired — the state-driven overlay keeps the main view mounted, so none of that machinery is needed. Work and report below are unchanged historical record — see implementation_plan.md § Revision 3.
+
 ## What to implement
 Establish the navigation model in which the app has two **main views** (Task
 Manager and Sessions) and two **closable views** (Projects management, system
