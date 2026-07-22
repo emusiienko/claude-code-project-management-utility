@@ -99,7 +99,7 @@ of business logic and the only layer that touches the data layer.
 
 > Internal organization owned by frontend-developer; recorded here at folder-boundary level only.
 
-- `frontend/src/app/` — application composition root and layout shells: providers, router, query client, and the three nested layout shells (`RootLayout`, `AppShell`, `ProjectShell`) plus the top-bar/sidebar/redirect components
+- `frontend/src/app/` — application composition root and layout shells: providers, router, query client, and the three nested layout shells (`RootLayout`, `AppShell`, `ProjectShell`) plus the top-bar/sidebar/redirect components and the always-mounted overlay host <!-- updated: 2026-07-22 (STORY-022 reconcile): `RootLayout` now owns the overlay-stack state and mounts `OverlayHost` over the route outlet; `TopBar`'s Projects/Config entries are overlay triggers, not route links. The Revision-2 navigation apparatus (`navigationModel`, `useLastMainViewUrl`, `useLastVisitedUrl`) and the routed `ProjectsPage`/`SettingsPage`/`ProjectSettingsPage` were deleted — see ADR-025. -->
 - `frontend/src/features/` — one folder per feature/screen (projects, stories, board, settings, tasks, task-links, story-links, milestones, and lazy-loaded placeholders for attachments, comments, sessions, cross-project) <!-- updated: 2026-07-13 (STORY-006 reconcile): task-links and story-links are now live. Task links render in the Task Detail Modal (features/tasks/), story links in the Story slide-over right panel (features/story-links/). Each has an endpoints module, TanStack Query hooks (list + create/delete mutations invalidating the link list and the parent detail), a section component, an add-link form, a row, and a delete-confirm dialog. STORY-018 added `src/shared/utils/linkLabels.ts` — `getLinkLabel(linkType, direction)` maps the raw slug to a direction-aware human label (fallback: raw slug). STORY-019 added `getLinkOptions(linkTypes)` expanding each key into an outbound+inbound picker option; the Add-link forms show all directional options and swap source/target before the create call when an inbound option is picked (direction is expressed purely by which item is source vs target — the API has no direction field on create). -->
 - `frontend/src/shared/utils/linkLabels.ts` — shared link-label utility consumed by both task-links and story-links (direction-aware badge labels + directional picker options). <!-- updated: 2026-07-13 (STORY-018/019 reconcile) -->
 - `frontend/src/shared/` — reusable UI components, hooks, utilities
@@ -107,35 +107,61 @@ of business logic and the only layer that touches the data layer.
 - `frontend/src/api/` — contract types, endpoint functions, path/config constants
 - `frontend/src/config/` — cache-key registry and other client config
 
-<!-- updated: 2026-07-10 (STORY-016 reconcile) -->
-**Navigation model (redesigned in STORY-016, supersedes the STORY-002 flat top-nav; see ADR-014):**
+<!-- updated: 2026-07-10 (STORY-016 reconcile) --> <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
+**Navigation model (redesigned in STORY-016, supersedes the STORY-002 flat top-nav; Projects & Config
+made state-driven overlays in STORY-022 — see ADR-014 and ADR-025):**
 the shell is a **three-level nested layout hierarchy** driven by an **app switcher**, replacing the
-former flat three-item top nav (Projects / Sessions / Settings).
+former flat three-item top nav (Projects / Sessions / Settings). STORY-022 keeps that hierarchy but
+turns **Projects management** and **system Config** into overlay panels rather than routes.
 
-- **RootLayout** (flat root) — hosts the top bar: an app-switcher combobox (`Task Manager` /
-  `Sessions`) on the left and a `⚙ Settings` button on the right (Task Manager mode only). `/projects`,
-  `/sessions`, and `/settings` render directly in its outlet with **no** project chrome.
+- **RootLayout** (flat root) — hosts the top bar and an **always-mounted overlay host** layered over
+  the route outlet. The top bar has an app-switcher combobox (`Task Manager` / `Sessions`) on the
+  left and two persistent, active-aware entries on the right — **Projects** and **Config** — present
+  in **both** modes. These two are **triggers** (plain buttons), not route `NavLink`s: they open their
+  overlay and show `aria-current="page"` driven by overlay state, not by route matching. Only
+  `/sessions` (Sessions mode) and the project-scoped routes render in the outlet.
 - **AppShell** (Task Manager mode) — renders the **collapsible project sidebar** (project combobox,
-  project list with active highlight, `⚙ Gestisci progetti` link to `/projects`) beside its outlet.
+  project list with active highlight; **no** `Gestisci progetti` link — removed in STORY-022, since
+  the top-bar Projects entry is now the single path to project management) beside its outlet.
   Collapsed state persists in local storage. All project-scoped routes (`/projects/:id/*`) render here.
-- **ProjectShell** — renders the four-tab per-project **sub-navigation** (Stories, Board, Milestones,
-  Settings) with active-tab highlight, plus a nested outlet. An unknown project ID renders an inline
-  "Not found" message linking back to `/projects`.
+- **ProjectShell** — renders the **three-tab** per-project **sub-navigation** (Stories, Board,
+  Milestones — Settings left the tab set in STORY-022) with active-tab highlight, plus a nested
+  outlet. An unknown project ID renders an inline "Not found" message linking back to `/`.
 
 Leaf routes render in the ProjectShell outlet: Stories list (`/projects/:id/stories`), Board
-(`/projects/:id/board`), Milestones (`/projects/:id/milestones` — still the STORY-012 placeholder),
-and Project Settings (`/projects/:id/settings`). The **Story Detail slide-over** is a **nested child
-route** of the Stories list (`/projects/:id/stories/:storyId`): it animates in from the right over a
-dimmed, still-mounted list/board, so a direct visit renders the project view with the slide-over
-already open; `✕`, `Escape`, and the `← Stories` breadcrumb close it back to the parent route.
+(`/projects/:id/board`), and Milestones (`/projects/:id/milestones`). The **Story Detail slide-over**
+is a **nested child route** of the Stories list (`/projects/:id/stories/:storyId`): it animates in
+from the right over a dimmed, still-mounted list/board, so a direct visit renders the project view
+with the slide-over already open; `✕`, `Escape`, and the `← Stories` breadcrumb close it to the
+parent route.
+
+**Projects and Config overlays (STORY-022, ADR-025).** Neither has a URL — the `/projects`,
+`/settings`, and `/projects/:id/settings` routes were removed. An overlay host owns one overlay stack
+at a time (`none` | Projects | Config), reusing the Story slide-over chrome (right-side panel, dimmed
+backdrop below the top bar, slide-in animation) and registering with the shared `useModalEscape`
+stack. Opening or closing an overlay changes **no route** — the main view stays mounted underneath
+with its URL unchanged, so a refresh closes the overlay and lands on the main view. The **Projects**
+stack has two levels (project list → a chosen project's Settings editor); **Config** has one (the
+system dictionary editor). Two controls match the Story slide-over: **Back** pops one internal level
+(shown only when the stack has depth beyond its root — so absent on the project list and on Config),
+and **Dismiss** clears the whole stack. A project's Settings panel carries an **"Open in Task Manager"**
+forward bridge that navigates the underlying main view to that project's Stories and dismisses the
+overlay in one action (the single in-app path from a project's configuration surface to its work
+surface; resolves BUG-006 by construction). The overlay renders **above** the Task Detail modal and
+its nested dialogs, below the toast and the top bar (BUG-007). The Project Settings panel keeps the
+existing project-existence / not-found handling for an unresolved id.
 
 `/` is a redirect (`RootRedirect`) to `/projects/:lastId/stories` using the last-visited project ID
-from local storage, or `/projects` when none exists. In Sessions mode (`/sessions`) no sidebar and no
-sub-nav render and the `⚙ Settings` button is hidden.
+from local storage. With **no** projects at all, it stays at `/`, renders a small "No projects yet"
+empty Task Manager main view, and auto-opens the Projects overlay once so the first project can be
+created (there is no `/projects` route to redirect to any more). The bare `/projects/:id` still
+redirects to that project's Stories, and the Task Manager sidebar's project selection still lands on
+Stories — both unchanged. The app-switcher derives its mode purely from the current route (no recorded
+URL); switching to Task Manager navigates to `/`.
 
 The prior top-level nav rule still holds in spirit: the remaining domains (Tasks, Task Links,
 Attachments, Comments) are sub-views reached through their parent context, not app-switcher entries.
-Sessions is now a distinct **app** (via the switcher), not a top-nav item.
+Sessions is a distinct **app** (via the switcher), not a top-nav item.
 
 ---
 
@@ -307,10 +333,11 @@ access-control mechanisms.
 
 - **Server state** lives in TanStack Query; mutations invalidate the relevant queries. Kanban
   drag-and-drop uses optimistic updates that roll back on failure. <!-- updated: 2026-07-10 (STORY-016 reconcile): the **Board** drags **stories** between status columns via `PUT /v1/stories/:id` (optimistic cache update, rollback on error; columns derived from the project's effective `story_statuses` dictionary, never hardcoded). The task-level Kanban that drags tasks via `PUT /tasks/:id` is still deferred to STORY-005; the slide-over renders a task-kanban placeholder only. --> <!-- updated: 2026-07-12 (STORY-005 reconcile): the task-level Kanban is now live inside the Story Detail slide-over, replacing the placeholder. It drags tasks between effective-`task_statuses` columns (never hardcoded) via `PUT /tasks/:id` with the same optimistic-update/rollback shape as the Board. The Board's drag hook was promoted to a shared kanban-drag hook in `src/shared/hooks/`; the Board re-exports it from there (mechanical move, no behavior change) and the tasks feature consumes it — the two kanbans share only the drag mechanic, not their column/card structure. A card dropped on a status removed from the dictionary after load shows an inline error and snaps back. Every task create/update/delete invalidates both the per-story aggregate and the stories-list aggregate so the "N/M done" counters stay in lockstep. The Task Detail modal is a nested route child of the `:storyId` slide-over (via `<Outlet />`), staying mounted+dimmed behind the modal. -->
-- **Local UI state** is persisted in browser local storage via a shared `useLocalStorage` hook. <!-- updated: 2026-07-10 (STORY-016 reconcile) --> Three consumers: the sidebar collapsed/expanded state (global), the last-visited project ID (drives the `/` redirect and app-switch return target), and the story-detail right-panel open/closed state (persisted **per story**, keyed by story ID).
+- **Local UI state** is persisted in browser local storage via a shared `useLocalStorage` hook. <!-- updated: 2026-07-10 (STORY-016 reconcile) --> <!-- updated: 2026-07-22 (STORY-022 reconcile): the exact-last-Task-Manager-URL memory (`useLastVisitedUrl` / `LAST_TASK_MANAGER_URL_KEY`) was removed with the Revision-2 apparatus — switching to Task Manager now navigates to `/`, which `RootRedirect` resolves via the still-present last-visited **project ID**. The **overlay** stack (Projects/Config open state) is in-memory client state owned by `RootLayout`, **not** persisted — a refresh closes it. --> Three persisted consumers remain: the sidebar collapsed/expanded state (global), the last-visited project ID (drives the `/` redirect and the Task-Manager app-switch landing), and the story-detail right-panel open/closed state (persisted **per story**, keyed by story ID).
 - The frontend holds **no business logic** — all validation and dictionary rules are server-side;
   the UI only mirrors them for UX (e.g. populating dropdowns from `GET /projects/:id/settings/effective`).
-- **Layered-modal keyboard coordination is centralized** in two shared hooks (in `frontend/src/shared/hooks/`), added while stabilizing the attachment viewer (STORY-007 bug fixes). <!-- updated: 2026-07-15 (STORY-007 reconcile) --> A single **modal-stack Escape** hook (`useModalEscape`) owns one shared `document` capture-phase key listener and a mount-ordered stack: each open modal/panel pushes an entry and pops it on unmount, and a given Escape press resolves to the **topmost** entry only. The attachment viewer, Task Detail modal, and Story slide-over all consume it, so no modal reasons about capture/bubble phase or registration order relative to any other — nested stacks (viewer inside Task Detail modal inside Story slide-over) close one level per press and compose correctly with future modals. A separate **focus-trap** hook (`useFocusTrap`) moves focus into a dialog on open, cycles Tab/Shift+Tab within it (recomputed live), and restores focus to the trigger on close. This supersedes the earlier per-modal Escape handlers, which could not generalize past two layers (the mount-order race that caused the STORY-007 viewer/modal cascade bugs).
+- **Layered-modal keyboard coordination is centralized** in two shared hooks (in `frontend/src/shared/hooks/`), added while stabilizing the attachment viewer (STORY-007 bug fixes). <!-- updated: 2026-07-15 (STORY-007 reconcile) --> A single **modal-stack Escape** hook (`useModalEscape`) owns one shared `document` capture-phase key listener and a mount-ordered stack: each open modal/panel pushes an entry and pops it on unmount, and a given Escape press resolves to the **topmost** entry only. The attachment viewer, Task Detail modal, Story slide-over, and the STORY-022 Projects/Config overlay all consume it, so no modal reasons about capture/bubble phase or registration order relative to any other — nested stacks (viewer inside Task Detail modal inside Story slide-over, or the Projects/Config overlay layered over any of them) close one level per press and compose correctly. <!-- updated: 2026-07-22 (STORY-022 reconcile): the overlay host registers with this same stack, so Escape pops the overlay before the surfaces beneath it. -->
+  <!-- updated: 2026-07-22 (STORY-022 reconcile) --> The Projects/Config **overlay** (ADR-025) is a state-driven slide-over layered over the always-mounted main-view outlet, reusing the Story slide-over chrome and this Escape stack; its open/closed state is in-memory (owned by `RootLayout`), it has no route, and it renders above the Task Detail modal and its nested dialogs but below the toast and top bar. A separate **focus-trap** hook (`useFocusTrap`) moves focus into a dialog on open, cycles Tab/Shift+Tab within it (recomputed live), and restores focus to the trigger on close. This supersedes the earlier per-modal Escape handlers, which could not generalize past two layers (the mount-order race that caused the STORY-007 viewer/modal cascade bugs).
 
 ---
 
