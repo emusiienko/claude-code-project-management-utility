@@ -62,7 +62,7 @@ export function OverlayHost({ overlay }: OverlayHostProps) {
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className="fixed bottom-0 right-0 top-12 z-50 flex w-[640px] max-w-[90vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
+        className="fixed bottom-0 right-0 top-12 z-50 flex w-[70vw] flex-col bg-surface shadow-2xl animate-slide-in-from-right"
       >
         <header className="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-3">
           {showBack && (
