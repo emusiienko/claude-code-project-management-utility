@@ -23,3 +23,4 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-007](STORY-007-attachments/description.md) | Work Item Attachments | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-021](STORY-021-attachment-title-field/description.md) | Attachment Title Field (replaces dictionary-bound Type) | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-008](STORY-008-comments/description.md) | Work Item Comments | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| [STORY-022](STORY-022-global-project-navigation/description.md) | Global Project Navigation Entry | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | | |

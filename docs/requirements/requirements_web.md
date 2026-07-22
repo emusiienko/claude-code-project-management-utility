@@ -8,13 +8,13 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| Projects Management | Create, edit, delete projects from a dedicated management page | P0 |
+| Projects Management | Create, edit, delete projects; reached from anywhere via a global top-bar entry that opens a slide-over overlay (not a dedicated page) — see STORY-022 <!-- updated: 2026-07-22 (STORY-022 reconcile) --> | P0 |
 | Stories View | List stories per project with filter bar | P0 |
 | Board View | Kanban board of all project stories, grouped by story status; milestone-based filtering and tab-disable behaviour deferred to STORY-012 | P0 |
 | Story Detail | Full-screen slide-over with task kanban + description/attachments/comments right panel | P0 |
 | Task Detail View | Full-screen modal with task metadata, links, attachments, and comments | P0 |
-| Project Settings View | Manage per-project dictionary overrides; view effective settings | P0 |
-| System Settings View | Manage system-level dictionary defaults | P0 |
+| Project Settings View | Manage per-project dictionary overrides; view effective settings; reached as the second level of the global Projects overlay (not a dedicated page), with a bridge into that project's Task Manager view — see STORY-022 <!-- updated: 2026-07-22 (STORY-022 reconcile) --> | P0 |
+| System Settings View | Manage system-level dictionary defaults; reached from anywhere via a global top-bar Config entry that opens a slide-over overlay — see STORY-022 <!-- updated: 2026-07-22 (STORY-022 reconcile) --> | P0 |
 | Sessions View | List, create, edit sessions; filter incomplete; link to story/task | P1 |
 | Milestones View | List, create, edit, delete milestones within a project | P1 |
 | Attachments Management | Upload documents (text or file), images, and files (PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) to stories, tasks, or milestones; view via an in-app viewer or download; delete (immutable — no edit, no archive); each attachment has a mandatory free-form title, defaulted from the uploaded file's name where applicable and editable before submit — see STORY-021 <!-- updated: 2026-07-15 (STORY-021) --> | P1 |
@@ -23,70 +23,99 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 
 ---
 
-## Navigation & Routing <!-- updated: 2026-07-07 (UX redesign) -->
+## Navigation & Routing <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
-### Layout Shell <!-- updated: 2026-07-10 (STORY-016 reconcile) -->
+### Layout Shell <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
-The application uses a three-level layout shell hierarchy:
+The application uses a three-level layout shell hierarchy, plus an always-mounted overlay host layered above it:
 
-1. **RootLayout** — flat root shell, always rendered. Hosts the top bar and a content outlet. `/projects`, `/sessions`, and `/settings` render directly here with no sidebar and no sub-nav.
+1. **RootLayout** — flat root shell, always rendered. Hosts the top bar, a content outlet for the two main views (Task Manager, Sessions), and the overlay host (see Global Overlay below). `/sessions` renders directly here with no sidebar and no sub-nav.
 2. **AppShell** — Task Manager mode layer, rendered for all `/projects/:id/*` routes. Hosts the collapsible sidebar alongside the content outlet.
-3. **ProjectShell** — per-project layer, rendered inside AppShell for all `/projects/:id/*` routes. Validates the project ID (renders an inline "Not found" with a `/projects` link when the project does not exist), then renders the four-tab sub-nav and a nested outlet for the active tab's content.
+3. **ProjectShell** — per-project layer, rendered inside AppShell for all `/projects/:id/*` routes. Validates the project ID (renders an inline "Not found" state when the project does not exist), then renders the three-tab sub-nav and a nested outlet for the active tab's content.
+
+Only two views are addressable main destinations with their own URL: **Task Manager** (a project's Stories/Board/Milestones, including an open story slide-over or task modal) and **Sessions**. Projects management and system Config are not routes — see Global Overlay below. <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
 **Top bar** (always visible, full width):
-- **App switcher** (left): native `<select>` combobox displaying the active app name (`Task Manager` or `Sessions`). Mode is derived live from the current pathname — no local state. Switching to Sessions navigates to `/sessions`; switching back to Task Manager returns to the last Task Manager URL (persisted in browser local storage under key `app:last_task_manager_url`), falling back to `/` which RootRedirect resolves.
-- **Settings button** (right, Task Manager mode only): text button `⚙ Settings` navigating to `/settings` (system defaults). Hidden in Sessions mode.
+- **App switcher** (left): native `<select>` combobox displaying the active app name (`Task Manager` or `Sessions`). Mode is derived directly from the current pathname — no recorded/remembered state. Switching to Sessions navigates to `/sessions`; switching back to Task Manager navigates to `/`, which RootRedirect resolves to the last-visited or first project's Stories, or the empty-project state.
+- **Projects entry** (right): a trigger button — not a route link — that opens the Projects overlay (see Global Overlay below). Visible and in the same position in both Task Manager mode and Sessions mode. Shows an open/active indication while its overlay is open, driven by overlay state rather than route matching. <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
+- **Config entry** (right, beside Projects): a trigger button that opens the Config overlay (see Global Overlay below). Visible and in the same position in both Task Manager mode and Sessions mode — Config is global, not Task-Manager-only. <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
 **Left sidebar** (Task Manager mode only, collapsible):
 - **Project combobox** at the top: native `<select>` displaying the active project name; selecting a project navigates to `/projects/:id/stories` and records the project ID as the last-visited project.
 - **Project list**: all projects as buttons, with the active project highlighted via `aria-current="page"`.
-- **`⚙ Gestisci progetti`** link at the bottom → navigates to `/projects` (full-screen project CRUD page).
 - **Collapse/expand toggle** (`◄`/`▶`) anchored to the right edge of the sidebar via absolute positioning. When collapsed, only the toggle is visible and the content outlet fills the full width. Collapsed/expanded state is persisted in browser local storage under key `app:sidebar_collapsed` via the shared `useLocalStorage` hook.
 
+> **As-built notes (STORY-022):** the sidebar's `⚙ Manage projects` link is removed — project management is reached only through the global top-bar Projects entry, from any mode. The sidebar's project combobox and project list are unaffected and continue to navigate to a project's Stories view.
+
 **Project sub-navigation** (rendered by ProjectShell for all `/projects/:id/*` routes):
-Horizontal tab bar using React Router `NavLink` for automatic active-tab highlighting. Four tabs:
+Horizontal tab bar using React Router `NavLink` for automatic active-tab highlighting. Three tabs: <!-- updated: 2026-07-22 (STORY-022 reconcile): Settings left the tab set -->
 - `Stories` → `/projects/:id/stories`
 - `Board` → `/projects/:id/board`
 - `Milestones` → `/projects/:id/milestones`
-- `Settings` → `/projects/:id/settings`
+
+Project Settings is no longer part of this sub-navigation — it is reached as the second level of the Projects overlay (see Global Overlay below).
 
 Sessions mode has no sidebar and no sub-navigation bar.
 
-**RootRedirect** (index route at `/`):
-Reads the last-visited project ID from browser local storage (key `app:last_project_id`, exported constant `LAST_PROJECT_KEY` from `RootRedirect.tsx`). Redirects to `/projects/:lastId/stories` if a project ID exists; otherwise redirects to `/projects`.
+**RootRedirect** (index route at `/`): <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
+Reads the last-visited project ID from browser local storage (key `app:last_project_id`, exported constant `LAST_PROJECT_KEY` from `RootRedirect.tsx`). Redirects to `/projects/:lastId/stories` if a project ID exists. If no project has ever been visited **and at least one project exists**, it resolves to the first project's Stories the same way. If **no projects exist at all** (a fresh install), it stays at `/`, renders an empty Task Manager main view with a brief "No projects yet" message, and automatically opens the Projects overlay (see Global Overlay below) so the first project can be created — it no longer redirects to a `/projects` route, since that route no longer exists.
 
-### Route Table
+---
+
+### Global Overlay: Projects & Config <!-- new: 2026-07-22 (STORY-022 reconcile) -->
+
+Projects management and system Config are **not routes** — they have no dedicated URL. They are slide-over overlay panels, reusing the Story Detail slide-over's visual conventions, that cover the active main view (Task Manager or Sessions) without ever unmounting it. Opening or closing either overlay does not change the URL; a page refresh while an overlay is open closes it and lands on the unchanged main view underneath, the expected behavior for a modal surface.
+
+**Opening:** clicking the top-bar Projects or Config entry opens that overlay. Each entry shows an open/active indication only while its own overlay is open (state-driven, not route-driven). While an overlay is open, the app-switcher continues to reflect the mode of the main view underneath (Task Manager or Sessions) — it is derived from the current route, unaffected by which overlay is open.
+
+**Stack:**
+- The **Projects overlay** has two levels: the **project list** (root) and, when a project is chosen from that list, that project's **Settings** editor (pushed on top). Choosing a project does not navigate — it pushes a panel level.
+- The **Config overlay** has one level: the system dictionary editor (the former `/settings` content).
+
+**Two controls, matching the Story slide-over:**
+- **Back** — pops one level within the current overlay stack (e.g. from a project's Settings back to the project list). Visible only when the current stack has depth beyond its root; absent on the project list and on the single-level Config panel.
+- **Dismiss** (icon control) — clears the whole overlay stack in one action from any level and reveals the main view underneath, unchanged.
+- **Escape** — closes one overlay level per press via the app's shared modal-escape stack, so it composes correctly when the overlay is opened over an already-open Story slide-over or Task Detail modal (each `Escape` press closes exactly the topmost layer).
+
+**Visual layering:** the overlay panel renders above the Story slide-over and the Task Detail modal, so it is reachable and fully interactive from any state the main view is in, including with a Task Detail modal already open on top of a Story slide-over. Full z-index order (lowest to highest): Story slide-over → Task Detail modal → the Projects/Config overlay panel and its own nested confirmation dialogs → Toast notifications → top bar.
+
+**Project list → Settings bridge ("Open in Task Manager"):** on the Settings level of the Projects overlay, an "Open in Task Manager" action navigates the main view to that project's Stories and dismisses the whole overlay stack in the same step, revealing that project's Stories with its three-tab sub-navigation available. This works for any project, including one not previously opened this session, and does not add a sub-navigation tab bar to the Settings panel itself.
+
+**Cold start:** see RootRedirect above — a fresh install with no projects lands on the empty Task Manager main view with the Projects overlay already open.
+
+### Route Table <!-- updated: 2026-07-22 (STORY-022 reconcile): /projects, /settings, and /projects/:id/settings are no longer routes -->
 
 | Route | View | Description |
 |-------|------|-------------|
-| `/` | Redirect | → `/projects/:lastId/stories` if a project was previously visited; otherwise → `/projects` |
-| `/projects` | Projects Management | Full-screen CRUD table for projects (no sidebar, no sub-nav) |
+| `/` | Redirect (or empty state) | → `/projects/:lastId/stories` if a project was previously visited or one exists; if no projects exist at all, stays at `/` showing an empty Task Manager main view with the Projects overlay auto-opened |
 | `/projects/:id/stories` | Stories List | Stories within the active project |
 | `/projects/:id/board` | Stories Board | Kanban of stories grouped by story status |
 | `/projects/:id/milestones` | Milestones | Milestones within the active project |
-| `/projects/:id/settings` | Project Settings | Per-project dictionary overrides |
 | `/projects/:id/stories/:storyId` | Story Detail | Full-screen slide-over on top of the current project view |
 | `/projects/:id/stories/:storyId/tasks/:taskId` | Task Detail | Modal on top of the Story Detail slide-over |
 | `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments (live, STORY-007) + comments (live, STORY-008) |
 | `/sessions` | Sessions | Full-screen flat list, no sidebar |
-| `/settings` | System Settings | Task Manager system-level dictionary defaults |
 | `/comments/:id` | Comment permalink resolver | <!-- new: 2026-07-21 (STORY-008) --> Not a page of its own — resolves the comment's host view (Story slide-over, Task Detail modal, or Milestone Detail page) and navigates there with the comments section expanded and that comment scrolled into view and highlighted. If the comment has since been hard-deleted (no surviving container to resolve), shows a calm `role="status"` "This comment is no longer available." message with a link back home instead of navigating. |
+
+Projects management and system Config have no route of their own — they are reached exclusively as overlay panels from the top-bar Projects/Config entries, from any main view. See Global Overlay above.
 
 Navigation rules:
 - Navigating to a resource that no longer exists (deleted) shows a "Not found" inline message with a link back to the parent level.
 - Breadcrumbs are shown within the Story Detail slide-over header: e.g. `← Stories / Story Title`.
 - The last visited project ID is persisted in browser local storage to power the `/` redirect.
+- Opening or closing the Projects/Config overlay never changes the URL and never dismisses an open Story slide-over or Task Detail modal — the overlay layers on top of them instead (a behavior change from the pre-STORY-022 model, where Projects/Config were routes and navigating to them dismissed any open slide-over/modal as ordinary top-level navigation).
 
 ---
 
 ## Page Behaviours
 
-### Projects Management (`/projects`) <!-- updated: 2026-07-10 (STORY-016 reconcile) -->
+### Projects Overlay — Project List <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
 > **As-built notes (STORY-003):** Modals use native `<dialog>` elements. The Milestones section previously shown here is now at `/projects/:id/milestones`.
-> **As-built notes (STORY-016):** Migrated from the homepage (`/`) to `/projects` as a dedicated full-screen management page (no sidebar, no sub-nav). The route is registered directly under RootLayout, outside AppShell/ProjectShell.
+> **As-built notes (STORY-016):** Migrated from the homepage (`/`) to a dedicated full-screen management page (no sidebar, no sub-nav).
+> **As-built notes (STORY-022):** No longer a page or route. This content is now the root level of the global Projects overlay — a slide-over panel opened from the top-bar Projects entry, available from any mode. The panel has no page heading or its own "Close" control of its own; the overlay frame (Back/Dismiss) owns closing. See Global Overlay above for the panel mechanics.
 
-Full-screen management page for projects; no sidebar, no sub-navigation. Accessible via the `⚙ Gestisci progetti` link in the left sidebar or by navigating to `/projects` directly.
+The root level of the Projects overlay. No sidebar, no sub-navigation. Reached exclusively via the global top-bar Projects entry.
 
 - Lists all projects as a table: name, description (truncated), created_at, with per-row edit/delete action buttons (Lucide icons)
 - **Create project** button → modal form: name (required, 1–200 chars), description (optional, max 5000 chars); saves on submit
@@ -94,7 +123,8 @@ Full-screen management page for projects; no sidebar, no sub-navigation. Accessi
 - **Delete** button per project → confirmation dialog that explicitly names all nested data that will be permanently removed (stories, tasks, attachments, comments, settings overrides)
 - Conflict error (409) surfaced as an inline message above the form submit button: API's `error` message verbatim
 - Empty state shown when no projects exist (not an error)
-- Clicking a project name navigates to its Stories View (`/projects/:id/stories`)
+- Clicking a project name pushes that project's **Settings** editor as the second level of the Projects overlay (Back returns to this list) — it does not navigate anywhere and does not land on the project's Stories view. This is a change from the pre-STORY-022 behavior, where clicking a project name navigated straight to its Stories view. <!-- updated: 2026-07-21/22 (STORY-022) -->
+- This is the only overlay/page where a project's name click leads to Settings — the Task Manager sidebar's project combobox and project list continue to land on the project's Stories view when a project is selected, unaffected by this change
 
 ---
 
@@ -376,9 +406,9 @@ Identical behavior on all three hosts.
 
 ---
 
-### Sessions View (`/sessions`) <!-- updated: 2026-07-07 (UX redesign) -->
+### Sessions View (`/sessions`) <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
-No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in the top bar shows `Sessions`; the `⚙ Settings` button is hidden.
+No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in the top bar shows `Sessions`. The Projects and Config top-bar entries remain visible and open-able here, identically to Task Manager mode <!-- updated: 2026-07-22 (STORY-022): Config was previously Task-Manager-only; it is now global -->.
 
 - Lists sessions as a table: topic, status, participant_role, linked story/task (clickable), created_at, result indicator (✓ / pending)
 - **Incomplete only** toggle filter (calls `GET /sessions?incomplete=true`)
@@ -389,9 +419,9 @@ No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in
 
 ---
 
-### System Settings View (`/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role row added) -->
+### System Settings View — Config Overlay <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
-> **As-built notes (STORY-002):** Previously implemented as two tabs (`System Defaults` / `Project Overrides`) at `/settings`. The Project Overrides tab is removed from this view — project overrides now live at `/projects/:id/settings`.
+> **As-built notes (STORY-002):** Previously implemented as two tabs (`System Defaults` / `Project Overrides`) at `/settings`. The Project Overrides tab is removed from this view — project overrides now live in the Projects overlay's Settings level.
 >
 > **As-built notes (STORY-020):** `link_types` uses a dedicated three-field `LinkTypesEditor` component instead of the generic `DictionaryEditor`. The `LinkTypesEditor` spans both grid columns (`sm:col-span-2`). The generic `DictionaryEditor` is unchanged.
 >
@@ -407,8 +437,10 @@ No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in
 > list is prevented client-side (the dropdown only ever offers current, valid values) and rejected
 > server-side if attempted another way. For now, this row's only observable effect anywhere in the
 > product is pre-filling the Add Comment form's `author_role` field.
+>
+> **As-built notes (STORY-022):** No longer a page or route (`/settings` no longer exists). This content is the single level of the global Config overlay — a slide-over panel opened from the top-bar Config entry, available from any mode (Task Manager or Sessions), not gated to Task Manager as it was before this story. It has no page heading or its own close control — the overlay frame (Dismiss; no Back, since Config is a single level) owns closing.
 
-Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only). No sidebar; no sub-navigation bar.
+Reached exclusively via the global Config entry in the top bar, visible and open-able from both Task Manager and Sessions modes. No sidebar; no sub-navigation bar; no Back control (single-level overlay).
 
 - Six settings rows in a 2-column responsive grid (not accordion): five dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `link_types`, `participant_roles`) plus the scalar `default_web_ui_role`
 - Four dictionary keys (`task_statuses`, `task_types`, `story_statuses`, `participant_roles`) use the generic chip-list editor: shows current values as an editable chip list (add value via text input + Enter/Add button; remove individual chips)
@@ -421,9 +453,9 @@ Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only)
 
 ---
 
-### Project Settings View (`/projects/:id/settings`) <!-- updated: 2026-07-07 (UX redesign); updated: 2026-07-13 (STORY-020: link_types structured editor); updated: 2026-07-15 (STORY-021: attachment_types retired); updated: 2026-07-21 (STORY-008: default_web_ui_role row added) -->
+### Project Settings View — Projects Overlay, Settings Level <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
-> **As-built notes (STORY-002):** Previously implemented as the "Project Overrides" tab within `/settings`. Now a dedicated route accessed via the `Settings` tab in the project sub-navigation bar.
+> **As-built notes (STORY-002):** Previously implemented as the "Project Overrides" tab within `/settings`.
 >
 > **As-built notes (STORY-020):** `link_types` uses the same three-field `LinkTypesEditor` as the System Settings page. The Override badge and Clear override action for `link_types` are sourced from the stored overrides, same as all other keys.
 >
@@ -435,8 +467,10 @@ Accessible via the `⚙ Settings` button in the top bar (Task Manager mode only)
 > shows the current project override (if set) with an `Override` badge, or the inherited system value
 > otherwise, and uses the same **Override/Edit** and **Clear override** controls as the other five keys
 > (inheriting the same known backend gap described below — this story does not close it).
+>
+> **As-built notes (STORY-022):** No longer its own route or a per-project sub-navigation tab (`/projects/:id/settings` no longer exists as a route, and Settings left the project sub-nav's tab set — see Layout Shell). Reached exclusively by choosing a project from the Projects overlay's project list, rendering as the second level of that overlay. Preserves the pre-existing project-not-found / load-error handling for an unresolved project id. **Back** (overlay frame) returns to the project list; **Dismiss** clears the whole overlay. An **"Open in Task Manager"** action, next to the project-name heading, navigates the main view to this project's Stories and dismisses the overlay in the same step — the successor to the story's earlier, superseded standalone-screen "View Stories" patch, and the resolution for BUG-006 (no in-app path from Settings to a project's own Stories/Board/Milestones for a project not yet opened in Task Manager mode this session). No sub-navigation tab bar is added to this panel.
 
-Sub-nav active tab: **Settings**.
+Reached by selecting a project from the Projects overlay's project list (see Projects Overlay — Project List above). Not a sub-nav tab; the project sub-navigation seen once inside a project via the sidebar has exactly three tabs (Stories, Board, Milestones).
 
 - Lists all six settings keys with their effective values: five dictionaries plus the scalar `default_web_ui_role`
 - Four plain-string keys use the generic chip-list editor
@@ -447,6 +481,7 @@ Sub-nav active tab: **Settings**.
 - **Clear override** button (visible when override is set) → intended to revert to system default; calls `DELETE /v1/projects/:projectId/settings/:key` — **this endpoint does not exist on the backend as of STORY-002; the action fails at runtime** (see Known Gaps in backend requirements). `default_web_ui_role`'s Clear override control is wired identically and fails the same way.
 - **Save** button per key → calls `PUT /v1/projects/:id/settings` with only the changed key
 - Effective values always visible via `GET /v1/projects/:id/settings/effective`
+- **Open in Task Manager** button → navigates to `/projects/:id/stories` and dismisses the overlay in the same action, landing on that project's Stories with the three-tab sub-navigation (Stories/Board/Milestones) available; works for any project regardless of whether it was previously opened in Task Manager this session
 
 ---
 
@@ -542,9 +577,10 @@ any parent modal/slide-over open, and returns keyboard focus to the row's **View
 ## Non-Functional Requirements
 
 ### Performance
-- Initial page load (projects list): < 2 s (accessed via Docker localhost port mapping)
+- Initial page load (Task Manager main view, or the empty-project state): < 2 s (accessed via Docker localhost port mapping) <!-- updated: 2026-07-22 (STORY-022 reconcile): the projects list is now an overlay, not the initial landing view -->
 - Navigation between views (client-side routing): < 300 ms
 - Story Detail slide-over open animation: ≤ 150 ms
+- Projects/Config overlay open animation: ≤ 150 ms, matching the Story Detail slide-over <!-- new: 2026-07-22 (STORY-022 reconcile) -->
 - File upload progress indicator shown for uploads > 1 MB
 
 ### Accessibility
@@ -555,6 +591,7 @@ any parent modal/slide-over open, and returns keyboard focus to the row's **View
 - Story Detail slide-over traps keyboard focus while open; `Escape` closes it and returns focus to the triggering element
 - Task Detail modal traps keyboard focus while open; `Escape` closes it and returns focus to the triggering task card
 - **Stacked modals/panels:** when panels or modals are layered on top of one another (e.g. the Attachment Viewer opened from within the Task Detail modal, itself opened from within the Story Detail slide-over), pressing `Escape` closes only the topmost layer — every parent layer stays open, and keyboard focus returns to the control that opened the topmost layer. This rule applies uniformly regardless of which host the topmost layer was opened from. <!-- added: 2026-07-15 (STORY-007 reconcile, BUG-002/003/004) -->
+- **Global Projects/Config overlay stacking (STORY-022):** the Projects/Config overlay is reachable and fully visible and interactive from any main-view state, including with a Task Detail modal already open on top of a Story slide-over — it renders above both. Full z-index order (lowest to highest): Story slide-over → Task Detail modal → the Projects/Config overlay panel and its own nested confirmation dialogs → Toast notifications → top bar. `Escape` closes one overlay level per press through the app's shared modal-escape stack, composing correctly with an open Story slide-over / Task Detail modal beneath it (each press closes exactly the topmost layer). <!-- new: 2026-07-22 (STORY-022 reconcile, BUG-007) -->
 - **`@role` mention combobox (STORY-008):** the app's first non-native dropdown — every other picker in the app is a native `<select>`, keyboard-accessible by default — and is held to the same WCAG 2.1 AA bar explicitly: it follows the ARIA combobox/listbox pattern, is fully operable from the keyboard (arrow keys to move through matches, `Enter` to select the highlighted match, `Escape` to dismiss without inserting anything and return focus to the textarea at the same cursor position), and never traps focus outside the textarea. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
 - Status badges and icons have accessible text alternatives (not colour-only indicators)
 - Error messages are announced to screen readers via ARIA live regions
