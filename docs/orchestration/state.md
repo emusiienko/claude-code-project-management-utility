@@ -1,16 +1,48 @@
 ## Active wait
-waiting_for: none — paused by user
-
-## STORY-022 paused (2026-07-21)
-STORY-022 (Global Project Navigation Entry) is `Pending Approval`, `Auto ✓` marked, `QA ✓`
-withheld. manual-qa filed BUG-006 (major): no in-app path from a project's standalone
-Settings screen to its Stories/Board/Milestones for a project not opened this session.
-User isn't sure it's a genuine bug — thinks it may be a consequence of the navigation
-model itself needing further thought, not a bug fixable in isolation. Fix agent was
-stopped mid-run. User wants to reconsider tomorrow before deciding how to proceed
-(fix BUG-006 as-is, revise the navigation model again, or something else).
+waiting_for: none
 
 ## Recent changes
+- 2026-07-29: STORY-009 description.md UI Behavior example fixed — spec-writer replaced the
+  stale sub-nav-tab `e.g.` with the architect's separate-top-level-mode shape, and tightened the
+  framing from "left open" to stated-as-decided since implementation_plan.md/TASK-006 already
+  commit to it. STORY-009 spec + plan now fully consistent; still `Planned`, ready for implementation.
+
+## Recent changes
+- 2026-07-29: STORY-009 Sessions navigation model revised — architect flipped from a per-project
+  sub-nav-tab recommendation to Sessions as a distinct top-level app-switcher mode (user's
+  Jira-vs-Confluence analogy), left-placed project-selector sidebar mirroring Task Manager's shell,
+  session detail nested within the mode. Notes this actually aligns better with ADR-014's original
+  two-mode (Task Manager/Sessions) switcher intent than the sub-nav-tab option did — the `Sessions`
+  switcher entry already exists, currently pointing at a flat `/sessions` placeholder. Planned ADR
+  row added (to note at Reconcile whether this further revises ADR-014's four-tab narrative);
+  implementation_plan.md + TASK-006 updated; TASK-005 unaffected. Optional flag left for
+  spec-writer: description.md's UI Behavior `e.g.` example still names the now-discarded sub-nav-tab
+  shape, though placement is explicitly left open there so it's not a real conflict.
+
+## Recent changes
+- 2026-07-29: `goal` field added to STORY-009 (Session Tracking) — required, 1-500 chars,
+  free-form, same mutability rule as `topic` (mandatory, non-clearable, changeable on update).
+  Spec-writer updated description.md; architect then updated implementation_plan.md + TASK-001,
+  002, 005, 006, 007 in place (all tasks were still ToDo, no follow-up tasks needed). TASK-003/004
+  and tasks/index.md unaffected. Story still `Planned`, ready for implementation.
+
+## Recent changes
+- 2026-07-29: Architect Feature Design for STORY-009 completed autonomously — `implementation_plan.md`
+  + 7 task files (TASK-001–004 backend-developer, TASK-005–006 frontend-developer, TASK-007
+  qa-automation) created, `tasks/index.md` populated. Key calls: project-scoped Session (mandatory
+  `project_id`, CASCADE delete), explicit `is_complete` decoupled from result fields, application-level
+  cleanup of `linked_story_id`/`linked_task_id` on story/task delete (SQLite FK SET NULL is inert,
+  same pattern as ADR-018), `participant_role` validated against effective `participant_roles`.
+  3 ADRs planned (not yet created — created at Reconcile). API contract/architecture.md still show
+  the stale pre-STORY-009 forward-spec, to be reconciled as v1.8 after acceptance. Story still `Planned`
+  — ready for implementation.
+- 2026-07-29: SESSION-021 completed — spec-writer review of STORY-009: `participant_role` now
+  required + dictionary-validated (was optional free-form); `topic` no longer immutable; new
+  explicit `is_complete` boolean decouples completion from `result_decisions`/`result_summary`;
+  added `linked_story_id` list filter.
+- STORY-022 (Global Project Navigation Entry) has since been accepted and fully reconciled
+  (ADR-025, requirements_web.md updated, story folder archived/deleted) — the earlier BUG-006
+  pause noted here is resolved.
 - 2026-07-21: SESSION-017/018/019 — STORY-009 spec finished (mandatory project_id, topic
   immutability, independent-update ACs); product-strategist confirmed Project stays an unchanged
   CRUD entity (validated-idea v2). New STORY-022 (Global Project Navigation Entry) created,
