@@ -3,11 +3,12 @@
  *
  * Nested view within Sessions mode (SessionsShell stays mounted, so the
  * project sidebar remains visible). Shows the full record and lets the user
- * edit every updatable field (topic, goal, context, status, participant_role,
- * linked story/task, result_decisions, result_summary), toggle
- * `is_complete` independently of the rest of the record, and archive the
- * session. An archived session still shows its full record and stays fully
- * editable — archiving does not restrict this view.
+ * edit every updatable field (topic, goal, context, participant_role,
+ * linked story, linked task, result_decisions, result_summary), change
+ * `status` independently via a three-way control (settable to any of
+ * `pending` / `in-progress` / `finished`, at any time, in any direction),
+ * and archive the session. An archived session still shows its full record
+ * and stays fully editable — archiving does not restrict this view.
  */
 
 import { useState } from "react";
@@ -17,22 +18,12 @@ import { useSession, useUpdateSession, useArchiveSession } from "./hooks/useSess
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { SessionEditForm, type SessionEditPayload } from "./components/SessionEditForm";
 import { ArchiveSessionDialog } from "./components/ArchiveSessionDialog";
-import { LinkedItemDisplay } from "./components/LinkedItemDisplay";
+import { LinkedStoryIndicator, LinkedTaskIndicator } from "./components/LinkedItemDisplay";
+import { SessionStatusBadge } from "./components/SessionStatusBadge";
+import { SessionStatusControl } from "./components/SessionStatusControl";
 import { extractErrorMessage, extractFieldErrors } from "./utils/errorMessages";
 import { PageLoader } from "@/shared/components/PageLoader";
-
-function CompletionBadge({ isComplete }: { isComplete: boolean }) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full px-2.5 py-1 text-xs",
-        isComplete ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600",
-      ].join(" ")}
-    >
-      {isComplete ? "Complete" : "Pending"}
-    </span>
-  );
-}
+import type { SessionStatus } from "@/api/types";
 
 function ReadField({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -72,11 +63,10 @@ export default function SessionDetailPage() {
     );
   }
 
-  function handleToggleComplete() {
-    if (!session) return;
+  function handleStatusChange(status: SessionStatus) {
     setMutationError(undefined);
     updateMutation.mutate(
-      { sessionId: safeSessionId, data: { is_complete: !session.is_complete } },
+      { sessionId: safeSessionId, data: { status } },
       { onError: (err) => setMutationError(extractErrorMessage(err)) },
     );
   }
@@ -116,7 +106,7 @@ export default function SessionDetailPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-text">{session.topic}</h1>
-        <CompletionBadge isComplete={session.is_complete} />
+        <SessionStatusBadge status={session.status} />
         {session.archived_at && (
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
             Archived
@@ -131,7 +121,7 @@ export default function SessionDetailPage() {
       )}
 
       {/* Actions */}
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => setIsEditing((v) => !v)}
@@ -140,14 +130,11 @@ export default function SessionDetailPage() {
           <Pencil size={14} aria-hidden="true" />
           {isEditing ? "Cancel edit" : "Edit"}
         </button>
-        <button
-          type="button"
-          onClick={handleToggleComplete}
+        <SessionStatusControl
+          status={session.status}
+          onChange={handleStatusChange}
           disabled={updateMutation.isPending}
-          className="rounded-md border border-border px-3 py-1.5 text-sm text-text hover:bg-surface-muted disabled:opacity-50"
-        >
-          {session.is_complete ? "Mark incomplete" : "Mark complete"}
-        </button>
+        />
         <button
           type="button"
           onClick={() => setIsArchiveDialogOpen(true)}
@@ -174,16 +161,17 @@ export default function SessionDetailPage() {
       ) : (
         <dl className="mt-6 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
           <ReadField label="Goal" value={session.goal} />
-          <ReadField label="Status" value={session.status} />
           <ReadField label="Participant role" value={session.participant_role} />
           <div>
-            <dt className="text-xs font-medium text-text-secondary">Linked story/task</dt>
+            <dt className="text-xs font-medium text-text-secondary">Linked story</dt>
             <dd className="mt-0.5 text-sm">
-              <LinkedItemDisplay
-                projectId={safeProjectId}
-                linkedStoryId={session.linked_story_id}
-                linkedTaskId={session.linked_task_id}
-              />
+              <LinkedStoryIndicator projectId={safeProjectId} storyId={session.linked_story_id} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-text-secondary">Linked task</dt>
+            <dd className="mt-0.5 text-sm">
+              <LinkedTaskIndicator projectId={safeProjectId} taskId={session.linked_task_id} />
             </dd>
           </div>
           <div className="sm:col-span-2">

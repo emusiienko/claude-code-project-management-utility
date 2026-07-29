@@ -1,30 +1,40 @@
 """Integration tests for the Sessions domain — STORY-009.
 
-Coverage zones (per TASK-007):
-- POST /v1/sessions            happy path (minimal + with links + with context/status),
+Coverage zones (per TASK-007, revised by TASK-010 for the status-enum rework):
+- POST /v1/sessions            happy path (minimal + with links + with context),
                                 validation failures (missing topic/goal/participant_role,
                                 topic/goal out of 1-500, participant_role not in the
                                 effective dictionary, missing project_id, non-existent
                                 project_id, link to non-existent story/task, link to a
-                                story/task in a different project), is_complete forced
-                                false and ignored if supplied at create
-- GET  /v1/sessions             project-scoped list, incomplete filter, linked_story_id
+                                story/task in a different project); status always defaults
+                                to "pending" and any status supplied in the create payload
+                                is ignored (accept-and-ignore); no response ever carries an
+                                is_complete field
+- GET  /v1/sessions             project-scoped list, incomplete filter (status is pending
+                                or in-progress; finished excluded), linked_story_id
                                 filter, both combined, include_archived, pagination,
                                 newest-first order, required project_id
 - GET  /v1/sessions/:id          found / not found (404) / malformed id (404)
 - PUT  /v1/sessions/:id          omitted field unchanged; explicit-null clears
-                                context/status/result fields/link ids; explicit-null
-                                topic/goal/participant_role -> 422; new topic/goal
+                                context/result fields/link ids; explicit-null
+                                topic/goal/participant_role/status -> 422; new topic/goal
                                 (re-validated length) and new participant_role
-                                (re-validated dictionary); is_complete true then false
+                                (re-validated dictionary); status settable to each of
+                                pending/in-progress/finished and freely movable in any
+                                direction (no transition order enforced); a status value
+                                outside the fixed set -> 422 with the established
+                                "Value '{v}' is not allowed. Allowed: ..." message
 - POST /v1/sessions/:id/archive  archives; second archive -> 400; archived session still
                                 updatable
-- Behaviors                     completion driven solely by is_complete, never inferred
-                                from result content; incomplete-sessions query returns
-                                exactly the project's non-archived incomplete sessions
-                                and is a plain persisted query (survives process restart
-                                by construction — no in-memory state involved); a session
-                                with no linked story/task is valid
+- Behaviors                     status is only ever set explicitly, never inferred from
+                                result content: a session can reach "finished" with both
+                                result fields still null, and can remain "pending"/
+                                "in-progress" after both result fields are set;
+                                incomplete-sessions query returns exactly the project's
+                                non-archived sessions whose status is "pending" or
+                                "in-progress" and is a plain persisted query (survives
+                                process restart by construction — no in-memory state
+                                involved); a session with no linked story/task is valid
 - Edge cases                    deleting a linked story/task nulls the session reference
                                 (application-level, holds on SQLite); deleting a project
                                 deletes its sessions (relies on the FK CASCADE, xfail on
@@ -123,7 +133,6 @@ async def _create_session(
     topic: str = "Test Session",
     goal: str = "Get something done",
     context: str | None = None,
-    status: str | None = None,
     participant_role: str = VALID_ROLE,
     linked_story_id: str | None = None,
     linked_task_id: str | None = None,
@@ -136,8 +145,6 @@ async def _create_session(
     }
     if context is not None:
         payload["context"] = context
-    if status is not None:
-        payload["status"] = status
     if linked_story_id is not None:
         payload["linked_story_id"] = linked_story_id
     if linked_task_id is not None:
@@ -181,10 +188,12 @@ class TestCreateSession:
             assert body["participant_role"] == VALID_ROLE, "participant_role mismatch"
             assert body["project_id"] == proj["id"], "project_id mismatch"
             assert body["context"] is None, "context should default to null"
-            assert body["status"] is None, "status should default to null"
+            assert body["status"] == "pending", "status should default to pending"
             assert body["result_decisions"] is None, "result_decisions should be null"
             assert body["result_summary"] is None, "result_summary should be null"
-            assert body["is_complete"] is False, "is_complete should default to false"
+            assert "is_complete" not in body, (
+                "is_complete has been retired in favor of the status enum"
+            )
             assert body["linked_story_id"] is None, "linked_story_id should be null"
             assert body["linked_task_id"] is None, "linked_task_id should be null"
             assert body["archived_at"] is None, "archived_at should be null"
@@ -209,49 +218,55 @@ class TestCreateSession:
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_happy_path_with_context_and_status_returns_201(
+    async def test_happy_path_with_context_returns_201(
         self, client: AsyncClient
     ) -> None:
-        proj = await _create_project(client, "Create Session Context Status Project")
+        proj = await _create_project(client, "Create Session Context Project")
         try:
             body = await _create_session(
                 client,
                 proj["id"],
                 context="Some broader background",
-                status="active",
             )
             assert body["context"] == "Some broader background", "context mismatch"
-            assert body["status"] == "active", "status mismatch"
+            assert body["status"] == "pending", (
+                "A newly created session should always start at status 'pending'"
+            )
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_is_complete_ignored_when_supplied_at_create(
+    async def test_status_ignored_when_supplied_at_create(
         self, client: AsyncClient
     ) -> None:
-        proj = await _create_project(client, "Create Session is_complete Ignored Project")
+        """status is never a create input — CreateSession has no status field at
+        all, so any status value in the payload (valid enum member or not) is
+        silently ignored and every new session still starts at 'pending'."""
+        proj = await _create_project(client, "Create Session Status Ignored Project")
         try:
-            resp = await client.post(
-                SESSIONS_URL,
-                json={
-                    "project_id": proj["id"],
-                    "topic": "Attempted Complete Session",
-                    "goal": "Try to start complete",
-                    "participant_role": VALID_ROLE,
-                    "is_complete": True,
-                },
-            )
-            # Either the field is silently ignored (extra key) or explicitly
-            # rejected — either way the created session must never start complete.
-            if resp.status_code == 201:
-                body = resp.json()["data"]
-                assert body["is_complete"] is False, (
-                    "is_complete must never be settable at create, "
-                    f"got {body['is_complete']!r}"
+            for attempted_status in ("finished", "in-progress", "not-a-real-status"):
+                resp = await client.post(
+                    SESSIONS_URL,
+                    json={
+                        "project_id": proj["id"],
+                        "topic": "Attempted Non-Pending Session",
+                        "goal": "Try to start at a non-default status",
+                        "participant_role": VALID_ROLE,
+                        "status": attempted_status,
+                    },
                 )
-            else:
-                assert resp.status_code == 422, (
-                    f"If rejected, is_complete-at-create should be 422, "
-                    f"got {resp.status_code}"
+                assert resp.status_code == 201, (
+                    f"A status value in the create payload ({attempted_status!r}) "
+                    f"should be ignored, not rejected — got {resp.status_code}: "
+                    f"{resp.text}"
+                )
+                body = resp.json()["data"]
+                assert body["status"] == "pending", (
+                    f"status must always default to 'pending' at create regardless "
+                    f"of an attempted {attempted_status!r} in the payload, "
+                    f"got {body['status']!r}"
+                )
+                assert "is_complete" not in body, (
+                    "is_complete has been retired in favor of the status enum"
                 )
         finally:
             await _delete_project(client, proj["id"])
@@ -594,7 +609,7 @@ class TestListSessions:
                 client, proj["id"], topic="Marked Complete"
             )
             await client.put(
-                f"{SESSIONS_URL}/{complete['id']}", json={"is_complete": True}
+                f"{SESSIONS_URL}/{complete['id']}", json={"status": "finished"}
             )
 
             resp = await client.get(
@@ -652,7 +667,7 @@ class TestListSessions:
             )
             await client.put(
                 f"{SESSIONS_URL}/{complete_and_linked['id']}",
-                json={"is_complete": True},
+                json={"status": "finished"},
             )
             incomplete_but_unlinked = await _create_session(
                 client, proj["id"], topic="Incomplete but unlinked"
@@ -821,16 +836,16 @@ class TestUpdateSession:
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_explicit_null_clears_status(self, client: AsyncClient) -> None:
-        proj = await _create_project(client, "Update Session Clear Status Project")
+    async def test_explicit_null_status_returns_422(self, client: AsyncClient) -> None:
+        proj = await _create_project(client, "Update Session Null Status Project")
         try:
-            session = await _create_session(client, proj["id"], status="active")
+            session = await _create_session(client, proj["id"])
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"status": None}
             )
-            assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-            assert resp.json()["data"]["status"] is None, (
-                "Explicit null should clear status"
+            assert resp.status_code == 422, (
+                f"status is mandatory and cannot be cleared — explicit null should "
+                f"return 422, got {resp.status_code}"
             )
         finally:
             await _delete_project(client, proj["id"])
@@ -1009,51 +1024,96 @@ class TestUpdateSession:
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_is_complete_true_then_false(self, client: AsyncClient) -> None:
-        proj = await _create_project(client, "Update Session is_complete Toggle Project")
+    async def test_status_settable_to_each_fixed_value(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Update Session Status Each Value Project")
+        try:
+            session = await _create_session(client, proj["id"])
+            for target_status in ("pending", "in-progress", "finished"):
+                resp = await client.put(
+                    f"{SESSIONS_URL}/{session['id']}", json={"status": target_status}
+                )
+                assert resp.status_code == 200, (
+                    f"Setting status to {target_status!r} should return 200, "
+                    f"got {resp.status_code} — {resp.text}"
+                )
+                assert resp.json()["data"]["status"] == target_status, (
+                    f"status should be updated to {target_status!r}"
+                )
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_status_moves_freely_in_any_direction(
+        self, client: AsyncClient
+    ) -> None:
+        """No transition order is enforced — status can move 'backwards' just as
+        freely as 'forwards' (e.g. finished -> in-progress -> pending)."""
+        proj = await _create_project(client, "Update Session Status Backwards Project")
         try:
             session = await _create_session(client, proj["id"])
 
-            true_resp = await client.put(
-                f"{SESSIONS_URL}/{session['id']}", json={"is_complete": True}
+            to_finished = await client.put(
+                f"{SESSIONS_URL}/{session['id']}", json={"status": "finished"}
             )
-            assert true_resp.status_code == 200, (
-                f"Expected 200, got {true_resp.status_code}"
+            assert to_finished.status_code == 200, (
+                f"Expected 200, got {to_finished.status_code}"
             )
-            assert true_resp.json()["data"]["is_complete"] is True, (
-                "is_complete should be settable to true"
+            assert to_finished.json()["data"]["status"] == "finished"
+
+            back_to_in_progress = await client.put(
+                f"{SESSIONS_URL}/{session['id']}", json={"status": "in-progress"}
+            )
+            assert back_to_in_progress.status_code == 200, (
+                f"Moving finished -> in-progress should be allowed, "
+                f"got {back_to_in_progress.status_code}"
+            )
+            assert back_to_in_progress.json()["data"]["status"] == "in-progress", (
+                "status should move back to in-progress with no blocked transition"
             )
 
-            false_resp = await client.put(
-                f"{SESSIONS_URL}/{session['id']}", json={"is_complete": False}
+            back_to_pending = await client.put(
+                f"{SESSIONS_URL}/{session['id']}", json={"status": "pending"}
             )
-            assert false_resp.status_code == 200, (
-                f"Expected 200, got {false_resp.status_code}"
+            assert back_to_pending.status_code == 200, (
+                f"Moving in-progress -> pending should be allowed, "
+                f"got {back_to_pending.status_code}"
             )
-            assert false_resp.json()["data"]["is_complete"] is False, (
-                "is_complete should be settable back to false"
+            assert back_to_pending.json()["data"]["status"] == "pending", (
+                "status should move back to pending with no blocked transition"
             )
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_explicit_null_is_complete_returns_422(
+    async def test_invalid_status_value_returns_422_with_message(
         self, client: AsyncClient
     ) -> None:
-        proj = await _create_project(client, "Update Session Null is_complete Project")
+        proj = await _create_project(client, "Update Session Invalid Status Project")
         try:
             session = await _create_session(client, proj["id"])
             resp = await client.put(
-                f"{SESSIONS_URL}/{session['id']}", json={"is_complete": None}
+                f"{SESSIONS_URL}/{session['id']}", json={"status": "not-a-status"}
             )
             assert resp.status_code == 422, (
-                f"Explicit null is_complete should return 422, got {resp.status_code}"
+                f"A status value outside the fixed set should return 422, "
+                f"got {resp.status_code}"
+            )
+            expected_msg = (
+                "Value 'not-a-status' is not allowed. "
+                "Allowed: pending, in-progress, finished."
+            )
+            assert expected_msg in resp.text, (
+                f"Expected exact validation message {expected_msg!r} in response, "
+                f"got: {resp.text}"
             )
         finally:
             await _delete_project(client, proj["id"])
 
     async def test_update_unknown_id_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
-        resp = await client.put(f"{SESSIONS_URL}/{fake_id}", json={"status": "x"})
+        resp = await client.put(
+            f"{SESSIONS_URL}/{fake_id}", json={"status": "pending"}
+        )
         assert resp.status_code == 404, (
             f"Updating unknown session should return 404, got {resp.status_code}"
         )
@@ -1107,12 +1167,12 @@ class TestArchiveSession:
 
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}",
-                json={"status": "revisited-after-archive"},
+                json={"status": "finished"},
             )
             assert resp.status_code == 200, (
                 f"Archived session should still be updatable, got {resp.status_code}"
             )
-            assert resp.json()["data"]["status"] == "revisited-after-archive", (
+            assert resp.json()["data"]["status"] == "finished", (
                 "Update on an archived session should still apply"
             )
         finally:
@@ -1120,54 +1180,59 @@ class TestArchiveSession:
 
 
 # ===========================================================================
-# Behaviors: is_complete decoupled from result content
+# Behaviors: status decoupled from result content
 # ===========================================================================
 
 
-class TestCompletionBehavior:
-    async def test_complete_with_null_result_fields(
+class TestStatusResultIndependence:
+    async def test_finished_with_null_result_fields(
         self, client: AsyncClient
     ) -> None:
-        proj = await _create_project(client, "Complete With Null Results Project")
+        proj = await _create_project(client, "Finished With Null Results Project")
         try:
             session = await _create_session(client, proj["id"])
             resp = await client.put(
-                f"{SESSIONS_URL}/{session['id']}", json={"is_complete": True}
+                f"{SESSIONS_URL}/{session['id']}", json={"status": "finished"}
             )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             body = resp.json()["data"]
-            assert body["is_complete"] is True, "Session should be marked complete"
+            assert body["status"] == "finished", "Session should be marked finished"
             assert body["result_decisions"] is None, (
-                "Completion must not require result_decisions"
+                "Reaching finished must not require result_decisions"
             )
             assert body["result_summary"] is None, (
-                "Completion must not require result_summary"
+                "Reaching finished must not require result_summary"
             )
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_incomplete_with_both_result_fields_set(
+    async def test_pending_or_in_progress_with_both_result_fields_set(
         self, client: AsyncClient
     ) -> None:
-        proj = await _create_project(client, "Incomplete With Results Set Project")
+        proj = await _create_project(client, "Not Finished With Results Set Project")
         try:
-            session = await _create_session(client, proj["id"])
-            resp = await client.put(
-                f"{SESSIONS_URL}/{session['id']}",
-                json={
-                    "result_decisions": "Decided something",
-                    "result_summary": "A summary",
-                },
-            )
-            assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-            body = resp.json()["data"]
-            assert body["is_complete"] is False, (
-                "Setting result fields must never flip is_complete"
-            )
-            assert body["result_decisions"] == "Decided something", (
-                "result_decisions mismatch"
-            )
-            assert body["result_summary"] == "A summary", "result_summary mismatch"
+            for target_status in ("pending", "in-progress"):
+                session = await _create_session(
+                    client, proj["id"], topic=f"Session {target_status}"
+                )
+                resp = await client.put(
+                    f"{SESSIONS_URL}/{session['id']}",
+                    json={
+                        "status": target_status,
+                        "result_decisions": "Decided something",
+                        "result_summary": "A summary",
+                    },
+                )
+                assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+                body = resp.json()["data"]
+                assert body["status"] == target_status, (
+                    f"Setting result fields must never force status away from "
+                    f"{target_status!r}, got {body['status']!r}"
+                )
+                assert body["result_decisions"] == "Decided something", (
+                    "result_decisions mismatch"
+                )
+                assert body["result_summary"] == "A summary", "result_summary mismatch"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1366,8 +1431,11 @@ class TestMcpParity:
             assert result.data["data"]["topic"] == "MCP Created Session", (
                 "MCP create_session should return the created session"
             )
-            assert result.data["data"]["is_complete"] is False, (
-                "MCP create_session should force is_complete false, same as REST"
+            assert result.data["data"]["status"] == "pending", (
+                "MCP create_session should default status to pending, same as REST"
+            )
+            assert "is_complete" not in result.data["data"], (
+                "is_complete has been retired in favor of the status enum"
             )
 
             rest_resp = await client.get(f"{SESSIONS_URL}/{result.data['data']['id']}")
@@ -1476,14 +1544,14 @@ class TestMcpParity:
             session = await _create_session(client, proj["id"])
             result = await _mcp_call(
                 "update_session",
-                {"id": session["id"], "body": {"status": "updated-via-mcp"}},
+                {"id": session["id"], "body": {"status": "in-progress"}},
             )
-            assert result.data["data"]["status"] == "updated-via-mcp", (
+            assert result.data["data"]["status"] == "in-progress", (
                 "MCP update_session should apply the update"
             )
 
             rest_resp = await client.get(f"{SESSIONS_URL}/{session['id']}")
-            assert rest_resp.json()["data"]["status"] == "updated-via-mcp", (
+            assert rest_resp.json()["data"]["status"] == "in-progress", (
                 "REST read after an MCP update should reflect the change"
             )
         finally:

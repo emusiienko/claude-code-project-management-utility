@@ -119,7 +119,10 @@ export default function SessionListPage() {
 
       {/* Filter bar */}
       <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-1.5 text-text">
+        <label
+          className="flex items-center gap-1.5 text-text"
+          title="Pending or in-progress"
+        >
           <input
             type="checkbox"
             checked={filters.incomplete ?? false}

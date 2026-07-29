@@ -26,7 +26,7 @@ import type {
 
 /** Filters supported by the project-scoped session list endpoint. */
 export interface SessionFilters {
-  /** Only sessions where `is_complete` is false. */
+  /** Only sessions whose `status` is not `finished` (`pending` or `in-progress`). */
   incomplete?: boolean;
   /** Only sessions linked to this story. */
   linked_story_id?: string;
@@ -61,7 +61,8 @@ export async function listSessions(
 /**
  * POST /v1/sessions — creates a session and returns the created resource.
  *
- * @param data - Session creation payload. `is_complete` is not settable here.
+ * @param data - Session creation payload. `status` is not settable here —
+ *   every session starts at `pending`.
  */
 export async function createSession(data: CreateSession): Promise<Session> {
   const envelope = await apiClient.post<Envelope<Session>>(API_PATHS.SESSIONS, data);
@@ -81,8 +82,8 @@ export async function getSession(sessionId: string): Promise<Session> {
 /**
  * PUT /v1/sessions/:id — partial update; returns the updated session.
  *
- * `topic` / `goal` / `participant_role` / `is_complete` are mandatory fields:
- * omit to leave unchanged, an explicit `null` is rejected by the server (422).
+ * `topic` / `goal` / `participant_role` / `status` are mandatory fields: omit
+ * to leave unchanged, an explicit `null` is rejected by the server (422).
  * The other fields clear on explicit `null`.
  *
  * @param sessionId - Session ID.

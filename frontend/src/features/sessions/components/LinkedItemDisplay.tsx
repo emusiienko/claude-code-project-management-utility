@@ -1,5 +1,10 @@
 /**
- * LinkedItemDisplay — read-only rendering of a session's linked story/task.
+ * LinkedStoryIndicator / LinkedTaskIndicator — read-only rendering of a
+ * session's independent linked story and linked task.
+ *
+ * `linked_story_id` and `linked_task_id` are two entirely independent,
+ * optional fields — either, both, or neither may be set — so each indicator
+ * is rendered and clicked on its own, never as a shared either/or slot.
  *
  * Resolves the linked item's title on demand via the existing story/task
  * detail queries (per the implementation plan — sessions carry only raw
@@ -13,15 +18,32 @@ import { Link } from "react-router-dom";
 import { useStory } from "@/features/stories/hooks/useStories";
 import { useTask } from "@/features/tasks/hooks/useTasks";
 
-interface LinkedItemDisplayProps {
-  /** The session's own project — every linked story/task belongs to it. */
-  projectId: string;
-  linkedStoryId: string | null;
-  linkedTaskId: string | null;
-}
-
 const linkClass =
   "text-brand-600 hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1";
+
+/** Renders a clickable linked-story title, or "None" if unset. */
+export function LinkedStoryIndicator({
+  projectId,
+  storyId,
+}: {
+  projectId: string;
+  storyId: string | null;
+}) {
+  if (!storyId) return <span className="italic text-text-muted">None</span>;
+  return <LinkedStoryLink projectId={projectId} storyId={storyId} />;
+}
+
+/** Renders a clickable linked-task title, or "None" if unset. */
+export function LinkedTaskIndicator({
+  projectId,
+  taskId,
+}: {
+  projectId: string;
+  taskId: string | null;
+}) {
+  if (!taskId) return <span className="italic text-text-muted">None</span>;
+  return <LinkedTaskLink projectId={projectId} taskId={taskId} />;
+}
 
 function LinkedStoryLink({ projectId, storyId }: { projectId: string; storyId: string }) {
   const { data: story } = useStory(storyId);
@@ -44,19 +66,4 @@ function LinkedTaskLink({ projectId, taskId }: { projectId: string; taskId: stri
       {task.title}
     </Link>
   );
-}
-
-/** Renders a clickable linked-story or linked-task title, or "None". */
-export function LinkedItemDisplay({
-  projectId,
-  linkedStoryId,
-  linkedTaskId,
-}: LinkedItemDisplayProps) {
-  if (linkedStoryId) {
-    return <LinkedStoryLink projectId={projectId} storyId={linkedStoryId} />;
-  }
-  if (linkedTaskId) {
-    return <LinkedTaskLink projectId={projectId} taskId={linkedTaskId} />;
-  }
-  return <span className="italic text-text-muted">None</span>;
 }

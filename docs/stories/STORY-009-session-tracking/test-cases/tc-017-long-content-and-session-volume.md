@@ -9,7 +9,7 @@ status: Active
 
 ## Preconditions
 - App is running at http://localhost:3000
-- At least one session exists with very long values for topic (near 500 chars), goal (near 500 chars), and a long context/status string
+- At least one session exists with very long values for topic (near 500 chars), goal (near 500 chars), and a long unbroken context string (status is a fixed short enum — `pending`/`in-progress`/`finished` — and is not subject to this long-string case)
 - The active project has a large number of sessions (e.g. 30+) to stress the list
 - Viewport at 1280px (desktop), and once at 375px (mobile) for a defensive smoke pass
 

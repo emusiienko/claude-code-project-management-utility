@@ -9,7 +9,7 @@ status: Active
 
 ## Preconditions
 - App is running at http://localhost:3000
-- A project is selected in Sessions mode and has at least 5 sessions with a mix of complete/incomplete, some linked to a story/task and some not
+- A project is selected in Sessions mode and has at least 5 sessions with a mix of `pending`/`in-progress`/`finished` statuses, some linked to a story, some linked to a task, some linked to both, and some linked to neither
 - Dark mode is out of scope (not implemented in this project)
 
 ## Steps
@@ -24,9 +24,9 @@ For each resolution column (375px → 767px → 768px → 1280px):
 |-------|----------------|-----------------|---------------|-----------------|
 | Page loads without exception screen or overlay | | | | |
 | No horizontal scrollbar appears | | | | |
-| Each row shows topic, status, participant_role, linked story/task indicator, created_at, and a completion indicator — none clipped or overlapping | | | | |
-| Completion indicator (complete vs. pending) is visually distinguishable at a glance | | | | |
-| Linked story/task indicator is visually distinct when present vs. absent | | | | |
+| Each row shows topic, a single status chip, participant_role, a linked-story indicator, a linked-task indicator, and created_at — none clipped or overlapping; there is no separate completion badge alongside the status chip | | | | |
+| The status chip visually distinguishes all three states (`pending` / `in-progress` / `finished`) at a glance | | | | |
+| The linked-story and linked-task indicators are two separate, visually distinct elements; each is distinguishable as present vs. absent independently, and both show together when a session has both links set | | | | |
 | Grid/row spacing is consistent; columns align with headers (if a table layout is used) | | | | |
 | Long topic text stays within its container — no overflow breaking the row | | | | |
 | Project-selector sidebar remains visible/collapsible per the same breakpoint rules as Task Manager's sidebar | | | | |

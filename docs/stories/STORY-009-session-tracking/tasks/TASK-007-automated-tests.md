@@ -6,6 +6,12 @@ story: STORY-009
 
 # TASK-007: Write automated tests
 
+> **Superseded in part by TASK-010 (2026-07-29):** the `is_complete`-based coverage is replaced by
+> `status` enum coverage (create-defaults-`pending`, invalid-status 422, `incomplete = status != finished`,
+> removal of `is_complete`). The links/reference-clearing/cascade/parity coverage is retained and only
+> adjusted where it touched the old completion model. This task's report stays as the record of the
+> original test build.
+
 ## What to implement
 Write automated tests covering the Sessions REST + MCP surface and the cross-domain reference-clearing
 behaviour.

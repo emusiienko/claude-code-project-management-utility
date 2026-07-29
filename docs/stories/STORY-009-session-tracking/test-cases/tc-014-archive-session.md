@@ -20,7 +20,7 @@ status: Active
 ### Part B — archive from Session Detail
 3. Open Session B's Detail view.
 4. Use the archive action within the Detail view.
-5. Confirm Session B is archived and, if the Detail view stays open, still shows its full record with every field still visibly editable (topic, goal, context, status, participant_role, linked story/task, result_decisions, result_summary, is_complete toggle) — archiving does not lock the form or disable inputs.
+5. Confirm Session B is archived and, if the Detail view stays open, still shows its full record with every field still visibly editable (topic, goal, context, the three-way status control, participant_role, linked story, linked task, result_decisions, result_summary) — archiving does not lock the form or disable inputs.
 6. Navigate back to the Sessions list. Confirm Session B is also no longer in the default listing.
 
 ## Expected Result

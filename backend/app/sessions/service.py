@@ -6,7 +6,7 @@ from app.core.errors import NotFoundError, UnprocessableError, ValidationError
 from app.projects.repository import ProjectRepository
 from app.sessions.model import Session
 from app.sessions.repository import SessionRepository
-from app.sessions.schema import CreateSession, UpdateSession
+from app.sessions.schema import SESSION_STATUS_PENDING, CreateSession, UpdateSession
 from app.settings.schema import DICT_KEY_PARTICIPANT_ROLES
 # Import only the Protocol, never the concrete SettingsService.
 from app.settings.service import EffectiveDictionary
@@ -103,11 +103,10 @@ class SessionService:
             topic=data.topic,
             goal=data.goal,
             context=data.context,
-            status=data.status,
+            status=SESSION_STATUS_PENDING,
             participant_role=data.participant_role,
             result_decisions=None,
             result_summary=None,
-            is_complete=False,
             linked_story_id=linked_story_uuid,
             linked_task_id=linked_task_uuid,
             archived_at=None,
@@ -179,20 +178,17 @@ class SessionService:
         if data.participant_role is not None:
             session.participant_role = data.participant_role
 
+        if data.status is not None:
+            session.status = data.status
+
         if "context" in data.model_fields_set:
             session.context = data.context
-
-        if "status" in data.model_fields_set:
-            session.status = data.status
 
         if "result_decisions" in data.model_fields_set:
             session.result_decisions = data.result_decisions
 
         if "result_summary" in data.model_fields_set:
             session.result_summary = data.result_summary
-
-        if data.is_complete is not None:
-            session.is_complete = data.is_complete
 
         if "linked_story_id" in data.model_fields_set:
             if data.linked_story_id is None:

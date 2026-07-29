@@ -6,6 +6,12 @@ story: STORY-009
 
 # TASK-002: Session service + schemas + cross-domain Protocols
 
+> **Superseded in part by TASK-008 (2026-07-29):** the `is_complete` boolean and the free-form `status`
+> string are replaced by a fixed `status` enum (`pending`/`in-progress`/`finished`) validated at the
+> schema layer; create forces `pending` and drops `status` as an input; update validates the enum and
+> drops `is_complete`. The cross-domain reader/cleaner Protocols and all other create/update/archive/read
+> rules are unchanged. This task's report stays as the record of the original build.
+
 ## What to implement
 The sessions service (single home of all business rules) and its Pydantic schemas.
 

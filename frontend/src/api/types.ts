@@ -169,9 +169,18 @@ export interface Comment {
 }
 
 /**
- * Session shape as built (STORY-009) — supersedes the stale v1.0 forward-spec
- * (no project scope, no `goal`/`is_complete`, optional `participant_role`).
- * Reconciled into docs/api-contract.md as a v1.8 revision at story Reconcile.
+ * Fixed 3-value session lifecycle enum — deliberately not dictionary-validated
+ * (unlike `task_statuses`/`story_statuses`), since a session's lifecycle is
+ * fixed, not configurable per project. Defaults to `pending` at creation and
+ * is settable to any of the three values, in any direction, via update.
+ */
+export type SessionStatus = "pending" | "in-progress" | "finished";
+
+/**
+ * Session shape as built (STORY-009, revised by TASK-008/TASK-009) —
+ * supersedes the stale v1.0 forward-spec (no project scope, no `goal`,
+ * optional `participant_role`, no `status` enum). Reconciled into
+ * docs/api-contract.md as a v1.8 revision at story Reconcile.
  */
 export interface Session {
   id: string;
@@ -179,11 +188,10 @@ export interface Session {
   topic: string;
   goal: string;
   context: string | null;
-  status: string | null;
+  status: SessionStatus;
   participant_role: string;
   result_decisions: string | null;
   result_summary: string | null;
-  is_complete: boolean;
   linked_story_id: string | null;
   linked_task_id: string | null;
   archived_at: string | null;
@@ -398,32 +406,31 @@ export interface UpdateComment {
   labels?: Label[];
 }
 
-/** `is_complete` is never a create input — every session starts incomplete. */
+/** `status` is never a create input — every session starts at `pending`. */
 export interface CreateSession {
   project_id: string;
   topic: string;
   goal: string;
   context?: string;
-  status?: string;
   participant_role: string;
   linked_story_id?: string;
   linked_task_id?: string;
 }
 
 /**
- * `topic`/`goal`/`participant_role`/`is_complete` are mandatory — omit to leave
- * unchanged, but an explicit `null` is rejected as 422 (they cannot be cleared).
- * The other fields clear on explicit `null`.
+ * `topic`/`goal`/`participant_role`/`status` are mandatory — omit to leave
+ * unchanged, but an explicit `null` is rejected as 422 (they cannot be
+ * cleared). `status` may be set to any of the three enum values in any
+ * direction. The other fields clear on explicit `null`.
  */
 export interface UpdateSession {
   topic?: string;
   goal?: string;
   context?: string | null;
-  status?: string | null;
+  status?: SessionStatus;
   participant_role?: string;
   result_decisions?: string | null;
   result_summary?: string | null;
-  is_complete?: boolean;
   linked_story_id?: string | null;
   linked_task_id?: string | null;
 }

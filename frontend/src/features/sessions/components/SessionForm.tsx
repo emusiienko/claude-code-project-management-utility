@@ -2,13 +2,13 @@
  * SessionForm — create form for a Session.
  *
  * Fields: topic (required), goal (required — the purpose the session was
- * created for), context (optional), status (optional, free-form),
- * participant_role (required, dictionary dropdown), and an optional link to
- * a story or task in the active project. `project_id` is implicit (supplied
- * by the parent) and `is_complete` has no control here — every session
- * starts incomplete.
+ * created for), context (optional), participant_role (required, dictionary
+ * dropdown), and two independent optional link controls — a story link and
+ * a task link, either/both/neither of which may be set. `project_id` is
+ * implicit (supplied by the parent) and there is no status input — every
+ * session starts at `pending`.
  *
- * @param projectId    - Active project — scopes the linked-item selector.
+ * @param projectId    - Active project — scopes the linked-item selectors.
  * @param roleOptions  - Values from the project's effective participant_roles.
  * @param fieldErrors  - Per-field API error messages.
  * @param onSubmit     - Called with the create payload (project_id excluded).
@@ -17,7 +17,8 @@
  */
 
 import { useState } from "react";
-import { LinkedItemSelector, type LinkedItemValue } from "./LinkedItemSelector";
+import { StoryLinkField } from "./StoryLinkField";
+import { TaskLinkField } from "./TaskLinkField";
 import type { CreateSession } from "@/api/types";
 
 export type SessionCreatePayload = Omit<CreateSession, "project_id">;
@@ -51,12 +52,9 @@ export function SessionForm({
   const [topic, setTopic] = useState("");
   const [goal, setGoal] = useState("");
   const [context, setContext] = useState("");
-  const [status, setStatus] = useState("");
   const [participantRole, setParticipantRole] = useState(roleOptions[0] ?? "");
-  const [link, setLink] = useState<LinkedItemValue>({
-    linked_story_id: null,
-    linked_task_id: null,
-  });
+  const [linkedStoryId, setLinkedStoryId] = useState<string | null>(null);
+  const [linkedTaskId, setLinkedTaskId] = useState<string | null>(null);
 
   const topicValid = topic.trim().length > 0 && topic.trim().length <= 500;
   const goalValid = goal.trim().length > 0 && goal.trim().length <= 500;
@@ -70,10 +68,9 @@ export function SessionForm({
       topic: topic.trim(),
       goal: goal.trim(),
       context: context.trim() || undefined,
-      status: status.trim() || undefined,
       participant_role: participantRole,
-      linked_story_id: link.linked_story_id ?? undefined,
-      linked_task_id: link.linked_task_id ?? undefined,
+      linked_story_id: linkedStoryId ?? undefined,
+      linked_task_id: linkedTaskId ?? undefined,
     });
   }
 
@@ -143,22 +140,6 @@ export function SessionForm({
         />
       </div>
 
-      {/* Status */}
-      <div>
-        <label htmlFor="session-status" className="mb-1 block text-xs font-medium text-text-secondary">
-          Status (optional)
-        </label>
-        <input
-          id="session-status"
-          type="text"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          disabled={isSubmitting}
-          placeholder="Free-form status"
-          className={inputClass}
-        />
-      </div>
-
       {/* Participant role */}
       <div>
         <label
@@ -194,11 +175,17 @@ export function SessionForm({
         )}
       </div>
 
-      {/* Linked story/task */}
-      <LinkedItemSelector
+      {/* Linked story and linked task — independent, both may be set */}
+      <StoryLinkField
         projectId={projectId}
-        value={link}
-        onChange={setLink}
+        value={linkedStoryId}
+        onChange={setLinkedStoryId}
+        disabled={isSubmitting}
+      />
+      <TaskLinkField
+        projectId={projectId}
+        value={linkedTaskId}
+        onChange={setLinkedTaskId}
         disabled={isSubmitting}
       />
 

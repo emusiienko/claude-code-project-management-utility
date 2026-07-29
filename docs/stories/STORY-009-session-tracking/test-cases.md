@@ -14,15 +14,15 @@
   `@regression`
 - **[tc-007](test-cases/tc-007-create-session-participant-role-dropdown.md)** — Create session — participant_role is a dictionary-driven dropdown, not free text
   `@regression`
-- **[tc-008](test-cases/tc-008-create-session-link-to-story-or-task.md)** — Create session — optional link to a story or task, scoped to the active project only
+- **[tc-008](test-cases/tc-008-create-session-link-to-story-or-task.md)** — Create session — independent optional links to a story and a task, scoped to the active project only
   `@regression`
 - **[tc-009](test-cases/tc-009-session-detail-visual.md)** — Session Detail view — visual pass
   `@smoke @regression`
-- **[tc-010](test-cases/tc-010-session-detail-edit-fields.md)** — Session Detail — edit topic/goal/context/status/participant_role, save reflects in list and detail
+- **[tc-010](test-cases/tc-010-session-detail-edit-fields.md)** — Session Detail — edit topic/goal/context/status/participant_role/links, save reflects in list and detail
   `@smoke @regression`
-- **[tc-011](test-cases/tc-011-session-detail-mandatory-fields-cannot-clear.md)** — Session Detail — topic/goal/participant_role cannot be cleared, only changed
+- **[tc-011](test-cases/tc-011-session-detail-mandatory-fields-cannot-clear.md)** — Session Detail — topic/goal/participant_role/status cannot be cleared, only changed
   `@regression`
-- **[tc-012](test-cases/tc-012-session-detail-mark-complete-toggle.md)** — Session Detail — Mark complete / Mark incomplete toggle, independent of result fields
+- **[tc-012](test-cases/tc-012-session-detail-mark-complete-toggle.md)** — Session Detail — three-way status control (pending/in-progress/finished), independent of result fields
   `@smoke @regression`
 - **[tc-013](test-cases/tc-013-session-detail-linked-item-navigation.md)** — Session Detail — clicking a linked story/task navigates to its own detail view in Task Manager
   `@regression`

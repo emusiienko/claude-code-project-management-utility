@@ -2,9 +2,11 @@
  * SessionList — renders the project-scoped session list.
  *
  * Handles loading, error, and empty states. Shows for each session: topic
- * (links to its detail view), status, participant_role, linked story/task
- * (clickable), created_at, and a completion indicator driven directly by
- * `is_complete`. Delegates the archive action to the parent via a callback.
+ * (links to its detail view), participant_role, an independent linked-story
+ * indicator and linked-task indicator (each clickable, shown separately —
+ * both appear together when both are set), created_at, and a single status
+ * chip driven directly by `status`. Delegates the archive action to the
+ * parent via a callback.
  */
 
 import { Archive } from "lucide-react";
@@ -12,7 +14,8 @@ import { Link } from "react-router-dom";
 import type { Session } from "@/api/types";
 import { IconButton } from "@/shared/components/IconButton";
 import { PageLoader } from "@/shared/components/PageLoader";
-import { LinkedItemDisplay } from "./LinkedItemDisplay";
+import { LinkedStoryIndicator, LinkedTaskIndicator } from "./LinkedItemDisplay";
+import { SessionStatusBadge } from "./SessionStatusBadge";
 import { extractErrorMessage } from "@/features/sessions/utils/errorMessages";
 
 interface SessionListProps {
@@ -24,21 +27,6 @@ interface SessionListProps {
   onArchive: (session: Session) => void;
   pendingArchiveIds?: Set<string>;
   onCreateFirst?: () => void;
-}
-
-function CompletionBadge({ isComplete }: { isComplete: boolean }) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs",
-        isComplete
-          ? "bg-green-50 text-green-700"
-          : "bg-gray-100 text-gray-600",
-      ].join(" ")}
-    >
-      {isComplete ? "Complete" : "Pending"}
-    </span>
-  );
 }
 
 /**
@@ -99,19 +87,19 @@ export function SessionList({
               Topic
             </th>
             <th scope="col" className="px-4 py-3 text-left font-medium text-text-secondary">
-              Status
-            </th>
-            <th scope="col" className="px-4 py-3 text-left font-medium text-text-secondary">
               Participant
             </th>
             <th scope="col" className="px-4 py-3 text-left font-medium text-text-secondary">
-              Linked
+              Linked story
+            </th>
+            <th scope="col" className="px-4 py-3 text-left font-medium text-text-secondary">
+              Linked task
             </th>
             <th scope="col" className="px-4 py-3 text-left font-medium text-text-secondary">
               Created
             </th>
             <th scope="col" className="px-4 py-3 text-left font-medium text-text-secondary">
-              Completion
+              Status
             </th>
             <th scope="col" className="px-4 py-3 text-right font-medium text-text-secondary">
               Actions
@@ -132,22 +120,18 @@ export function SessionList({
                   {session.topic}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-text-secondary">
-                {session.status ?? <span className="italic text-text-muted">—</span>}
-              </td>
               <td className="px-4 py-3 text-text-secondary">{session.participant_role}</td>
               <td className="px-4 py-3">
-                <LinkedItemDisplay
-                  projectId={projectId}
-                  linkedStoryId={session.linked_story_id}
-                  linkedTaskId={session.linked_task_id}
-                />
+                <LinkedStoryIndicator projectId={projectId} storyId={session.linked_story_id} />
+              </td>
+              <td className="px-4 py-3">
+                <LinkedTaskIndicator projectId={projectId} taskId={session.linked_task_id} />
               </td>
               <td className="px-4 py-3 text-text-secondary">
                 {new Date(session.created_at).toLocaleString()}
               </td>
               <td className="px-4 py-3">
-                <CompletionBadge isComplete={session.is_complete} />
+                <SessionStatusBadge status={session.status} />
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="flex justify-end gap-1">

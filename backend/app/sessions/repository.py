@@ -4,6 +4,7 @@ from sqlalchemy import func, select, update
 
 from app.core.database.repository import BaseRepository
 from app.sessions.model import Session
+from app.sessions.schema import SESSION_STATUS_FINISHED
 
 
 class SessionRepository(BaseRepository[Session]):
@@ -33,7 +34,7 @@ class SessionRepository(BaseRepository[Session]):
             base_stmt = base_stmt.where(Session.archived_at.is_(None))
 
         if incomplete_only:
-            base_stmt = base_stmt.where(Session.is_complete.is_(False))
+            base_stmt = base_stmt.where(Session.status != SESSION_STATUS_FINISHED)
 
         if linked_story_id is not None:
             base_stmt = base_stmt.where(Session.linked_story_id == linked_story_id)

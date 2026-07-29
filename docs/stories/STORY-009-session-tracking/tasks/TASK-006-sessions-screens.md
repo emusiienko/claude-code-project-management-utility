@@ -6,6 +6,13 @@ story: STORY-009
 
 # TASK-006: Sessions screens — list, create, detail, archive
 
+> **Superseded in part by TASK-009 (2026-07-29):** the linked-item UI moves from a single
+> mutually-exclusive story/task selector to two independent link fields with separate list/detail
+> indicators; the `is_complete` completion badge and the "Mark complete/incomplete" toggle are replaced
+> by a single status chip and a three-way status control; the free-text status input is removed from the
+> create and edit forms. The Sessions app-mode shell, routing, filters, empty state, and archive flow are
+> unchanged. This task's report stays as the record of the original build.
+
 ## What to implement
 The Sessions UI, scoped to a single active project. There is no cross-project Sessions view anywhere.
 

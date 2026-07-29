@@ -6,6 +6,11 @@ story: STORY-009
 
 # TASK-001: Session data layer — model, migration, repository
 
+> **Superseded in part by TASK-008 (2026-07-29):** the `is_complete` column, its DDL default, and the
+> `(project_id, is_complete)` index are retired in favour of a `status` enum column and a
+> `(project_id, status)` index; migration `0013_session` is amended in place. This task's report stays as
+> the record of the original build.
+
 ## What to implement
 Create the `sessions` domain package's data layer: the `Session` ORM model, its Alembic migration, and
 its repository.

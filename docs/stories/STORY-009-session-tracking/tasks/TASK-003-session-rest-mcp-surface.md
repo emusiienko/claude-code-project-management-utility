@@ -6,6 +6,12 @@ story: STORY-009
 
 # TASK-003: Session REST controller + MCP tools + DI wiring
 
+> **Superseded in part by TASK-008 (2026-07-29):** the response no longer carries `is_complete` and
+> always carries a non-null `status` enum; the `is_complete`-related update judgment call recorded below
+> is moot once `is_complete` is removed. The endpoint shapes, DI wiring, and the `incomplete` list param
+> (now meaning `status != finished`) are unchanged. This task's report stays as the record of the
+> original build.
+
 ## What to implement
 Expose the sessions service through the two thin, behaviour-identical surfaces, and wire the domain into
 the DI container.

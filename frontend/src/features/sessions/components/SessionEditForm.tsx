@@ -1,15 +1,15 @@
 /**
  * SessionEditForm — full-record edit form for the Session Detail view.
  *
- * Edits every updatable field except `is_complete`, which has its own
- * dedicated "Mark complete / Mark incomplete" toggle in the detail page
- * (kept independent so it can be flipped at any time without touching the
- * rest of the record). `topic`, `goal`, and `participant_role` cannot be
- * cleared — submitting requires a non-empty value for each. The other text
- * fields and the linked-item selector are cleared by leaving them empty.
+ * Edits every updatable field except `status`, which has its own dedicated
+ * three-way `SessionStatusControl` in the detail page (kept independent so
+ * it can be changed at any time without touching the rest of the record).
+ * `topic`, `goal`, and `participant_role` cannot be cleared — submitting
+ * requires a non-empty value for each. The other text fields and the two
+ * independent link fields are cleared by leaving them empty.
  *
  * @param session      - The session being edited — supplies initial values.
- * @param projectId    - Active project — scopes the linked-item selector.
+ * @param projectId    - Active project — scopes the linked-item selectors.
  * @param roleOptions  - Values from the project's effective participant_roles.
  * @param fieldErrors  - Per-field API error messages.
  * @param onSubmit     - Called with the full update payload.
@@ -18,10 +18,11 @@
  */
 
 import { useState } from "react";
-import { LinkedItemSelector, type LinkedItemValue } from "./LinkedItemSelector";
+import { StoryLinkField } from "./StoryLinkField";
+import { TaskLinkField } from "./TaskLinkField";
 import type { Session, UpdateSession } from "@/api/types";
 
-export type SessionEditPayload = Omit<UpdateSession, "is_complete">;
+export type SessionEditPayload = Omit<UpdateSession, "status">;
 
 interface SessionEditFormProps {
   session: Session;
@@ -53,14 +54,11 @@ export function SessionEditForm({
   const [topic, setTopic] = useState(session.topic);
   const [goal, setGoal] = useState(session.goal);
   const [context, setContext] = useState(session.context ?? "");
-  const [status, setStatus] = useState(session.status ?? "");
   const [participantRole, setParticipantRole] = useState(session.participant_role);
   const [resultDecisions, setResultDecisions] = useState(session.result_decisions ?? "");
   const [resultSummary, setResultSummary] = useState(session.result_summary ?? "");
-  const [link, setLink] = useState<LinkedItemValue>({
-    linked_story_id: session.linked_story_id,
-    linked_task_id: session.linked_task_id,
-  });
+  const [linkedStoryId, setLinkedStoryId] = useState<string | null>(session.linked_story_id);
+  const [linkedTaskId, setLinkedTaskId] = useState<string | null>(session.linked_task_id);
 
   const topicValid = topic.trim().length > 0 && topic.trim().length <= 500;
   const goalValid = goal.trim().length > 0 && goal.trim().length <= 500;
@@ -74,12 +72,11 @@ export function SessionEditForm({
       topic: topic.trim(),
       goal: goal.trim(),
       context: context.trim() ? context.trim() : null,
-      status: status.trim() ? status.trim() : null,
       participant_role: participantRole,
       result_decisions: resultDecisions.trim() ? resultDecisions.trim() : null,
       result_summary: resultSummary.trim() ? resultSummary.trim() : null,
-      linked_story_id: link.linked_story_id,
-      linked_task_id: link.linked_task_id,
+      linked_story_id: linkedStoryId,
+      linked_task_id: linkedTaskId,
     });
   }
 
@@ -146,21 +143,6 @@ export function SessionEditForm({
         />
       </div>
 
-      {/* Status */}
-      <div>
-        <label htmlFor="session-edit-status" className="mb-1 block text-xs font-medium text-text-secondary">
-          Status (optional — leave empty to clear)
-        </label>
-        <input
-          id="session-edit-status"
-          type="text"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          disabled={isSubmitting}
-          className={inputClass}
-        />
-      </div>
-
       {/* Participant role */}
       <div>
         <label
@@ -193,11 +175,17 @@ export function SessionEditForm({
         )}
       </div>
 
-      {/* Linked story/task */}
-      <LinkedItemSelector
+      {/* Linked story and linked task — independent, both may be set */}
+      <StoryLinkField
         projectId={projectId}
-        value={link}
-        onChange={setLink}
+        value={linkedStoryId}
+        onChange={setLinkedStoryId}
+        disabled={isSubmitting}
+      />
+      <TaskLinkField
+        projectId={projectId}
+        value={linkedTaskId}
+        onChange={setLinkedTaskId}
         disabled={isSubmitting}
       />
 

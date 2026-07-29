@@ -92,7 +92,7 @@ export function useCreateSession(projectId: string) {
 
 /**
  * Mutation: partially update a session (topic/goal/context/status/
- * participant_role/result fields/is_complete/linked ids).
+ * participant_role/result fields/linked story id/linked task id).
  *
  * Invalidates the project's session list and the affected session's detail.
  *

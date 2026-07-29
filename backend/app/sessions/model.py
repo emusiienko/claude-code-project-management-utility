@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, false
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
@@ -20,13 +20,17 @@ class Session(Base):
     topic: Mapped[str] = mapped_column(String(500), nullable=False)
     goal: Mapped[str] = mapped_column(String(500), nullable=False)
     context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Fixed 3-value lifecycle enum: pending | in-progress | finished, validated
+    # at the schema layer — deliberately not dictionary-validated, unlike
+    # task_statuses/story_statuses (STORY-009 TASK-008). The service assigns
+    # the default "pending" on create; the DB server_default covers any
+    # direct SQL inserts.
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
     participant_role: Mapped[str] = mapped_column(String(200), nullable=False)
     result_decisions: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_complete: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=false()
-    )
     linked_story_id: Mapped[uuid.UUID | None] = mapped_column(
         UUIDType,
         ForeignKey("story.id", ondelete="SET NULL"),
@@ -52,8 +56,8 @@ class Session(Base):
     __table_args__ = (
         # Backs the project-scoped newest-first default list.
         Index("ix_session_project_created", "project_id", "created_at"),
-        # Backs the project-scoped incomplete query.
-        Index("ix_session_project_complete", "project_id", "is_complete"),
+        # Backs the project-scoped incomplete query (status != finished).
+        Index("ix_session_project_status", "project_id", "status"),
         # Backs the linked-story filter and the reference-clearing update.
         Index("ix_session_linked_story", "linked_story_id"),
         # Backs the reference-clearing update on task delete.

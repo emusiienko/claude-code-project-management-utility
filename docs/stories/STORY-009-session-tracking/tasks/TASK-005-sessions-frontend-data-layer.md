@@ -6,6 +6,11 @@ story: STORY-009
 
 # TASK-005: Sessions frontend data layer — endpoints, types, hooks
 
+> **Superseded in part by TASK-009 (2026-07-29):** the `Session`/`CreateSession`/`UpdateSession` contract
+> types change — `status` becomes the required three-value enum, `is_complete` is removed, and
+> `CreateSession` drops `status`. The endpoint functions, cache keys, and hooks are otherwise unchanged.
+> This task's report stays as the record of the original build.
+
 ## What to implement
 The client-side data layer for the Sessions feature, following the established feature conventions
 (endpoints module, contract types, cache-key + freshness config, TanStack Query hooks).

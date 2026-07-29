@@ -14,9 +14,20 @@ that the acceptance criteria depend on is additionally done application-side
 (STORY-009 TASK-004) so it holds on both dialects — this migration's FK
 actions are defence-in-depth for PostgreSQL, not the sole mechanism.
 
-`is_complete` defaults to `false` at the DDL layer — every session starts
-incomplete and completion is only ever set explicitly via update, never
-inferred from the result fields.
+`status` is a mandatory fixed 3-value lifecycle enum (`pending` /
+`in-progress` / `finished`), defaulting to `pending` at the DDL layer — every
+session starts `pending` and moves through the lifecycle only via explicit
+update, never inferred from the result fields. It is deliberately not
+dictionary-validated, unlike `task_statuses`/`story_statuses`.
+
+STORY-009 TASK-008 (2026-07-29, amended in place — see that story's Revision 2
+implementation plan): this migration originally created an `is_complete`
+boolean column instead of `status`. Because the `session` table exists only on
+this unmerged feature branch (no released/production database has it), the
+revision was edited in place rather than superseded by a new one, per this
+project's established pre-production in-place-edit convention. A local dev DB
+that already applied the old `0013` must be recreated (fresh volume, or
+downgrade-then-upgrade).
 
 No seed data.
 """
@@ -42,16 +53,15 @@ def upgrade() -> None:
         sa.Column("topic", sa.String(500), nullable=False),
         sa.Column("goal", sa.String(500), nullable=False),
         sa.Column("context", sa.Text(), nullable=True),
-        sa.Column("status", sa.String(200), nullable=True),
+        sa.Column(
+            "status",
+            sa.String(20),
+            nullable=False,
+            server_default="pending",
+        ),
         sa.Column("participant_role", sa.String(200), nullable=False),
         sa.Column("result_decisions", sa.Text(), nullable=True),
         sa.Column("result_summary", sa.Text(), nullable=True),
-        sa.Column(
-            "is_complete",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.false(),
-        ),
         sa.Column("linked_story_id", sa.String(36), nullable=True),
         sa.Column("linked_task_id", sa.String(36), nullable=True),
         sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
@@ -88,12 +98,12 @@ def upgrade() -> None:
         ["project_id", "created_at"],
     )
 
-    # Index: (project_id, is_complete) — backs the project-scoped
-    # incomplete query.
+    # Index: (project_id, status) — backs the project-scoped incomplete
+    # query (status != finished).
     op.create_index(
-        "ix_session_project_complete",
+        "ix_session_project_status",
         "session",
-        ["project_id", "is_complete"],
+        ["project_id", "status"],
     )
 
     # Index: (linked_story_id) — backs the linked-story list filter and the
@@ -116,6 +126,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_session_linked_task", table_name="session")
     op.drop_index("ix_session_linked_story", table_name="session")
-    op.drop_index("ix_session_project_complete", table_name="session")
+    op.drop_index("ix_session_project_status", table_name="session")
     op.drop_index("ix_session_project_created", table_name="session")
     op.drop_table("session")
