@@ -168,14 +168,22 @@ export interface Comment {
   updated_at: string;
 }
 
+/**
+ * Session shape as built (STORY-009) — supersedes the stale v1.0 forward-spec
+ * (no project scope, no `goal`/`is_complete`, optional `participant_role`).
+ * Reconciled into docs/api-contract.md as a v1.8 revision at story Reconcile.
+ */
 export interface Session {
   id: string;
+  project_id: string;
   topic: string;
+  goal: string;
   context: string | null;
+  status: string | null;
+  participant_role: string;
   result_decisions: string | null;
   result_summary: string | null;
-  status: string | null;
-  participant_role: string | null;
+  is_complete: boolean;
   linked_story_id: string | null;
   linked_task_id: string | null;
   archived_at: string | null;
@@ -390,21 +398,32 @@ export interface UpdateComment {
   labels?: Label[];
 }
 
+/** `is_complete` is never a create input — every session starts incomplete. */
 export interface CreateSession {
+  project_id: string;
   topic: string;
+  goal: string;
   context?: string;
   status?: string;
-  participant_role?: string;
+  participant_role: string;
   linked_story_id?: string;
   linked_task_id?: string;
 }
 
+/**
+ * `topic`/`goal`/`participant_role`/`is_complete` are mandatory — omit to leave
+ * unchanged, but an explicit `null` is rejected as 422 (they cannot be cleared).
+ * The other fields clear on explicit `null`.
+ */
 export interface UpdateSession {
-  status?: string;
-  context?: string;
-  result_decisions?: string;
-  result_summary?: string;
+  topic?: string;
+  goal?: string;
+  context?: string | null;
+  status?: string | null;
   participant_role?: string;
+  result_decisions?: string | null;
+  result_summary?: string | null;
+  is_complete?: boolean;
   linked_story_id?: string | null;
   linked_task_id?: string | null;
 }

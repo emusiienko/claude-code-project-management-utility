@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: frontend-developer
 story: STORY-009
 ---
@@ -75,9 +75,54 @@ None.
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
-**Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+**Date**: 2026-07-29
+**What was done**: Built out Sessions into a full, distinct top-level app mode over the TASK-005 data
+layer. Routing: `SessionsShell` (sidebar + outlet, mirrors `AppShell`), `SessionsSidebar` (mirrors
+`ProjectSidebar` but with its own collapsed-state and last-visited-project localStorage keys so it
+never interferes with Task Manager's), `SessionsIndexRedirect` (mirrors `RootRedirect`'s decision
+tree — last-visited → first project → empty state), and `SessionsProjectGate` (mirrors `ProjectShell`'s
+project-id validation: loading/not-found/error, then an `Outlet`). Router wired as
+`/sessions` (`SessionsShell`) → index `SessionsIndexRedirect` / `:projectId` (`SessionsProjectGate`)
+→ index `SessionListPage` / `:sessionId` `SessionDetailPage` — replacing the old flat
+`/sessions` → placeholder-page route. Deleted the superseded `SessionsPage.tsx` placeholder.
+Feature: `SessionListPage` (incomplete-only + linked-story filters, independently combinable, plus an
+"include archived" toggle so an archived session stays reachable from the list — needed to exercise the
+"archived session detail stays editable" edge case at all; pagination; create button + `SessionModal`;
+archive row action + `ArchiveSessionDialog`); `SessionDetailPage` (full record read view, an Edit toggle
+swapping in `SessionEditForm` for every updatable field except `is_complete`, an independent
+"Mark complete/incomplete" toggle button, and an Archive action — an archived session's record stays
+fully visible and editable, matching the edge case); `SessionForm`/`SessionEditForm` (topic/goal/context/
+status/participant_role — dictionary dropdown from the project's effective `participant_roles` — plus
+`LinkedItemSelector`); `LinkedItemSelector` (none/story/task radio; story mode is a single project-scoped
+dropdown; task mode is two-step — pick the task's story, then the task within it, since tasks are
+story-scoped with no project-wide task list endpoint; resolves an already-linked task's owning story via
+`useTask` so editing pre-selects correctly); `LinkedItemDisplay` (resolves a linked story/task's title
+on demand via the existing `useStory`/`useTask` queries and navigates to its Task Manager detail view,
+using the session's own `project_id` — a task link doesn't carry a project id itself, but the session
+already scopes it); `SessionList` (table: topic/status/participant_role/linked item/created_at/
+completion badge/archive action; loading/error/"No sessions yet" empty states); `SessionModal`/
+`ArchiveSessionDialog` (native `<dialog>`, mirroring `MilestoneModal`/`DeleteMilestoneDialog`).
+**Deviations from plan**: The task's AC list only requires "incomplete only" and "linked to story"
+filters; I added an "include archived" checkbox to the list filter bar beyond that literal list — without
+it, an archived session becomes unreachable from the UI (the description's own edge case, "opening the
+Session Detail view for an archived session still shows its full record," has no other way to be
+exercised, since Detail is only reached by clicking a list row). No other deviations.
+**Technical decisions made**: Session Detail is a dedicated full page (not a slide-over), nested inside
+`SessionsShell` so the project sidebar stays visible — chosen over a slide-over since Sessions has no
+existing Story/Task-slide-over precedent to extend and a full page keeps the many long-text result
+fields comfortably readable. Cross-feature hook imports (`useStories`, `useTask`, `useTaskList` from
+`features/stories`/`features/tasks`) follow the already-established precedent in this codebase (e.g.
+`AddStoryLinkForm` importing `useStories` directly, `MilestoneAssignment` importing
+`useProjectMilestones`) rather than adding new `shared/hooks/` re-export shims, since those precedents
+already treat direct cross-feature hook imports as acceptable (unlike components, which the conventions
+explicitly restrict to feature/shared visibility levels).
+**Code locations**: `frontend/src/app/SessionsShell.tsx`, `SessionsSidebar.tsx`,
+`SessionsIndexRedirect.tsx`, `SessionsProjectGate.tsx`, `frontend/src/app/router.tsx` (Sessions subtree
+rewired); `frontend/src/features/sessions/SessionListPage.tsx`, `SessionDetailPage.tsx`,
+`components/SessionList.tsx`, `SessionForm.tsx`, `SessionEditForm.tsx`, `SessionModal.tsx`,
+`ArchiveSessionDialog.tsx`, `LinkedItemSelector.tsx`, `LinkedItemDisplay.tsx`,
+`utils/errorMessages.ts`. Deleted: `frontend/src/features/sessions/SessionsPage.tsx`.
+**Technical debt noted**: None beyond the pre-existing, documented gap that there is no cross-project
+task list endpoint (constrains `LinkedItemSelector`'s two-step task picker to story-then-task, consistent
+with how Task Links/Story Links already work elsewhere in the app). `npm run build` (tsc --noEmit + vite
+build) and the full `vitest run` suite (252/252, unchanged from baseline) both pass with no regressions.

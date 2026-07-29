@@ -10,6 +10,8 @@ from app.comments.schema import CONTAINER_STORY as COMMENT_CONTAINER_STORY
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
 from app.projects.repository import ProjectRepository
+# Import only the Protocol, never the concrete SessionService.
+from app.sessions.service import SessionReferenceCleanerProtocol
 from app.settings.schema import DICT_KEY_STORY_STATUSES
 # Import only the Protocol, never the concrete SettingsService.
 from app.settings.service import EffectiveDictionary
@@ -43,6 +45,7 @@ class StoryService:
         story_link_reader: "StoryLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
+        session_reference_cleaner: SessionReferenceCleanerProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
@@ -52,6 +55,7 @@ class StoryService:
         self._story_link_reader = story_link_reader
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
+        self._session_reference_cleaner = session_reference_cleaner
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -208,6 +212,11 @@ class StoryService:
             self._comment_reader.delete_all_for_container(
                 COMMENT_CONTAINER_STORY, story.id
             )
+        # Same cascade contract, reverse direction (STORY-009 TASK-004): null
+        # linked_story_id on every session referencing this story. Holds on
+        # both dialects since SQLite's SET NULL FK action is inert.
+        if self._session_reference_cleaner is not None:
+            self._session_reference_cleaner.clear_references_to_story(story.id)
         self._repo.delete(story)
 
     def get_aggregate(self, story_id: str) -> StoryAggregate:

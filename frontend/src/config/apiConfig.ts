@@ -50,6 +50,8 @@ export const PAGINATION = {
    * returns in one page); pagination remains only as a safety net.
    */
   COMMENTS: 50,
+  /** Session list per project — matches the backend's default page size (20). */
+  SESSIONS: 20,
 } as const;
 
 /**
@@ -87,4 +89,6 @@ export const DATA_FRESHNESS = {
   ATTACHMENTS: 0,
   /** Comments — user-generated content; always fresh to reflect new/edited/deleted comments. */
   COMMENTS: 0,
+  /** Sessions — user-generated, cross-restart continuity data; always fresh. */
+  SESSIONS: 0,
 } as const;

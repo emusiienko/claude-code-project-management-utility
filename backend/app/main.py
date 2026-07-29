@@ -21,6 +21,7 @@ container.wire(
         "app.mcp",
         "app.milestones",
         "app.projects",
+        "app.sessions",
         "app.settings",
         "app.stories",
         "app.story_links",

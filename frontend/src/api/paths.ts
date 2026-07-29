@@ -202,4 +202,25 @@ export const API_PATHS = {
    * Returns a bare Comment[], not a paginated envelope.
    */
   COMMENT_ANCESTORS: (id: string) => `/v1/comments/${id}/ancestors`,
+
+  // ---------------------------------------------------------------------------
+  // Sessions (STORY-009 — supersedes the stale v1.0 forward-spec)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * POST /v1/sessions — create a session (project_id in request body).
+   * GET  /v1/sessions?project_id&page&limit&incomplete&linked_story_id&include_archived
+   *   — project-scoped, paginated list. project_id is required; there is no
+   *   cross-project session listing.
+   */
+  SESSIONS: "/v1/sessions",
+
+  /**
+   * GET /v1/sessions/:id — fetch a single session.
+   * PUT /v1/sessions/:id — partial update.
+   */
+  SESSION: (id: string) => `/v1/sessions/${id}`,
+
+  /** POST /v1/sessions/:id/archive — archive a session (400 if already archived). */
+  SESSION_ARCHIVE: (id: string) => `/v1/sessions/${id}/archive`,
 } as const;

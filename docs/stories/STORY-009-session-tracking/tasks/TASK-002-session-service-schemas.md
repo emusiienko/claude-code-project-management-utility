@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-009
 ---
@@ -72,9 +72,57 @@ no ADR is expected from this task.
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
-**Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+**Date**: 2026-07-29
+**What was done**: Built `backend/app/sessions/schema.py` (`CreateSession`, `UpdateSession`,
+`Session`, `PaginationMeta`) and `backend/app/sessions/service.py` (`SessionService` + the three
+cross-domain Protocols). `CreateSession` requires `project_id`/`topic`/`goal`/`participant_role`
+(1–500 length validators on `topic`/`goal`, non-empty on `participant_role`); `is_complete` is not a
+field at all. `UpdateSession` makes every field optional; `topic`/`goal`/`participant_role` each carry
+a field validator that rejects `None` — since Pydantic v2 does not invoke field validators on an
+omitted field's default (only on an explicitly-supplied value, including an explicit `null`), this
+single validator naturally distinguishes "omitted" (skips validation, stays `None`, service leaves the
+field unchanged) from "explicit null" (validator fires, raises `422`) without any extra machinery. The
+four other text fields, `linked_story_id`, and `linked_task_id` use the established
+`model_fields_set` pattern (mirroring `UpdateTask`/`UpdateStory`) to distinguish omission from
+explicit-null clearing. `SessionService.create` resolves the project (404), validates
+`participant_role` against the project's effective `participant_roles` (422, "Value '{v}' is not
+allowed. Allowed: {list}." — matching the `default_web_ui_role` message shape from the task spec, not
+the `for field 'x'` variant tasks/story-links use), validates each provided link id's existence (404)
+and same-project membership (422), and forces `is_complete=False`. `update` re-validates a new
+`participant_role`/`topic`/`goal` the same way, applies `is_complete` independently of the result
+fields, and re-validates a newly-set link id. `archive` raises a `ValidationError` (400) on an
+already-archived session and leaves the record otherwise updatable. Declared
+`StoryReaderProtocol`/`TaskReaderProtocol` (module-local, `TYPE_CHECKING`-guarded imports of
+`StoryModel`/`TaskModel` only — no runtime import of `stories`/`tasks`) for link existence + owning-
+project resolution — the task reader's project is resolved transitively by chaining
+`task.story_id` through the same `StoryReaderProtocol` instance, exactly as the plan specified. Also
+declared `SessionReferenceCleanerProtocol` (`clear_references_to_story`/`clear_references_to_task`),
+implemented by `SessionService` itself by delegating to the TASK-001 repository's
+`clear_linked_story`/`clear_linked_task`, for TASK-004 to consume from the stories/tasks services.
+**Deviations from plan**: None.
+**Technical decisions made**: Followed the task spec's literal message shape ("Value '{v}' is not
+allowed. Allowed: {list}.", no `for field 'x'` clause) rather than the `tasks`/`story_links` variant
+that includes the field name, since the task's Acceptance Criteria and the story's Edge Cases both
+quote the field-name-less form verbatim ("the same validation convention used for
+`default_web_ui_role`"). For `is_complete` (the first boolean field in this codebase's update
+schemas), chose not to add a rejecting validator for an explicit `null` — the column is `NOT NULL`
+with no clearing semantics described anywhere in the task/AC/edge-cases, so an explicit `null` is
+treated identically to omission (left unchanged) rather than invented as a new 422 case; noted below
+as a point QA/architect may want to make explicit at Reconcile if it matters.
+**Code locations**: `backend/app/sessions/schema.py`, `backend/app/sessions/service.py`.
+**Technical debt noted**: None. Verified via 12 temporary scratch tests (create happy path +
+project-404 + invalid-role-422 + linked-story-wrong-project-422 + linked-task same-project/transitive-
+project resolution + linked-task-not-found-404 + update partial/clearing/omission + update rejects
+explicit-null topic (schema-level) + `is_complete` independence from result fields in both directions
++ archive idempotency (400 on second archive) + post-archive editability + the reference-cleaner pair
++ list filters (`incomplete_only`, `linked_story_id`, `include_archived`, default archived-exclusion)
+combined and independently) exercising `SessionService` directly against a real SQLite session
+(`session_factory` fixture) with project/story/task fixtures created through the existing REST
+endpoints; the scratch file was removed after verification since TASK-002's deliverable is the
+service/schema layer only (REST/MCP surface lands in TASK-003, the permanent automated suite in
+TASK-007). `pyright app/sessions/` reports 0 errors. Full backend suite re-run after the change: 517
+passed, 2 xfailed — identical to the pre-change baseline (the new module has no REST/MCP/DI wiring
+yet, so it is not exercised by the existing suite). One open question surfaced for TASK-003/architect:
+whether an explicit `is_complete: null` on update should be a 422 (mirroring `topic`/`goal`
+/`participant_role`) rather than silently ignored — flagged above under Technical decisions, not
+blocking.

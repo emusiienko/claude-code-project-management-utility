@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: frontend-developer
 story: STORY-009
 ---
@@ -47,9 +47,35 @@ None.
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
-**Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+**Date**: 2026-07-29
+**What was done**: Built the Sessions client data layer end-to-end against the live `/v1/sessions`
+REST API (backend TASK-001/002/003, already Done): rewrote the stale v1.0-forward-spec `Session` /
+`CreateSession` / `UpdateSession` types in `src/api/types.ts` to match the as-built backend schema
+(`project_id`, `goal`, `is_complete`, required `participant_role`, nullable-clearable vs.
+non-clearable fields); added `SESSIONS` / `SESSION` / `SESSION_ARCHIVE` path constants to
+`src/api/paths.ts`; added `src/api/endpoints/sessions.ts` (createSession, listSessions,
+getSession, updateSession, archiveSession — list requires `project_id` and accepts
+`incomplete`/`linked_story_id`/`include_archived`, returns the full `ListEnvelope`); added
+`src/features/sessions/hooks/useSessions.ts` (`useSessionList`, `useSession`, `useCreateSession`,
+`useUpdateSession`, `useArchiveSession`); reshaped the pre-existing `CACHE_KEYS.sessions.list` key
+to take a required `projectId` (was a flat placeholder key with no project scope) and added
+`PAGINATION.SESSIONS` / `DATA_FRESHNESS.SESSIONS` to the config registries.
+**Deviations from plan**: None — implemented exactly per the task file and implementation_plan.md.
+The task's "Scope" line lists endpoint functions under `frontend/src/features/sessions/`, but they
+were placed at the established convention path `src/api/endpoints/sessions.ts` (matching every other
+domain's endpoints module) — a wording-vs-established-convention resolution, not a scope change.
+**Technical decisions made**: Mutation hooks (`useCreateSession`/`useUpdateSession`/
+`useArchiveSession`) take `projectId` as a hook parameter and scope their cache invalidation to that
+project's session list, mirroring the existing story-scoped Tasks hooks (`useUpdateTask(storyId)`)
+rather than the broader "invalidate everything" pattern some earlier domains (Milestones) use — sessions
+have no cross-project list, so a project-scoped invalidation is both correct and more precise.
+**Code locations**: `frontend/src/api/types.ts` (Session/CreateSession/UpdateSession),
+`frontend/src/api/paths.ts` (SESSIONS/SESSION/SESSION_ARCHIVE),
+`frontend/src/api/endpoints/sessions.ts`, `frontend/src/features/sessions/hooks/useSessions.ts`,
+`frontend/src/config/cacheConfig.ts` (sessions.list reshaped), `frontend/src/config/apiConfig.ts`
+(PAGINATION.SESSIONS, DATA_FRESHNESS.SESSIONS).
+**Technical debt noted**: None. Verified against the live backend schema/controller
+(`backend/app/sessions/schema.py`, `controller.py`) rather than the locked v1.0 `docs/api-contract.md`
+`## Sessions` block, which is confirmed stale per the story description and implementation plan — to
+be reconciled to v1.8 at story Reconcile. No participant-role dropdown logic here (data-layer only,
+per TASK-006's scope) — the effective-settings query it will consume already exists.

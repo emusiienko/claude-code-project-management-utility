@@ -79,8 +79,9 @@ export const CACHE_KEYS = {
 
   sessions: {
     all: () => ["sessions"] as const,
-    list: (params?: Record<string, unknown>) =>
-      ["sessions", "list", params ?? {}] as const,
+    /** Project-scoped list — sessions have no cross-project listing. */
+    list: (projectId: string, params?: Record<string, unknown>) =>
+      ["sessions", "list", projectId, params ?? {}] as const,
     detail: (id: string) => ["sessions", "detail", id] as const,
   },
 

@@ -1,5 +1,5 @@
 ---
-status: ToDo
+status: Done
 assignee: backend-developer
 story: STORY-009
 ---
@@ -48,9 +48,32 @@ SQLite FK). No new ADR expected unless the reverse-reference direction is judged
 ---
 ## Implementation Report
 <!-- filled by implementor -->
-**Date**:
-**What was done**:
-**Deviations from plan**:
-**Technical decisions made**:
-**Code locations**:
-**Technical debt noted**:
+**Date**: 2026-07-29
+**What was done**: Injected `SessionReferenceCleanerProtocol` (already declared on `SessionService` in
+TASK-002, backed by `SessionRepository.clear_linked_story`/`clear_linked_task` from TASK-001) into both
+`StoryService` and `TaskService` as an optional constructor dependency, `session_reference_cleaner`.
+Each service's existing `delete()` cascade now calls the cleaner (`clear_references_to_story` /
+`clear_references_to_task`) right after the attachment/comment cleanup and before the row delete itself
+— nulling every session's `linked_story_id`/`linked_task_id` that pointed at the entity being removed,
+without deleting the session record. Wired the concrete `session_service` instance into both
+`story_service` and `task_service` providers in `AppContainer` (declared after `session_service`, which
+was already positioned before them from TASK-003). Verified end-to-end on SQLite (the dialect where the
+`SET NULL` FK is inert) with a temporary scratch integration test (create project → story/task → session
+linked to it → delete the story/task → GET the session → linked id is `null`, session still exists);
+removed the scratch file afterward since test authorship belongs to qa-automation (TASK-007).
+**Deviations from plan**: None.
+**Technical decisions made**: Kept the dependency optional (`| None = None`) and guarded with an
+`is not None` check, mirroring the existing `attachment_reader`/`comment_reader`/`*_link_reader`
+pattern in both services — consistent DI style, and it keeps each service unit-constructible without
+every cross-domain collaborator. Placed the cascade call after attachment/comment cleanup and before
+`self._repo.delete(...)`, matching the plan's "alongside the attachment/comment/link cleanup" instruction
+and the existing ordering convention. No new import cycle: `stories/service.py` and `tasks/service.py`
+import only `SessionReferenceCleanerProtocol` from `app.sessions.service`; `app.sessions.service` imports
+`Story`/`Task` only under `TYPE_CHECKING`, so there is no runtime circular import.
+**Code locations**: `backend/app/stories/service.py` (constructor + `delete()`), `backend/app/tasks/service.py`
+(constructor + `delete()`), `backend/app/container/container.py` (`story_service`/`task_service`
+providers gain `session_reference_cleaner=session_service`).
+**Technical debt noted**: None. No bespoke project→session cleanup was added, per the task's explicit
+instruction — project deletion cascading to its sessions continues to rely solely on the `project_id`
+FK (enforced on PostgreSQL, covered on SQLite only by the standing, not-yet-applied
+`PRAGMA foreign_keys = ON` fix tracked elsewhere).

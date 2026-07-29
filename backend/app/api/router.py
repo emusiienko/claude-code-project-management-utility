@@ -15,6 +15,7 @@ from app.comments.controller import (
 )
 from app.milestones.controller import router as milestones_router
 from app.projects.controller import router as projects_router
+from app.sessions.controller import router as sessions_router
 from app.settings.controller import router as settings_router
 from app.stories.controller import router as stories_router
 from app.story_links.controller import story_links_router, story_links_top_router
@@ -53,6 +54,7 @@ v1_router.include_router(tasks_comments_router, prefix=f"/{AppPath.TASKS}")
 v1_router.include_router(milestones_comments_router, prefix=f"/{AppPath.MILESTONES}")
 # Comment routes under /comments/:id use the top-level comments prefix.
 v1_router.include_router(comments_top_router, prefix=f"/{AppPath.COMMENTS}")
+v1_router.include_router(sessions_router, prefix=f"/{AppPath.SESSIONS}")
 # Settings routes span /system/settings and /projects/{id}/settings — no single
 # domain-level prefix applies; the router is included without an additional prefix.
 v1_router.include_router(settings_router)

@@ -7,7 +7,17 @@
  *   ├─ index               → RootRedirect (→ /projects/:lastId/stories, or an
  *   │                        empty Task Manager view with the Projects
  *   │                        overlay auto-opened when no project exists yet)
- *   ├─ /sessions           → SessionsPage (no sidebar, no sub-nav)
+ *   ├─ SessionsShell (/sessions) — Sessions mode: a distinct top-level app
+ *   │  │                    mode beside Task Manager (STORY-009 TASK-006),
+ *   │  │                    with its own project-selection sidebar
+ *   │  │                    (SessionsSidebar) over the shared project
+ *   │  │                    namespace — kept independently navigable from
+ *   │  │                    Task Manager's /projects/:projectId/* subtree.
+ *   │  ├─ index            → SessionsIndexRedirect (→ /sessions/:lastId, or
+ *   │  │                    an empty Sessions-mode view when no project exists)
+ *   │  └─ SessionsProjectGate (/sessions/:projectId) — validates the project
+ *   │     ├─ index         → SessionListPage
+ *   │     └─ :sessionId    → SessionDetailPage (nested view within Sessions mode)
  *   ├─ /milestones/:id     → MilestoneDetailPage (no sidebar, back-link to project milestones)
  *   ├─ /comments/:id       → CommentsPage (permalink resolver; navigates to the host view)
  *   └─ AppShell (/projects/:projectId/*)
@@ -36,6 +46,9 @@ import { RootLayout } from "@/app/RootLayout";
 import { AppShell } from "@/app/AppShell";
 import { ProjectShell } from "@/app/ProjectShell";
 import { RootRedirect } from "@/app/RootRedirect";
+import { SessionsShell } from "@/app/SessionsShell";
+import { SessionsIndexRedirect } from "@/app/SessionsIndexRedirect";
+import { SessionsProjectGate } from "@/app/SessionsProjectGate";
 import { PageLoader } from "@/shared/components/PageLoader";
 
 // ---------------------------------------------------------------------------
@@ -45,8 +58,11 @@ import { PageLoader } from "@/shared/components/PageLoader";
 const StoriesPage = React.lazy(
   () => import("@/features/stories/StoriesPage"),
 );
-const SessionsPage = React.lazy(
-  () => import("@/features/sessions/SessionsPage"),
+const SessionListPage = React.lazy(
+  () => import("@/features/sessions/SessionListPage"),
+);
+const SessionDetailPage = React.lazy(
+  () => import("@/features/sessions/SessionDetailPage"),
 );
 const MilestonesPage = React.lazy(
   () => import("@/features/milestones/MilestonesPage"),
@@ -94,14 +110,39 @@ export const router = createBrowserRouter([
         element: <RootRedirect />,
       },
 
-      // Full-page management routes — no sidebar, no sub-nav
+      // Sessions mode — its own project-selection sidebar, parallel to
+      // Task Manager's AppShell (STORY-009 TASK-006).
       {
         path: "sessions",
-        element: (
-          <SuspendedPage>
-            <SessionsPage />
-          </SuspendedPage>
-        ),
+        element: <SessionsShell />,
+        children: [
+          {
+            index: true,
+            element: <SessionsIndexRedirect />,
+          },
+          {
+            path: ":projectId",
+            element: <SessionsProjectGate />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <SuspendedPage>
+                    <SessionListPage />
+                  </SuspendedPage>
+                ),
+              },
+              {
+                path: ":sessionId",
+                element: (
+                  <SuspendedPage>
+                    <SessionDetailPage />
+                  </SuspendedPage>
+                ),
+              },
+            ],
+          },
+        ],
       },
 
       // Milestone detail — top-level route so the URL /milestones/:id is reachable

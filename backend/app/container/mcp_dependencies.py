@@ -8,6 +8,7 @@ from app.comments.service import CommentService
 from app.container.container import AppContainer
 from app.milestones.service import MilestoneService
 from app.projects.service import ProjectService
+from app.sessions.service import SessionService
 from app.settings.service import SettingsService
 from app.stories.service import StoryService
 from app.story_links.service import StoryLinkService
@@ -97,5 +98,14 @@ async def provide_attachment_service(
 async def provide_comment_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: CommentService = Provide[AppContainer.comment_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_session_service(
+    _db: Session = Closing[Provide[AppContainer.db_session]],
+    service: SessionService = Provide[AppContainer.session_service],
 ):
     yield service

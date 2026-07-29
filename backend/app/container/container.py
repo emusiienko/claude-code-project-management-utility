@@ -11,6 +11,8 @@ from app.milestones.repository import MilestoneRepository
 from app.milestones.service import MilestoneService
 from app.projects.repository import ProjectRepository
 from app.projects.service import ProjectService
+from app.sessions.repository import SessionRepository
+from app.sessions.service import SessionService
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
 from app.settings.service import SettingsService
 from app.stories.repository import StoryRepository
@@ -115,6 +117,31 @@ class AppContainer(containers.DeclarativeContainer):
     task_repository = providers.Factory(
         TaskRepository,
         session=db_session,
+    )
+
+    # --------------------------------------------------------------------------
+    # Sessions domain — Factories (resolved per injection)
+    # --------------------------------------------------------------------------
+    # Declared right after tasks (STORY-009): the sessions service only needs
+    # project_repository, settings_service (effective_dict), story_repository,
+    # and task_repository as its StoryReaderProtocol/TaskReaderProtocol
+    # dependencies — all already declared above this point. The reverse
+    # direction — session_service injected as the reference-cleaner Protocol
+    # into story_service/task_service — is wired below at their declarations
+    # (STORY-009 TASK-004).
+
+    session_repository = providers.Factory(
+        SessionRepository,
+        session=db_session,
+    )
+
+    session_service = providers.Factory(
+        SessionService,
+        repo=session_repository,
+        project_repo=project_repository,
+        effective_dict=settings_service,
+        story_reader=story_repository,
+        task_reader=task_repository,
     )
 
     # --------------------------------------------------------------------------
@@ -235,6 +262,9 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: stories service cascades and composes comments via
         # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
+        # Cross-domain, reverse direction: stories service nulls session
+        # references to a deleted story via Protocol (STORY-009, TASK-004).
+        session_reference_cleaner=session_service,
     )
 
     task_service = providers.Factory(
@@ -250,4 +280,7 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: tasks service cascades and composes comments via
         # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
+        # Cross-domain, reverse direction: tasks service nulls session
+        # references to a deleted task via Protocol (STORY-009, TASK-004).
+        session_reference_cleaner=session_service,
     )

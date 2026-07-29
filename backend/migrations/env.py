@@ -17,6 +17,7 @@ from app.config import settings
 from app.core.database.base import Base
 from app.milestones.model import Milestone  # noqa: F401
 from app.projects.model import Project  # noqa: F401
+from app.sessions.model import Session  # noqa: F401
 from app.settings.model import ProjectSettings, SystemSettings  # noqa: F401
 from app.stories.model import Story  # noqa: F401
 from app.story_links.model import StoryLink  # noqa: F401
