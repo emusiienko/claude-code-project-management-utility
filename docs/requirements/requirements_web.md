@@ -15,7 +15,7 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 | Task Detail View | Full-screen modal with task metadata, links, attachments, and comments | P0 |
 | Project Settings View | Manage per-project dictionary overrides; view effective settings; reached as the second level of the global Projects overlay (not a dedicated page), with a bridge into that project's Task Manager view — see STORY-022 <!-- updated: 2026-07-22 (STORY-022 reconcile) --> | P0 |
 | System Settings View | Manage system-level dictionary defaults; reached from anywhere via a global top-bar Config entry that opens a slide-over overlay — see STORY-022 <!-- updated: 2026-07-22 (STORY-022 reconcile) --> | P0 |
-| Sessions View | List, create, edit sessions; filter incomplete; link to story/task | P1 |
+| Sessions View | A distinct top-level app-switcher mode (alongside Task Manager), mirroring Task Manager's shell with its own project-selector sidebar; a project-scoped list (topic, goal, participant_role, status, independent story/task links) with incomplete-only and linked-story filters, a dedicated Session Detail view, create/edit/archive — see STORY-009 <!-- updated: 2026-07-30 (STORY-009 reconcile) --> | P1 |
 | Milestones View | List, create, edit, delete milestones within a project | P1 |
 | Attachments Management | Upload documents (text or file), images, and files (PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) to stories, tasks, or milestones; view via an in-app viewer or download; delete (immutable — no edit, no archive); each attachment has a mandatory free-form title, defaulted from the uploaded file's name where applicable and editable before submit — see STORY-021 <!-- updated: 2026-07-15 (STORY-021) --> | P1 |
 | Comments Management | Create, edit, delete comments on stories, tasks, or milestones; thread rendered newest-first with a pinned Add Comment form at the top; `author_role` pre-fills from a configurable default; `@role` mention autocomplete in comment content; per-comment permalink (Copy link) and Reply actions — see STORY-008 <!-- updated: 2026-07-21 (STORY-008 reconcile) --> | P1 |
@@ -29,21 +29,28 @@ The Web UI is the browser-based interface for the human orchestrator. It is serv
 
 The application uses a three-level layout shell hierarchy, plus an always-mounted overlay host layered above it:
 
-1. **RootLayout** — flat root shell, always rendered. Hosts the top bar, a content outlet for the two main views (Task Manager, Sessions), and the overlay host (see Global Overlay below). `/sessions` renders directly here with no sidebar and no sub-nav.
+1. **RootLayout** — flat root shell, always rendered. Hosts the top bar, a content outlet for the two main views (Task Manager, Sessions), and the overlay host (see Global Overlay below).
 2. **AppShell** — Task Manager mode layer, rendered for all `/projects/:id/*` routes. Hosts the collapsible sidebar alongside the content outlet.
 3. **ProjectShell** — per-project layer, rendered inside AppShell for all `/projects/:id/*` routes. Validates the project ID (renders an inline "Not found" state when the project does not exist), then renders the three-tab sub-nav and a nested outlet for the active tab's content.
 
 Only two views are addressable main destinations with their own URL: **Task Manager** (a project's Stories/Board/Milestones, including an open story slide-over or task modal) and **Sessions**. Projects management and system Config are not routes — see Global Overlay below. <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
+
+**Sessions mode** <!-- updated: 2026-07-30 (STORY-009 reconcile): built out; supersedes the earlier "no sidebar, no sub-nav, flat list" placeholder shape below -->
+Sessions is a distinct top-level app-switcher mode, not a Task-Manager sub-view. It mirrors Task Manager's own shell structure rather than rendering as a single flat page: it has its own left-placed project-selector sidebar (independent last-visited-project and collapsed-state local-storage keys from Task Manager's sidebar) and, within the selected project, a nested Session Detail view reached by selecting a session from the list. There is still no cross-project Sessions view anywhere — every Sessions screen is scoped to one selected project, consistent with the mandatory `project_id` scope on the Session entity. Sessions routes live under `/sessions`, structurally separate from Task Manager's `/projects/:projectId/*` tree. The global Projects and Config overlays (see Global Overlay below) remain reachable and open-able from Sessions mode exactly as they are from Task Manager.
 
 **Top bar** (always visible, full width):
 - **App switcher** (left): native `<select>` combobox displaying the active app name (`Task Manager` or `Sessions`). Mode is derived directly from the current pathname — no recorded/remembered state. Switching to Sessions navigates to `/sessions`; switching back to Task Manager navigates to `/`, which RootRedirect resolves to the last-visited or first project's Stories, or the empty-project state.
 - **Projects entry** (right): a trigger button — not a route link — that opens the Projects overlay (see Global Overlay below). Visible and in the same position in both Task Manager mode and Sessions mode. Shows an open/active indication while its overlay is open, driven by overlay state rather than route matching. <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 - **Config entry** (right, beside Projects): a trigger button that opens the Config overlay (see Global Overlay below). Visible and in the same position in both Task Manager mode and Sessions mode — Config is global, not Task-Manager-only. <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 
-**Left sidebar** (Task Manager mode only, collapsible):
+**Left sidebar — Task Manager mode** (collapsible):
 - **Project combobox** at the top: native `<select>` displaying the active project name; selecting a project navigates to `/projects/:id/stories` and records the project ID as the last-visited project.
 - **Project list**: all projects as buttons, with the active project highlighted via `aria-current="page"`.
 - **Collapse/expand toggle** (`◄`/`▶`) anchored to the right edge of the sidebar via absolute positioning. When collapsed, only the toggle is visible and the content outlet fills the full width. Collapsed/expanded state is persisted in browser local storage under key `app:sidebar_collapsed` via the shared `useLocalStorage` hook.
+
+**Left sidebar — Sessions mode** <!-- updated: 2026-07-30 (STORY-009 reconcile): Sessions now has its own project-selector sidebar mirroring Task Manager's, not the earlier no-sidebar placeholder -->:
+- A project combobox and project list, structurally mirroring the Task Manager sidebar above, but independent of it — selecting a project in Sessions mode does not affect Task Manager's last-visited project, and vice versa (separate local-storage keys).
+- Selecting a project scopes the Sessions list to that project; there is no cross-project Sessions view.
 
 > **As-built notes (STORY-022):** the sidebar's `⚙ Manage projects` link is removed — project management is reached only through the global top-bar Projects entry, from any mode. The sidebar's project combobox and project list are unaffected and continue to navigate to a project's Stories view.
 
@@ -55,7 +62,7 @@ Horizontal tab bar using React Router `NavLink` for automatic active-tab highlig
 
 Project Settings is no longer part of this sub-navigation — it is reached as the second level of the Projects overlay (see Global Overlay below).
 
-Sessions mode has no sidebar and no sub-navigation bar.
+Sessions mode has its own project-selector sidebar (see above) but no per-project tab sub-navigation bar like ProjectShell's — within a selected project it shows the sessions list directly, with a nested Session Detail view reached by selecting a session. <!-- updated: 2026-07-30 (STORY-009 reconcile) -->
 
 **RootRedirect** (index route at `/`): <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
 Reads the last-visited project ID from browser local storage (key `app:last_project_id`, exported constant `LAST_PROJECT_KEY` from `RootRedirect.tsx`). Redirects to `/projects/:lastId/stories` if a project ID exists. If no project has ever been visited **and at least one project exists**, it resolves to the first project's Stories the same way. If **no projects exist at all** (a fresh install), it stays at `/`, renders an empty Task Manager main view with a brief "No projects yet" message, and automatically opens the Projects overlay (see Global Overlay below) so the first project can be created — it no longer redirects to a `/projects` route, since that route no longer exists.
@@ -94,7 +101,7 @@ Projects management and system Config are **not routes** — they have no dedica
 | `/projects/:id/stories/:storyId` | Story Detail | Full-screen slide-over on top of the current project view |
 | `/projects/:id/stories/:storyId/tasks/:taskId` | Task Detail | Modal on top of the Story Detail slide-over |
 | `/milestones/:id` | Milestone Detail | Milestone metadata + stories + attachments (live, STORY-007) + comments (live, STORY-008) |
-| `/sessions` | Sessions | Full-screen flat list, no sidebar |
+| `/sessions` | Sessions | Its own app mode, structurally separate from `/projects/:id/*`; own project-selector sidebar, project-scoped sessions list, and a nested Session Detail view for a selected session <!-- updated: 2026-07-30 (STORY-009 reconcile): supersedes the earlier "full-screen flat list, no sidebar" placeholder shape --> |
 | `/comments/:id` | Comment permalink resolver | <!-- new: 2026-07-21 (STORY-008) --> Not a page of its own — resolves the comment's host view (Story slide-over, Task Detail modal, or Milestone Detail page) and navigates there with the comments section expanded and that comment scrolled into view and highlighted. If the comment has since been hard-deleted (no surviving container to resolve), shows a calm `role="status"` "This comment is no longer available." message with a link back home instead of navigating. |
 
 Projects management and system Config have no route of their own — they are reached exclusively as overlay panels from the top-bar Projects/Config entries, from any main view. See Global Overlay above.
@@ -406,16 +413,37 @@ Identical behavior on all three hosts.
 
 ---
 
-### Sessions View (`/sessions`) <!-- updated: 2026-07-22 (STORY-022 reconcile) -->
+### Sessions View (`/sessions`) <!-- updated: 2026-07-30 (STORY-009 reconcile): full build; supersedes the STORY-022-era "full-screen flat list, no sidebar" placeholder shape below -->
 
-No sidebar and no sub-navigation bar. Full-screen flat view. The app switcher in the top bar shows `Sessions`. The Projects and Config top-bar entries remain visible and open-able here, identically to Task Manager mode <!-- updated: 2026-07-22 (STORY-022): Config was previously Task-Manager-only; it is now global -->.
+Sessions is its own top-level app-switcher mode (alongside Task Manager), mirroring Task Manager's overall structure rather than rendering as a single flat page: it has its own project-selector sidebar (see Left sidebar — Sessions mode above) and a nested Session Detail view scoped to the currently selected project. There is no cross-project Sessions view anywhere — consistent with the mandatory `project_id` scope on the Session entity, every session read is scoped to one selected project. The app switcher in the top bar shows `Sessions`. The Projects and Config top-bar entries remain visible and open-able here, identically to Task Manager mode.
 
-- Lists sessions as a table: topic, status, participant_role, linked story/task (clickable), created_at, result indicator (✓ / pending)
-- **Incomplete only** toggle filter (calls `GET /sessions?incomplete=true`)
-- **Create session** button → form panel: topic (required), context (textarea), status, participant_role, optional link to story or task (search inputs)
-- **Edit** button per session → same form + result fields (result_decisions textarea, result_summary textarea)
-- **Archive** button per session → confirmation dialog
-- Clicking a linked story navigates to that story's Story Detail slide-over; clicking a linked task navigates to the task's Task Detail modal (via the story route)
+**Sessions list**, scoped to the active project:
+- Lists sessions as a table: topic, participant_role, linked story (clickable, shown separately) and linked task (clickable, shown separately), created_at, and a status indicator (`pending` / `in-progress` / `finished`) driven directly by `status`
+- **Incomplete only** toggle filter (`status` is `pending` or `in-progress`) and a filter by linked story — independently combinable (calls `GET /sessions?project_id=…&incomplete=true&linked_story_id=…`)
+- Pagination
+- Empty state ("No sessions yet") shown when the active project has no sessions — not an error
+- Clicking a session row opens the Session Detail view
+
+**Create session** — a form panel capturing:
+- `topic` (text, required)
+- `goal` (text, required — the purpose the session was created for)
+- `context` (textarea, optional)
+- `participant_role` (dropdown, required — populated from the project's effective `participant_roles`, not free text)
+- Two independent optional link fields — a story link and a task link, each selectable (search input) from stories/tasks within the active project; either, both, or neither may be set
+- `project_id` is implicit (the active project) — never a field the user fills in directly
+- There is no `status` input on this form; every session starts at `status: pending`
+
+**Session Detail view** — a dedicated view opened by selecting a session from the list, showing the full session record: topic, goal, context, status, participant_role, linked story, linked task, result_decisions, result_summary, created_at, updated_at. From here every updatable field can be edited:
+- `topic` — cannot be cleared, only changed to a new non-empty value
+- `goal` — cannot be cleared, only changed to a new non-empty value
+- `context` — freely editable or cleared
+- `participant_role` — re-selected from the dictionary dropdown; cannot be cleared, only changed to another valid value
+- linked story, linked task — each independently settable/clearable
+- `result_decisions`, `result_summary` — freely editable or cleared, independently of `status` and of each other
+- **Status control** offering all three fixed values (`pending` / `in-progress` / `finished`), settable to any of the three at any time, in any direction — no transition restriction
+- **Archive** action, also available as a row action from the Sessions list
+
+**Navigation:** clicking the linked story, or the linked task, inside the Session Detail view navigates to that item's own detail view in Task Manager mode (Story slide-over or Task Detail modal), consistent with the cross-linking conventions used elsewhere in the app.
 
 ---
 

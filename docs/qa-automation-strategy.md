@@ -2,7 +2,7 @@
 
 > Owned by **qa-automation**. Update only at the user's explicit request.
 > Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
-> Last updated: 2026-07-29 (rev 14)
+> Last updated: 2026-07-30 (rev 15)
 
 ---
 
@@ -86,6 +86,7 @@ backend/
     test_sessions.py       # STORY-009
     test_settings.py       # STORY-002 (+ STORY-021 attachment_types retirement)
     test_milestones.py     # STORY-012
+    test_session_status_backfill_migration.py  # STORY-023 — 0014_session_status_backfill migration
 ```
 
 One test file per domain module. File names mirror the backend app package they test.
@@ -106,6 +107,7 @@ backend/
     test_sessions.py       # STORY-009
     test_settings.py       # STORY-002 (+ STORY-021 attachment_types retirement)
     test_milestones.py     # STORY-012
+    test_session_status_backfill_migration.py  # STORY-023 — 0014_session_status_backfill migration
 ```
 
 ### Environment Configuration
@@ -158,6 +160,7 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 | STORY-018 (Link type labels) | `linkLabels.test.ts` (frontend) | getLinkLabel: 3 known types × 2 directions; unknown type fallback; undefined direction fallback |
 | STORY-019 (Directional link creation) | `linkLabels.test.ts` (frontend) | getLinkOptions: empty input; 2 entries per key; label correctness; unknown key fallback; linkType preserved |
 | STORY-020 (Structured link_types) | `test_link_types_structured.py` (backend); `linkLabels.test.ts` (frontend) | Settings validation: structured input accepted; plain strings rejected (422); missing fields rejected (422); blank fields rejected (422); duplicate values rejected (400); symmetric entries accepted; GET returns structured objects; 5 canonical seed defaults. link_type resolution: valid value → 201 for TaskLink and StoryLink; invalid → 422; project override accepted; removed-by-override rejected. Migration: _to_structured/_to_flat helpers for 5 canonical slugs + custom + idempotent; upgrade/downgrade fresh DB + flat rows + project_settings rows. Seed: 5 canonical entries after upgrade head. Frontend: getLinkLabel + getLinkOptions with structured LinkTypeEntry[] fixtures |
+| STORY-023 (Sessions List 500s — `session` schema drift) | `test_session_status_backfill_migration.py` | Migration `0014_session_status_backfill` (QA Reconcile addition — the Quick Fix's own self-verification was a disposable, uncommitted reproduction script; this is the durable automated equivalent, mirroring `test_attachment_title_migration.py`'s real-alembic-upgrade approach for the structurally analogous `0010_attachment_title`): reconstructs the lost pre-amendment `session` shape (`is_complete` boolean, nullable no-default `status`, `ix_session_project_complete` index — the original `0013_session` content, since edited in place and no longer in the repo) via raw DDL against a disposable SQLite file, stamps `alembic_version` at `0013_session`, then runs the real `0014` upgrade: NULL `status` backfilled to `"pending"`; a stale non-enum value (e.g. `"done"`) deliberately left untouched (backfill only targets NULL, not invalid non-null values); `is_complete` dropped; `status` tightened NOT NULL; `ix_session_project_complete` → `ix_session_project_status`; row count preserved. Fresh-install path (`upgrade head` on an empty DB) no-ops cleanly with the correct shape from the start. Re-running `upgrade head` against an already-converged DB is a stable no-op. Downgrade past `0014` is confirmed a true no-op (schema/data unchanged), matching the migration's documented behavior. `test_sessions.py`'s existing `status` coverage (enum validation, transitions, 422s) is unaffected and untouched — this addition closes the migration-mechanics gap only, per ADR-028 (this failure mode has now recurred twice: `0012_web_ui_role_backfill`, `0014_session_status_backfill`) |
 
 ### Run Commands
 

@@ -24,3 +24,5 @@ Stories that are `Accepted` and fully reconciled (`Arch ✓` + `Spec ✓`) are m
 | [STORY-021](STORY-021-attachment-title-field/description.md) | Attachment Title Field (replaces dictionary-bound Type) | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-008](STORY-008-comments/description.md) | Work Item Comments | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | [STORY-022](STORY-022-global-project-navigation/description.md) | Global Project Navigation Entry | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| [STORY-009](STORY-009-session-tracking/description.md) | Session Tracking | feature | P1 | Accepted | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| [STORY-023](STORY-023-session-status-migration-drift/description.md) | Sessions List 500s — Stale `session` Schema Drift From In-Place Migration Edit | fix | P0 | Accepted | | | ✓ | ✓ | ✓ | ✓ |

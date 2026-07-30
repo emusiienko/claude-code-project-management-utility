@@ -176,3 +176,20 @@
 | [TC-172](test-cases/TC-172-back-vs-dismiss.md) | Back vs Dismiss — distinct stack-pop vs full-close behavior on both overlays | @regression | STORY-022 | Active |
 | [TC-173](test-cases/TC-173-open-in-task-manager-bridge.md) | "Open in Task Manager" bridge resolves BUG-006 for a project not yet opened this session | @smoke @regression | STORY-022 | Active |
 | [TC-174](test-cases/TC-174-main-view-stays-mounted.md) | The main view never unmounts or navigates while the Projects/Config overlay is open | @regression | STORY-022 | Active |
+| [TC-175](test-cases/TC-175-sessions-mode-navigation.md) | Sessions mode — top-level app-switcher entry, own project-selector sidebar, project switch re-scopes the session list | @smoke @regression | STORY-009 | Active |
+| [TC-176](test-cases/TC-176-sessions-list-visual.md) | Sessions list screen — visual pass | @smoke @regression | STORY-009 | Active |
+| [TC-177](test-cases/TC-177-sessions-list-empty-state.md) | Sessions list — empty state ("No sessions yet") when active project has no sessions | @smoke @regression | STORY-009 | Active |
+| [TC-178](test-cases/TC-178-create-session-form-visual.md) | Create Session form — visual pass | @smoke @regression | STORY-009 | Active |
+| [TC-179](test-cases/TC-179-create-session-happy-path.md) | Create session — happy path (required fields only, then all fields) | @smoke @regression | STORY-009 | Active |
+| [TC-180](test-cases/TC-180-create-session-required-field-validation.md) | Create session — missing topic / goal / participant_role shows inline validation errors | @regression | STORY-009 | Active |
+| [TC-181](test-cases/TC-181-create-session-participant-role-dropdown.md) | Create session — participant_role is a dictionary-driven dropdown, not free text | @regression | STORY-009 | Active |
+| [TC-182](test-cases/TC-182-create-session-link-to-story-or-task.md) | Create session — independent optional links to a story and a task, scoped to the active project only | @regression | STORY-009 | Active |
+| [TC-183](test-cases/TC-183-session-detail-visual.md) | Session Detail view — visual pass | @smoke @regression | STORY-009 | Active |
+| [TC-184](test-cases/TC-184-session-detail-edit-fields.md) | Session Detail — edit topic/goal/context/status/participant_role/links, save reflects in list and detail | @smoke @regression | STORY-009 | Active |
+| [TC-185](test-cases/TC-185-session-detail-mandatory-fields-cannot-clear.md) | Session Detail — topic/goal/participant_role/status cannot be cleared, only changed | @regression | STORY-009 | Active |
+| [TC-186](test-cases/TC-186-session-detail-mark-complete-toggle.md) | Session Detail — three-way status control (pending/in-progress/finished), independent of result fields | @smoke @regression | STORY-009 | Active |
+| [TC-187](test-cases/TC-187-session-detail-linked-item-navigation.md) | Session Detail — clicking a linked story/task navigates to its own detail view in Task Manager | @regression | STORY-009 | Active |
+| [TC-188](test-cases/TC-188-archive-session.md) | Archive a session — from the list row action and from Session Detail; archived session stays fully editable | @smoke @regression | STORY-009 | Active |
+| [TC-189](test-cases/TC-189-sessions-list-filters.md) | Sessions list — "incomplete only" and "linked to story" filters, independently combinable | @regression | STORY-009 | Active |
+| [TC-190](test-cases/TC-190-sessions-list-pagination.md) | Sessions list — pagination | @regression | STORY-009 | Active |
+| [TC-191](test-cases/TC-191-long-content-and-session-volume.md) | Long content and many sessions do not break list or detail layout | @regression | STORY-009 | Active |

@@ -7,7 +7,7 @@ The following assumptions were made where the validated idea or conceptual docum
 1. **Deployment** — Docker-based; the utility runs via Docker Compose on the developer's machine. Ports are mapped to localhost only — not exposed publicly. The database provider and storage technology are architecture decisions left to the architect; the product constraint is that the full stack runs on a single developer machine with no external cloud dependencies.
 2. **Web UI scope for V1** — full CRUD for all entities and modules (confirmed in validated idea: "full CRUD access for the human orchestrator").
 3. **Labels structure** — labels are an ordered array of `{key: string, value: string}` objects; `key` is always required; all keys are free-form.
-4. **Session status** — free-form string, not dictionary-validated (conceptual doc: "свободная метка" — free label).
+4. ~~**Session status** — free-form string, not dictionary-validated (conceptual doc: "свободная метка" — free label).~~ <!-- updated: 2026-07-30 (STORY-009 reconcile): superseded. `status` shipped as a fixed three-value lifecycle enum (`pending` / `in-progress` / `finished`), deliberately **not** dictionary-validated — a session's lifecycle is fixed, not a per-project configurable set like `task_statuses`/`story_statuses`. Only the "not dictionary-validated" half of the original assumption held; "free-form string" did not. Separately, `participant_role` (a distinct field) turned out **not** to be free-form either — it is required and dictionary-validated against the project's effective `participant_roles`, the same convention as `default_web_ui_role` and task `assignee_role`/`creator_role`. See the Session entity below and api-contract v1.8 / ADR-026. -->
 5. **Story statuses dictionary** — added as settings key `story_statuses`; the dedicated `status` field on Story is validated against this dictionary.
 6. **Attachment file storage** — attachment content for the `document`, `image`, and `file` kinds is stored on the server filesystem, not as text in the database. This makes attached artifacts (plans, architecture docs, implementation reports, PDFs, spreadsheets) directly accessible as files on disk. The database stores metadata and a server-internal file path only. Attachments are immutable: each has exactly one stored file, written once at create and never overwritten — there is no update endpoint and no version history; changing content means deleting the attachment and creating a new one. For AI agents (MCP), document content is submitted as UTF-8 text in the request body for the document-as-text path, or as base64-encoded bytes (`content_base64` + `mime_type`) for any stored-file kind (image, file, or a document uploaded as a file) — the `get_attachment_file` MCP tool returns a stored file's bytes as base64 for reading. For the Web UI, file upload via multipart/form-data is used for all stored-file kinds. <!-- updated: 2026-07-14 (STORY-007 spec, api-contract v1.5) -->
 7. **Authentication** — none; this is a single-developer personal tool. Docker port mapping to localhost is the access boundary — no auth layer required.
@@ -26,7 +26,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | Work Item Linking | Typed directed links between tasks (`task_links`) and between stories (`story_links`); same semantic model — typed, directed, same-project-only, passive; detail endpoints return enriched link lists with id, title, and status of the linked item | P1 |
 | Attachments | Document (Markdown/text), image, and file (curated binary formats: PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) attachments — stored on filesystem — plus external-reference attachments (URL + status) attached to stories, tasks, or milestones; immutable once created (a single stored file per attachment, no update, no version history); create + delete only, delete permanently removes every kind; agents get full base64 upload/download parity over MCP; every attachment carries a mandatory free-form `title` (defaults to the uploaded file name, editable; agents must supply it explicitly) — see STORY-021 | P1 |
 | Comments | Markdown text notes attached to stories, tasks, or milestones; required-and-immutable `author_role`; free-form labels; a reply carries a persisted, immutable materialized ancestor path (`ancestors`); newest-first listing with a keyset `after_id` watermark and a `descendant_of` sub-thread filter; a dedicated lineage (ancestors) endpoint; the Web UI pre-fills `author_role` from a new `default_web_ui_role` setting — see STORY-008 <!-- updated: 2026-07-21 (STORY-008 reconcile) --> | P1 |
-| Sessions Module | Session records with start artifact, optional result artifact, status label, optional cross-module link; find incomplete sessions | P1 |
+| Sessions Module | Project-scoped session records — a required start artifact (`topic`, `goal`, optional `context`), a required dictionary-validated `participant_role`, a fixed 3-value lifecycle `status` (`pending`/`in-progress`/`finished`, not dictionary-validated), two independent optional links to a story and/or task in the same project, and an optional result artifact (`result_decisions`/`result_summary`); a project-scoped incomplete-sessions query survives server restarts — see STORY-009 <!-- updated: 2026-07-30 (STORY-009 reconcile) --> | P1 |
 | Milestones | Named planning markers scoped to exactly one project; each milestone has a lifecycle status (`planned` / `active` / `finished`); at most one milestone per project may be `active` at a time (activate action demotes the previous one atomically); stories are optionally assigned to a milestone via nullable FK; `story_count` is server-derived | P1 |
 | Cross-project Queries | List stories and tasks across all projects in a single query; project-scoped is the default | P2 |
 
@@ -153,26 +153,41 @@ Comments attach to Stories, Tasks, or Milestones — never to Attachments or to 
 
 ---
 
-### Session
+### Session <!-- updated: 2026-07-30 (STORY-009 reconcile) -->
 
 | Field | Type | Required | Constraints | Notes |
 |-------|------|----------|-------------|-------|
 | id | UUID | Yes | PK, immutable | |
-| topic | string | Yes | 1–500 chars | start artifact: session topic |
-| context | text | No | max 50,000 chars | start artifact: context/background |
-| result_decisions | text | No | max 50,000 chars; null until set | result artifact: decisions made |
-| result_summary | text | No | max 50,000 chars; null until set | result artifact: summary |
-| status | string | No | free-form string; max 100 chars | not dictionary-validated |
-| participant_role | string | No | free-form; the agent or role involved | |
-| linked_story_id | UUID | No | FK → Story; SET NULL on Story delete | optional cross-module reference |
-| linked_task_id | UUID | No | FK → Task; SET NULL on Task delete | optional cross-module reference |
-| archived_at | timestamp | No | null = active; non-null = archived | |
+| project_id | UUID | Yes | FK → Project; CASCADE DELETE; immutable | the owning project — a session always belongs to exactly one project |
+| topic | string | Yes | 1–500 chars; updatable; cannot be cleared (explicit `null` → 422) | start artifact: a brief, at-a-glance label for the session |
+| goal | string | Yes | 1–500 chars; updatable; cannot be cleared (explicit `null` → 422) | start artifact: the concrete purpose the session was created to accomplish |
+| context | text | No | max 50,000 chars; clears on explicit `null` | start artifact: general background information |
+| status | string (fixed enum) | Yes | one of `"pending"`, `"in-progress"`, `"finished"`; server default `"pending"`; **not** dictionary-validated; not accepted as a creation input — every session starts at `pending` regardless of the create payload | fixed lifecycle enum; settable to any of the three values via update, in any direction, at any time; never inferred from `result_decisions`/`result_summary` |
+| participant_role | string | Yes | from the project's effective `participant_roles` dictionary; updatable; cannot be cleared (explicit `null` → 422) | descriptive metadata, not access control |
+| result_decisions | text | No | max 50,000 chars; null until set; clears on explicit `null` | result artifact: decisions made — purely informational, never affects `status` |
+| result_summary | text | No | max 50,000 chars; null until set; clears on explicit `null` | result artifact: summary — purely informational, never affects `status` |
+| linked_story_id | UUID | No | FK → Story; SET NULL on Story delete (application-level — see Relationships); must belong to the same `project_id` as the session; clears on explicit `null` | independent optional cross-module reference; neither a substitute for `linked_task_id` nor for `project_id` |
+| linked_task_id | UUID | No | FK → Task; SET NULL on Task delete (application-level — see Relationships); must belong to the same `project_id` as the session; clears on explicit `null` | independent optional cross-module reference; neither a substitute for `linked_story_id` nor for `project_id` |
+| archived_at | timestamp | No | null = active; non-null = archived | archiving does not restrict any later update |
 | created_at | timestamp | Yes | set on create | |
 | updated_at | timestamp | Yes | set on update | |
 
-A session with both `result_decisions` and `result_summary` null is considered **incomplete** (the session was started but never closed).
+A session is **incomplete** when its `status` is `pending` or `in-progress`, and **complete** when
+`finished`. `status` is always set explicitly — it is never derived from `result_decisions` /
+`result_summary` being null or non-null: a session can reach `finished` with both result fields still
+null, and can remain `pending` or `in-progress` after both have been filled in.
 
-Sessions do not belong to a project. A project may be mentioned in `topic` or `context`, but `project_id` is not a field.
+Every session belongs to exactly one project (`project_id`) — there is no project-less session and no
+cross-project session listing or incomplete-sessions query; every session read is scoped to a chosen
+`project_id`. `linked_story_id` and `linked_task_id` are two entirely independent optional fields —
+either, both, or neither may be set; neither is ever a substitute for the other or for the mandatory
+project scope.
+
+<!-- as-built note (STORY-009): this entity supersedes an earlier forward-spec draft that described
+sessions as project-less, `status` as a free-form string, and completion as derived from both result
+fields being null (briefly via an interim `is_complete` boolean during implementation). All three were
+replaced before acceptance. See api-contract v1.8, ADR-026 (project scope + fixed status enum), ADR-027
+(Sessions as a distinct Web UI app mode). -->
 
 ---
 
@@ -292,8 +307,9 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | Task → TaskLink (source or target) | 1:N | CASCADE (link deleted when either task is deleted) |
 | Story → StoryLink (source or target) | 1:N | CASCADE (link deleted when either story is deleted) |
 | Project → ProjectSettings | 1:N | CASCADE |
-| Session → Story (linked_story_id) | N:0-1 | SET NULL |
-| Session → Task (linked_task_id) | N:0-1 | SET NULL |
+| Project → Session | 1:N | CASCADE (all of a project's sessions are deleted when the project is deleted) <!-- new: 2026-07-30 (STORY-009 reconcile) --> |
+| Session → Story (linked_story_id) | N:0-1 | SET NULL (application-level — the SQLite FK is inert; see ADR-018 pattern) <!-- updated: 2026-07-30 (STORY-009 reconcile) --> |
+| Session → Task (linked_task_id) | N:0-1 | SET NULL (application-level — same as above, independent of the story link) <!-- updated: 2026-07-30 (STORY-009 reconcile) --> |
 | Project → Milestone | 1:N | CASCADE (all project milestones deleted when project deleted) |
 | Story → Milestone (milestone_id) | N:0-1 | SET NULL (story's milestone_id cleared when milestone deleted) |
 
@@ -315,9 +331,10 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 | StoryLink | (target_story_id, link_type) | inbound links per story |
 | Attachment | (container_type, container_id, kind) | attachments per container filtered by kind <!-- updated: 2026-07-15 (STORY-021: was filtered by type, now type is removed) --> |
 | Comment | (container_type, container_id, created_at) | comment thread per container, scanned descending for the newest-first list <!-- updated: 2026-07-21 (STORY-008 reconcile): list ordering flipped to newest-first --> |
-| Session | (archived_at, result_decisions) | find incomplete sessions (WHERE result_decisions IS NULL AND archived_at IS NULL) |
-| Session | (linked_story_id) | sessions for a story |
-| Session | (linked_task_id) | sessions for a task |
+| Session | (project_id, created_at) | project-scoped newest-first session list <!-- updated: 2026-07-30 (STORY-009 reconcile): replaces the stale forward-spec `(archived_at, result_decisions)` index — sessions are project-scoped, not queried globally --> |
+| Session | (project_id, status) | project-scoped incomplete query (`status != 'finished'`) <!-- updated: 2026-07-30 (STORY-009 reconcile) --> |
+| Session | (linked_story_id) | sessions linked to a story; also backs the `linked_story_id` list filter and the reference-clearing update on story delete |
+| Session | (linked_task_id) | sessions linked to a task; also backs the reference-clearing update on task delete |
 | Story | (milestone_id) | stories assigned to a milestone |
 | Milestone | (project_id) | milestones for a project |
 | Milestone | (project_id, status) | find active milestone for a project |
@@ -768,18 +785,48 @@ free-form and never dictionary-validated; `author_role` is likewise never valida
 
 ---
 
-### Sessions
+### Sessions <!-- updated: 2026-07-30 (STORY-009 reconcile) -->
+
+Every session belongs to exactly one project. There is no cross-project session listing and no
+cross-project incomplete-sessions query. A session is **incomplete** when its `status` is `pending` or
+`in-progress`, and **complete** when `finished` — `status` is always set explicitly, never derived from
+`result_decisions`/`result_summary`. The unfinished-sessions query is
+`GET /sessions?project_id=…&incomplete=true`, a durable persisted read (correct across server
+restarts, no special mechanism).
+
+> **As-built notes (STORY-009):** this section supersedes the pre-existing project-less,
+> free-form-`status`, interim-`is_complete`-boolean forward-spec entirely. `topic` was also considered
+> immutable at one point during the story's amendments; it shipped updatable, like every other
+> mandatory-but-non-clearable field. See api-contract v1.8, ADR-026 (project scope + fixed status
+> enum), ADR-027 (Sessions as a distinct Web UI app mode).
 
 #### POST /sessions
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** `{ "topic": "string (required, 1–500 chars)", "context", "status", "participant_role", "linked_story_id", "linked_task_id" }`
-- **Response 201:** `{ "data": { Session } }` — result fields null on creation
-- **Response errors:** 404 (linked IDs), 422 (topic missing or out of range — Pydantic)
+- **Request body:**
+  ```json
+  {
+    "project_id": "uuid (required)",
+    "topic": "string (required, 1–500 chars)",
+    "goal": "string (required, 1–500 chars)",
+    "context": "string (optional)",
+    "participant_role": "string (required, from participant_roles dict)",
+    "linked_story_id": "uuid (optional)",
+    "linked_task_id": "uuid (optional)"
+  }
+  ```
+  `status` is not a creation field — every session is created at `status: "pending"`. A `status` value
+  supplied in the payload is accepted and silently ignored, not rejected.
+- **Response 201:** `{ "data": { Session } }` — `status: "pending"`; `result_decisions`/`result_summary` null
+- **Response errors:**
+  - 404: `project_id` does not reference an existing project; a supplied `linked_story_id`/`linked_task_id` does not reference an existing story/task
+  - 422: `topic`/`goal` missing or out of range (Pydantic); `participant_role` missing or not in the project's effective `participant_roles` dict → `{ "error": "Value '{v}' is not allowed. Allowed: {list}.", "code": "UNPROCESSABLE" }`; a linked story/task belongs to a different project than `project_id`
 
 #### GET /sessions
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Query params:** `page`, `limit`, `incomplete` (bool), `status`, `include_archived` (bool, default: false)
-- **Response 200:** paginated Session list
+- **Query params:** `project_id` (**required**), `page`, `limit`, `incomplete` (bool — `status` is `pending` or `in-progress`), `linked_story_id` (filter to sessions linked to a specific story), `include_archived` (bool, default: false)
+- **Response 200:** paginated Session list, newest-first, scoped to `project_id`
+- **Response errors:** 422 (missing `project_id`), 404 (`project_id` does not reference an existing project)
+- **Note:** `incomplete` and `linked_story_id` are independently combinable. There is no `status`-value filter and no symmetric `linked_task_id` filter (a future addition the link indexes already anticipate).
 
 #### GET /sessions/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
@@ -788,14 +835,22 @@ free-form and never dictionary-validated; `author_role` is likewise never valida
 
 #### PUT /sessions/:id
 - **Auth:** none  **Rate limit:** 1,000 req/min
-- **Request body:** `status`, `context`, `result_decisions`, `result_summary`, `participant_role`, `linked_story_id`, `linked_task_id` — all optional
+- **Request body:** `topic`, `goal`, `context`, `status`, `participant_role`, `result_decisions`, `result_summary`, `linked_story_id`, `linked_task_id` — all optional; an omitted field is left unchanged
 - **Response 200:** `{ "data": { Session } }`
-- **Response errors:** 400 (attempt to update immutable `topic` field), 404 (session or linked IDs not found), 422 (field value out of range — Pydantic)
+- **Response errors:**
+  - 404: session not found; a newly-set `linked_story_id`/`linked_task_id` does not reference an existing story/task
+  - 422: explicit `null` on `topic`, `goal`, `participant_role`, or `status` (all four are mandatory and cannot be cleared); a new `topic`/`goal` out of range; a new `participant_role` not in the effective dictionary; a new `status` outside the fixed set → `{ "error": "Value '{v}' is not allowed. Allowed: pending, in-progress, finished.", "code": "UNPROCESSABLE" }`; a newly-set link belonging to a different project than the session
+- **Note:** `context`, `result_decisions`, `result_summary`, `linked_story_id`, `linked_task_id` clear on explicit `null`. `status` may move to any of the three values from any other value, in any direction, at any time — no transition order is enforced. `result_decisions`/`result_summary` never affect `status`, in any combination.
 
 #### POST /sessions/:id/archive
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 200:** `{ "data": { Session } }` with `archived_at` set
-- **Response errors:** 400 (already archived), 404
+- **Response errors:** 400 (already archived → `{ "error": "Session is already archived.", "code": "VALIDATION_ERROR" }`), 404
+- **Note:** an archived session stays fully updatable — archiving does not restrict any later update.
+
+**MCP tools** (behavior-identical mirror): `create_session`, `list_sessions`, `get_session`,
+`update_session`, `archive_session`. `list_sessions(project_id, incomplete=true)` is the orchestrator's
+cross-restart continuity query, scoped to the current project.
 
 ---
 
@@ -977,7 +1032,11 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 | Comment | author_role | Required; non-empty; every caller (Web UI, REST, MCP); immutable after create <!-- updated: 2026-07-21 (STORY-008): was optional pre-STORY-008 --> | "Comment author is required." |
 | Comment | in_reply_to | Optional, request-only; if supplied, the referenced comment must exist (404) and share the same container as the comment being created (422) <!-- new: 2026-07-21 (STORY-008) --> | "A reply must be on the same story, task, or milestone as the comment it replies to." |
 | SystemSettings / ProjectSettings | values (default_web_ui_role) | Required; non-empty string; must be a member of the effective `participant_roles` for the scope <!-- new: 2026-07-21 (STORY-008) --> | "Value '{v}' is not allowed. Allowed: {list}." |
-| Session | topic | Required; 1–500 chars | "Session topic is required." |
+| Session | project_id | Required; must reference an existing project | "Project not found." (404) |
+| Session | topic | Required; 1–500 chars; updatable, cannot be cleared | "Session topic is required." |
+| Session | goal | Required; 1–500 chars; updatable, cannot be cleared <!-- new: 2026-07-30 (STORY-009 reconcile) --> | "Session goal is required." |
+| Session | participant_role | Required; in `participant_roles` dict; updatable, cannot be cleared <!-- updated: 2026-07-30 (STORY-009 reconcile): was assumed free-form; ships dictionary-validated --> | "Value '{v}' is not allowed. Allowed: {list}." |
+| Session | status | Required; one of `pending` / `in-progress` / `finished`; NOT dictionary-validated; not a creation input (always forced to `pending`); updatable, cannot be cleared <!-- updated: 2026-07-30 (STORY-009 reconcile): was assumed free-form; ships as a fixed enum --> | "Value '{v}' is not allowed. Allowed: pending, in-progress, finished." |
 | SystemSettings / ProjectSettings | values (non-link_types keys) | Array; min 1 non-empty string | "Dictionary values cannot be empty." |
 | SystemSettings / ProjectSettings | values (link_types key) | Array of `LinkTypeEntry` objects; min 1 entry; plain strings rejected | "link_types entries must be objects with 'value', 'outbound', and 'inbound' fields" (422) |
 | SystemSettings / ProjectSettings | values (link_types, per entry) | Each of `value`, `outbound`, `inbound` required; 1–200 chars; non-empty | 422 (Pydantic field validation) |
@@ -989,10 +1048,10 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 ### Business-Level
 
 1. A task's project is determined transitively via `task.story_id → story.project_id`. All dictionary lookups use that project's effective settings.
-2. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments and Comments. Sessions linked to deleted Stories or Tasks have links set to null. <!-- updated: 2026-07-21 (STORY-008): milestones now also cascade-delete their comments -->
+2. Deleting a Project cascades to Stories → Tasks → Attachments → Comments → TaskLinks → ProjectSettings, and to Milestones → their Attachments and Comments, and to that project's own Sessions (all deleted). Sessions linked to a Story or Task that is deleted (within a project that itself survives) have just that link (`linked_story_id` or `linked_task_id`) set to null — the two links are cleared independently of one another. <!-- updated: 2026-07-30 (STORY-009 reconcile): a project's sessions are themselves cascade-deleted with the project, not merely link-cleared -->
 3. `GET /stories/:id/aggregate` is always computed on demand; never stored.
 4. `GET /tasks/:id/dependencies` returns raw data only — the utility never enforces blocking.
-5. A session where both `result_decisions` and `result_summary` are null is incomplete.
+5. A session's `status` is a fixed three-value lifecycle enum (`pending`, `in-progress`, `finished`); it defaults to `pending` at creation (not accepted as a creation input — a `status` supplied at create is accepted-and-ignored) and is settable to any of the three values via update, in any direction, at any time — no transition order is enforced. A session is **incomplete** when `status` is `pending` or `in-progress`, and **complete** when `finished` — `status` is always set explicitly, never inferred from `result_decisions`/`result_summary` being null or non-null in any combination. <!-- updated: 2026-07-30 (STORY-009 reconcile): supersedes the original "both result fields null = incomplete" rule and the interim `is_complete` boolean that briefly replaced it during implementation -->
 6. ProjectSettings for a given key completely replace (not merge with) the system default.
 7. A session without a linked story or task is valid.
 8. TaskLinks can only be created between tasks that share the same `story_id`. Both `source_task_id` and `target_task_id` must belong to the same parent story; cross-story task links are rejected (422).
@@ -1014,6 +1073,9 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 24. A standalone permalink to a comment that has since been hard-deleted cannot resolve to a host work item, because comments have no archive/tombstone and `GET /comments/:id` for a deleted id returns a plain 404 with no surviving container information. This is a graceful, non-error condition — see the Web UI requirements for the resulting fallback UI. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
 25. `default_web_ui_role` is a single-value (scalar) setting resolved with the same system-default + project-override precedence as the five dictionaries. On write it must be non-empty and a member of the effective `participant_roles` for that scope; it is never re-validated on read and never constrains a comment's own free-form `author_role`. Its only product effect is pre-filling the Web UI's Add Comment form. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
 26. The `participant_roles` dictionary's system-seeded defaults gain a new entry, `"operator"`, representing the human orchestrator (distinct from the pre-existing `"orchestrator"` agent-coordination role). As an ordinary dictionary entry it is thereafter selectable anywhere `participant_roles` is used — not restricted to the default Web UI role. <!-- new: 2026-07-21 (STORY-008 reconcile) -->
+27. Every session belongs to exactly one project (`project_id`, required, immutable) — there is no project-less session and no cross-project session listing or incomplete-sessions query; every session read is scoped to a chosen `project_id`. Deleting a project cascades to delete all of its sessions. <!-- new: 2026-07-30 (STORY-009 reconcile) -->
+28. A session's `participant_role` is required and validated against the project's effective `participant_roles` dictionary (422 otherwise, the same message convention as `default_web_ui_role` and task `assignee_role`/`creator_role`); it is updatable but cannot be cleared (explicit `null` → 422). <!-- new: 2026-07-30 (STORY-009 reconcile) -->
+29. `linked_story_id` and `linked_task_id` are two independent optional fields on a Session — either, both, or neither may be set; neither substitutes for the other or for the mandatory `project_id` scope. Each is validated independently when set (referenced story/task must exist — 404 — and belong to the same `project_id` as the session — 422) and each is nulled automatically (application-side, since the SQLite FK action is inert) when its target story/task is deleted, unaffected by the state of the other link. <!-- new: 2026-07-30 (STORY-009 reconcile) -->
 
 ---
 

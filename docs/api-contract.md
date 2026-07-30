@@ -100,6 +100,32 @@
 > orchestrator) and the system `default_web_ui_role` seeds to `"operator"`. See ADR-022 (scalar
 > setting) and ADR-024 (`operator` role). All other domains unchanged.
 
+> **v1.8 revision — ratified at STORY-009 reconcile 2026-07-30 (Sessions domain only).** The Sessions
+> `## Sessions` block below and the `Session` entity replace the stale v1.0 forward-spec (project-less
+> sessions; completion *derived* from both result fields being null; free-form `status`; immutable
+> `topic`). As built: **(1) A session belongs to exactly one project** — `project_id` is a required
+> create-body field and a **required** `project_id` query param on the list; there is no cross-project
+> session listing and no cross-project incomplete query. **(2) A required `goal` field** (1–500,
+> free-form, the purpose the session was created for) joins `topic` and `context`. **(3) `status` is a
+> fixed three-value enum** — `pending` (default at create, never a create input) / `in-progress` /
+> `finished` — settable to any value in any direction on update, **not** dictionary-validated (a
+> deliberate divergence from `task_statuses`/`story_statuses`; validated at the schema layer). The
+> retired v1.0 "both result fields null = incomplete" derivation and the interim `is_complete` boolean
+> are both gone; **incomplete = `status` is `pending` or `in-progress`**. `result_decisions` /
+> `result_summary` are purely informational and never affect `status`. **(4) `participant_role` is
+> required and dictionary-validated** against the project's effective `participant_roles` (422, same
+> convention as `default_web_ui_role` / task roles). **(5) `topic`, `goal`, `participant_role`, and
+> `status` are mandatory and non-clearable** on update (explicit `null` → 422); `context`,
+> `result_decisions`, `result_summary`, `linked_story_id`, `linked_task_id` clear on explicit `null`.
+> **(6) `linked_story_id` and `linked_task_id` are two independent optional links** (either / both /
+> neither), each validated on set to exist (404) and belong to the **same project** (422); each is
+> nulled application-side when its target is deleted (SQLite FK inert — ADR-018 pattern). **(7) The list
+> filters are `incomplete` (`status != finished`) + `linked_story_id` + `include_archived`**, all
+> independently combinable; there is no `status`-value filter and no symmetric `linked_task_id` filter
+> yet. Request/response schemas use the house naming (`CreateSession` / `UpdateSession` / `Session`, no
+> `Body`/`Response` suffix). See ADR-026 (project scope + fixed status enum) and ADR-027 (Sessions as a
+> distinct app mode). All other domains unchanged.
+
 ---
 
 ## Shared shapes
@@ -245,16 +271,20 @@ interface Comment {
   updated_at: string;
 }
 
-interface Session {
+type SessionStatus = "pending" | "in-progress" | "finished";  // fixed enum; NOT dictionary-validated
+
+interface Session {                          // v1.8 — as built (STORY-009)
   id: string;
-  topic: string;             // 1–500 (immutable after create)
+  project_id: string;        // required; the owning project (session is always project-scoped)
+  topic: string;             // 1–500 (mandatory, updatable, non-clearable)
+  goal: string;              // 1–500 (mandatory, updatable, non-clearable) — the purpose it was created for
   context: string | null;
-  result_decisions: string | null;
-  result_summary: string | null;
-  status: string | null;     // free-form, max 100
-  participant_role: string | null;
-  linked_story_id: string | null;
-  linked_task_id: string | null;
+  status: SessionStatus;     // required, non-null; default "pending" at create (never a create input)
+  participant_role: string;  // required; validated vs effective participant_roles (mandatory, non-clearable)
+  result_decisions: string | null;   // informational; never affects status
+  result_summary: string | null;     // informational; never affects status
+  linked_story_id: string | null;    // independent optional link; same-project; nulled if the story is deleted
+  linked_task_id: string | null;     // independent optional link; same-project; nulled if the task is deleted
   archived_at: string | null;
   created_at: string;
   updated_at: string;
@@ -343,9 +373,9 @@ interface CreateProject { name: string; description?: string; }
 // PUT  /projects/:id                    -> 200 Envelope<Project>   | 422, 404, 409
 interface UpdateProject { name?: string; description?: string; }
 // DELETE /projects/:id                  -> 204                     | 404
-//   Cascade: stories -> tasks -> attachments/comments/links/project_settings.
+//   Cascade: stories -> tasks -> attachments/comments/links/project_settings; the project's sessions too.
 //   (No attachment versions — attachments are immutable, one file each; see v1.5 / ADR-021.)
-//   Sessions linked to deleted stories/tasks have links set to null.
+//   Sessions linked to a deleted story/task keep the session and null just that link (v1.8).
 //   A malformed (non-UUID) :id returns 404 NOT_FOUND, not 422 (ADR-011).
 ```
 
@@ -624,27 +654,64 @@ interface UpdateCommentBody { content?: string; labels?: Label[]; } // labels fu
 
 ## Sessions
 
-Sessions do not belong to a project. A session with both `result_decisions` and `result_summary`
-null is **incomplete**.
+<!-- v1.8 (2026-07-30, STORY-009 reconcile): supersedes the LOCKED v1.0 forward-spec. Sessions are
+     project-scoped; `status` is a fixed 3-value enum; completion is never derived from the result
+     fields; `goal` is a required field; the two links are independent. See ADR-026 + ADR-027. -->
+
+Every session **belongs to exactly one project** (`project_id`, required on create and on every list).
+There is no cross-project session listing and no cross-project incomplete query. A session is
+**incomplete** when its `status` is `pending` or `in-progress`, and **complete** when `finished` —
+`status` is set explicitly and is never inferred from `result_decisions` / `result_summary`. The
+unfinished-sessions query is simply `GET /sessions?project_id=…&incomplete=true` (a durable persisted
+read — correct across server restarts with no special mechanism).
 
 ```typescript
-// POST /sessions                          -> 201 Envelope<Session> | 422, 404 (linked ids)
-interface CreateSessionBody {
-  topic: string; context?: string; status?: string; participant_role?: string;
-  linked_story_id?: string; linked_task_id?: string;
+// POST /sessions                          -> 201 Envelope<Session> | 422, 404 (project / linked ids)
+interface CreateSession {
+  project_id: string;                     // required — the owning project
+  topic: string;                          // required, 1–500
+  goal: string;                           // required, 1–500
+  context?: string;
+  participant_role: string;               // required; validated vs the project's effective participant_roles
+  linked_story_id?: string;               // optional; must exist (404) and be in the same project (422)
+  linked_task_id?: string;                // optional; independent of linked_story_id; same 404/422 rules
 }
-// GET  /sessions?page&limit&incomplete&status&include_archived
-//                                         -> 200 ListEnvelope<Session>
+//   status is NOT a create input — every session is created at "pending". A `status` supplied in the
+//   payload is accepted-and-ignored, not rejected. 404 if project_id / a linked id does not exist;
+//   422 for topic/goal length, participant_role not in the dictionary, or a link in a different project.
+
+// GET  /sessions?project_id&page&limit&incomplete&linked_story_id&include_archived
+//                                         -> 200 ListEnvelope<Session> | 404 (unknown project_id)
+//   project_id is REQUIRED (422 if omitted). Newest-first. `incomplete=true` -> status != finished.
+//   `linked_story_id` filters to sessions linked to that story. The two filters are independently
+//   combinable. Archived sessions are excluded unless `include_archived=true`. No `status`-value
+//   filter; no symmetric `linked_task_id` filter (the index anticipates it as a future add).
+
 // GET  /sessions/:id                      -> 200 Envelope<Session> | 404
-// PUT  /sessions/:id                      -> 200 Envelope<Session> | 400, 422, 404
-//   422: request-schema validation on updatable fields.
-interface UpdateSessionBody {            // topic NOT updatable (business rule) -> 400 if provided
-  status?: string; context?: string;
-  result_decisions?: string; result_summary?: string;
-  participant_role?: string; linked_story_id?: string | null; linked_task_id?: string | null;
+// PUT  /sessions/:id                      -> 200 Envelope<Session> | 422, 404
+//   Partial update. Omitted field -> unchanged. Explicit null clears context / result_decisions /
+//   result_summary / linked_story_id / linked_task_id. topic / goal / participant_role / status are
+//   mandatory: explicit null -> 422; a new value is re-validated (topic & goal 1–500; participant_role
+//   vs the dictionary; status vs the fixed enum). status may move to any value in any direction (no
+//   transition order). A newly-set link id is re-validated for existence + same-project.
+interface UpdateSession {
+  topic?: string; goal?: string; context?: string | null;
+  status?: SessionStatus;                 // present-but-null -> 422; out-of-set -> 422
+  participant_role?: string;
+  result_decisions?: string | null; result_summary?: string | null;
+  linked_story_id?: string | null; linked_task_id?: string | null;
 }
 // POST /sessions/:id/archive              -> 200 Envelope<Session> (archived_at set) | 400 (already), 404
+//   400 message: "Session is already archived." An archived session stays fully updatable.
 ```
+
+**Out-of-set status 422 example:**
+`{ "error": "Value 'done' is not allowed. Allowed: pending, in-progress, finished.", "code": "VALIDATION_ERROR" }`
+
+> **MCP.** Five tools mirror these one-to-one over the same service: `create_session`, `list_sessions`,
+> `get_session`, `update_session`, `archive_session`. `list_sessions(project_id, incomplete=true)` is
+> the orchestrator's cross-restart continuity query. REST and MCP are behaviour-identical, including
+> error codes.
 
 ---
 
