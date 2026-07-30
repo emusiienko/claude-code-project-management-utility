@@ -108,10 +108,13 @@ export default function SessionDetailPage() {
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">
-        {/* break-words: topic can hold one long unbroken string with no
-            spaces — without it the heading overflows its container and
-            stretches the whole page horizontally (BUG-002 / BUG-006) */}
-        <h1 className="break-words text-2xl font-semibold text-text">{session.topic}</h1>
+        {/* min-w-0 + break-words: the h1 is a flex item of the row below it,
+            and flex items default to min-width: auto, which keeps them from
+            shrinking below their own intrinsic (unwrapped) content width no
+            matter what overflow-wrap/word-break says. min-w-0 lets the item
+            actually shrink to the row's available width so break-words can
+            engage — break-words alone was not sufficient here (BUG-006). */}
+        <h1 className="min-w-0 break-words text-2xl font-semibold text-text">{session.topic}</h1>
         <SessionStatusBadge status={session.status} />
         {session.archived_at && (
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">

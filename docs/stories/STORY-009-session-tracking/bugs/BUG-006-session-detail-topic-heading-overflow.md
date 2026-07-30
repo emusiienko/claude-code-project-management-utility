@@ -72,3 +72,69 @@ per the bug report.
 
 **Verified**: `npx tsc --noEmit` — clean, no errors. `npx vitest run` — 252/252 tests passing, no
 regressions.
+
+## Manual QA re-verification (2026-07-30, fifth Check Story — Execute pass)
+**Still reproducible — reopened.** The `break-words` class is present on the `<h1>` and its
+computed style does show `overflow-wrap: break-word` (confirmed via
+`getComputedStyle(h1).overflowWrap`), so the class was applied correctly — but the page still
+overflows: `document.documentElement.scrollWidth` = 7969px vs. `clientWidth` = 1512px, identical
+to the original repro, and the topic heading visibly runs off the right edge of the viewport in a
+screenshot (`tc009-bug006-recheck-still-overflow.png`).
+
+**Root cause of why the fix didn't take effect**: the `<h1>` is itself a flex item — its immediate
+parent is `<div class="flex flex-wrap items-center gap-3">`. A flex item's default
+`min-width` is `auto`, not `0`; per the CSS flexbox spec this "automatic minimum size" means a
+flex item will not shrink narrower than its own intrinsic (unwrapped) content width unless the
+item itself has `min-width: 0` (or an equivalent, e.g. `overflow: hidden`) applied directly to it.
+`break-words`/`overflow-wrap: break-word` only takes effect once the box is *forced* to a narrower
+width than its content — but here the flex layout never forces that narrower width in the first
+place, because the h1's own automatic minimum keeps it at its full intrinsic size (confirmed:
+`getComputedStyle(h1).minWidth` = `"auto"`, and the h1's own `getBoundingClientRect().width` =
+7705px, wider than its 1224px-wide flex-container parent). This is a well-known flexbox gotcha
+distinct from BUG-002's original fix: adding `break-words` alone is not sufficient when the
+wrapping element is a direct flex child — `min-w-0` (or equivalent) must also be added to the
+flex item (the `<h1>` itself) for the wrap to actually engage.
+
+Note for the next fix attempt: `ReadField`'s definitions (which BUG-002 fixed) are not flex items
+in the same way, which is presumably why that fix worked there but not here — this is a
+heading-specific layout interaction, not a copy-paste gap.
+
+**Re-verified still failing**: TC-009 and TC-017 (Session Detail long-topic checks) — both fail
+again for the same underlying symptom (page-wide horizontal overflow via the topic heading).
+Screenshot: `tc009-bug006-recheck-still-overflow.png`.
+
+## Second Fix Attempt (2026-07-30)
+
+**Root cause confirmed**: exactly as diagnosed in manual-qa's re-verification note above — the
+`<h1>` in `frontend/src/features/sessions/SessionDetailPage.tsx` is a flex item of its parent
+`<div className="flex flex-wrap items-center gap-3">`. Flex items default to `min-width: auto`,
+which pins them to their own intrinsic (unwrapped) content width regardless of any
+`overflow-wrap`/`word-break` treatment — `break-words` alone never gets a chance to engage because
+the box is never forced narrower than its content in the first place.
+
+**Fix**: added Tailwind's `min-w-0` utility directly on the `<h1>` alongside the existing
+`break-words`, so the flex item can shrink to the row's available width and the wrap can actually
+take effect. No other element needed the change — the heading is shared between read and edit mode
+(stays visible above the edit form in both), so this one change covers both, per the bug report.
+
+**Verification methodology** (not just re-applying the class and trusting it): used Playwright
+(`chromium`) against a local Vite dev server pointed at the running backend, loading the exact
+repro session (`LongTopicStress-AAAA…`, project `02daf420-3c27-4b51-b0a0-67b65b741e9e`, session
+`fc4e8bcf-ceb6-47a8-85f2-9dd0ddf32bd0`) at a 1512px viewport — the same session and viewport width
+manual-qa used.
+
+- **Sanity-checked the test itself first**: temporarily reverted the fix (git stash) and confirmed
+  the script reproduces manual-qa's exact numbers — `document.documentElement.scrollWidth` = 7969px
+  vs. `clientWidth` = 1512px, `h1.scrollWidth` = 7705px, `getComputedStyle(h1).minWidth` = `"auto"`.
+  This confirms the measurement approach is valid before trusting a "fixed" result from it.
+- **Re-applied the fix and re-measured**: `scrollWidth` (1512px) now equals `clientWidth` (1512px)
+  — no page-wide horizontal overflow. `h1.getBoundingClientRect().width` = 1224px (shrunk to the
+  row's available width, was 7705px), `getComputedStyle(h1).minWidth` = `"0px"`, and the heading's
+  rendered height grew to 256px, confirming it now wraps across multiple lines instead of
+  stretching as one unbroken line. Also re-checked with the page switched into Edit mode (heading
+  stays visible above the form) — same result, no overflow.
+- Full-page screenshot taken in the fixed state confirms the topic wraps cleanly within the page
+  and no horizontal scrollbar is present.
+
+**Regression check**: `npx tsc --noEmit` — clean, no errors. `npx vitest run` — 252/252 tests
+passing (same count as the pre-fix baseline), no regressions.
