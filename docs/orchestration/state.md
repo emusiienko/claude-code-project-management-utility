@@ -1,17 +1,13 @@
 ## Active wait
-waiting_for: quick fix for 3 real pyright errors (`reportOptionalSubscript`) in the new
-`test_session_status_backfill_migration.py` qa-automation just wrote for STORY-023's Reconcile —
-confirmed real via a live `uv run pyright` run, not the stale-IDE-diagnostic pattern seen
-throughout this session. STORY-023 itself is otherwise fully reconciled: Arch ✓ (ADR-028 created),
-Spec ✓ (no requirements changes needed), Auto Rec ✓ (added 10 new migration-mechanics tests, since
-the drift-detection/backfill logic itself had no coverage before — 588 passed total), QA Rec ✓
-(nothing to merge, no story-level QA artifacts existed). Row already in docs/stories/archive.md.
+waiting_for: none
 
-## Still pending after this fix
-1. Commit both STORY-009 and STORY-023's full Reconcile (neither committed yet — first commit
-   attempt for STORY-009 was rejected/interrupted by the user, no reason given).
-2. Delete `docs/stories/STORY-009-session-tracking/` folder (user's original request — was
-   deferred pending STORY-023's Accept, which has now happened).
+## STORY-009 + STORY-023 fully closed out (2026-07-30)
+Both stories Accepted and fully reconciled (Arch ✓/Spec ✓/Auto Rec ✓/QA Rec ✓). Story folders
+`STORY-009-session-tracking/` and `STORY-023-session-status-migration-drift/` deleted (user
+request) and everything committed (`20f54df`) on `feature/sessions`. Key lasting artifacts:
+ADR-026 (session project scope + fixed status enum), ADR-027 (Sessions as distinct top-level app
+mode), ADR-028 (never edit an applied Alembic migration in place). 17 QA test cases live on as
+TC-175–191 in the master registry. api-contract.md is now v1.8.
 
 ## STORY-009 fully reconciled, NOT yet committed (2026-07-30)
 Arch ✓/Spec ✓/Auto Rec ✓/QA Rec ✓ all marked, row moved to docs/stories/archive.md. User rejected
