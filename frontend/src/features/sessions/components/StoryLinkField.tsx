@@ -8,6 +8,7 @@
  */
 
 import { useStories } from "@/features/stories/hooks/useStories";
+import { SelectField } from "@/shared/components/SelectField";
 
 interface StoryLinkFieldProps {
   /** Active project — scopes the story selector. */
@@ -38,7 +39,7 @@ export function StoryLinkField({
       >
         Linked story (optional)
       </label>
-      <select
+      <SelectField
         id="session-linked-story"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
@@ -51,7 +52,7 @@ export function StoryLinkField({
             {s.title}
           </option>
         ))}
-      </select>
+      </SelectField>
     </div>
   );
 }

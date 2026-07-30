@@ -20,6 +20,7 @@ import { useState } from "react";
 import { StoryLinkField } from "./StoryLinkField";
 import { TaskLinkField } from "./TaskLinkField";
 import { validateSessionFields } from "../utils/validateSessionFields";
+import { SelectField } from "@/shared/components/SelectField";
 import type { CreateSession } from "@/api/types";
 
 export type SessionCreatePayload = Omit<CreateSession, "project_id">;
@@ -170,7 +171,7 @@ export function SessionForm({
         >
           Participant role <span aria-hidden="true" className="text-status-error">*</span>
         </label>
-        <select
+        <SelectField
           id="session-participant-role"
           value={participantRole}
           onChange={(e) => {
@@ -194,7 +195,7 @@ export function SessionForm({
               {r}
             </option>
           ))}
-        </select>
+        </SelectField>
         {roleError && (
           <p id="session-participant-role-error" role="alert" className={errorClass}>
             {roleError}

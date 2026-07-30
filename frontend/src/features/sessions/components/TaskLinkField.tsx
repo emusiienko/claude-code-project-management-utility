@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { useStories } from "@/features/stories/hooks/useStories";
 import { useTask, useTaskList } from "@/features/tasks/hooks/useTasks";
+import { SelectField } from "@/shared/components/SelectField";
 
 interface TaskLinkFieldProps {
   /** Active project — scopes both the task's-story and task selectors. */
@@ -64,7 +65,7 @@ export function TaskLinkField({
         Linked task (optional)
       </span>
       <div className="flex flex-col gap-2">
-        <select
+        <SelectField
           aria-label="Task's story"
           value={taskStoryId}
           onChange={(e) => handleTaskStorySelect(e.target.value)}
@@ -77,8 +78,8 @@ export function TaskLinkField({
               {s.title}
             </option>
           ))}
-        </select>
-        <select
+        </SelectField>
+        <SelectField
           aria-label="Linked task"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
@@ -91,7 +92,7 @@ export function TaskLinkField({
               {t.title}
             </option>
           ))}
-        </select>
+        </SelectField>
       </div>
     </div>
   );

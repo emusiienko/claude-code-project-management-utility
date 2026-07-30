@@ -8,6 +8,7 @@
  */
 
 import type { SessionStatus } from "@/api/types";
+import { SelectField } from "@/shared/components/SelectField";
 import { SESSION_STATUS_LABELS } from "./SessionStatusBadge";
 
 const ALL_SESSION_STATUSES: SessionStatus[] = ["pending", "in-progress", "finished"];
@@ -27,18 +28,19 @@ export function SessionStatusControl({
   disabled = false,
 }: SessionStatusControlProps) {
   return (
-    <select
+    <SelectField
       aria-label="Session status"
       value={status}
       onChange={(e) => onChange(e.target.value as SessionStatus)}
       disabled={disabled}
       className={selectClass}
+      wrapperClassName="inline-block w-auto"
     >
       {ALL_SESSION_STATUSES.map((s) => (
         <option key={s} value={s}>
           {SESSION_STATUS_LABELS[s]}
         </option>
       ))}
-    </select>
+    </SelectField>
   );
 }

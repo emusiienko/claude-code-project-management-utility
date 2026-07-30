@@ -24,6 +24,7 @@ import {
 } from "./hooks/useSessions";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { useStories } from "@/features/stories/hooks/useStories";
+import { SelectField } from "@/shared/components/SelectField";
 import { extractErrorMessage, extractFieldErrors } from "./utils/errorMessages";
 import type { Session } from "@/api/types";
 import type { SessionCreatePayload } from "./components/SessionForm";
@@ -133,12 +134,13 @@ export default function SessionListPage() {
 
         <label className="flex items-center gap-1.5 text-text">
           Linked story
-          <select
+          <SelectField
             value={filters.linked_story_id ?? ""}
             onChange={(e) =>
               handleFilterChange({ linked_story_id: e.target.value || undefined })
             }
             className="rounded border border-border bg-surface px-2 py-1 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            wrapperClassName="inline-block w-auto"
           >
             <option value="">Any</option>
             {stories.map((s) => (
@@ -146,7 +148,7 @@ export default function SessionListPage() {
                 {s.title}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
 
         <label className="flex items-center gap-1.5 text-text">
