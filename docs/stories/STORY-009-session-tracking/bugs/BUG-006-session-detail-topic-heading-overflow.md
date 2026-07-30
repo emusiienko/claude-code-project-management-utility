@@ -2,7 +2,7 @@
 id: BUG-006
 story: STORY-009
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -101,7 +101,9 @@ heading-specific layout interaction, not a copy-paste gap.
 
 **Re-verified still failing**: TC-009 and TC-017 (Session Detail long-topic checks) — both fail
 again for the same underlying symptom (page-wide horizontal overflow via the topic heading).
-Screenshot: `tc009-bug006-recheck-still-overflow.png`.
+Screenshot: `tc009-bug006-recheck-still-overflow.png` (temp QA run artifact in `docs/qa/results/`;
+cleaned up once the story fully passed — see the sixth-pass re-verification below for the
+fixed-state screenshot kept permanently alongside this file).
 
 ## Second Fix Attempt (2026-07-30)
 
@@ -138,3 +140,22 @@ manual-qa used.
 
 **Regression check**: `npx tsc --noEmit` — clean, no errors. `npx vitest run` — 252/252 tests
 passing (same count as the pre-fix baseline), no regressions.
+
+## Manual QA re-verification (2026-07-30, sixth Check Story — Execute pass)
+**Confirmed fixed.** Re-tested against the same repro session
+(`LongTopicStress-AAAA…`, `fc4e8bcf-ceb6-47a8-85f2-9dd0ddf32bd0`) at the same 1512px viewport used
+in every prior attempt:
+- `h1.getBoundingClientRect().width` = 1224px (shrunk to the row's available width; was 7705px
+  pre-fix), `getComputedStyle(h1).minWidth` = `"0px"` (was `"auto"`).
+- `document.documentElement.scrollWidth` = 1512px = `clientWidth` — no page-wide horizontal
+  overflow (was 7969px vs. 1512px pre-fix).
+- Re-checked with the page switched into Edit mode (heading stays visible above the form) — same
+  result, no overflow.
+- Full-page screenshot confirms the topic wraps cleanly across multiple lines within the page,
+  no horizontal scrollbar. Screenshot: `bug006-topic-heading-fixed-no-overflow.png` (saved
+  alongside this bug file for a permanent record).
+- Also re-checked the Sessions list (same long-topic session, page 2 of 34): row wraps correctly,
+  page stays at 1512px scrollWidth — no regression of BUG-004's fix.
+
+TC-009 and TC-017 (the two test cases that caught this bug across five prior attempts) both pass.
+Status moved `fixed` → `resolved`.
