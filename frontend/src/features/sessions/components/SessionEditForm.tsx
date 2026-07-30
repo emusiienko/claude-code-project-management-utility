@@ -20,6 +20,7 @@
 import { useState } from "react";
 import { StoryLinkField } from "./StoryLinkField";
 import { TaskLinkField } from "./TaskLinkField";
+import { validateSessionFields } from "../utils/validateSessionFields";
 import type { Session, UpdateSession } from "@/api/types";
 
 export type SessionEditPayload = Omit<UpdateSession, "status">;
@@ -28,6 +29,7 @@ interface SessionEditFormProps {
   session: Session;
   projectId: string;
   roleOptions: string[];
+  /** Per-field API error messages (e.g. 422 validation) — merged with client-side required-field checks. */
   fieldErrors?: Record<string, string>;
   onSubmit: (values: SessionEditPayload) => void;
   onCancel: () => void;
@@ -35,12 +37,17 @@ interface SessionEditFormProps {
 }
 
 const inputClass =
-  "w-full rounded border border-border bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text-muted focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50";
+  "w-full rounded border bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text-muted focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50";
 
 const selectClass =
-  "w-full rounded border border-border bg-surface px-3 py-1.5 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50";
+  "w-full rounded border bg-surface px-3 py-1.5 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50";
 
 const errorClass = "mt-0.5 text-xs text-status-error";
+
+/** Border turns red once a field has a client-side or API error. */
+function borderClass(hasError: boolean): string {
+  return hasError ? "border-status-error" : "border-border";
+}
 
 export function SessionEditForm({
   session,
@@ -59,15 +66,20 @@ export function SessionEditForm({
   const [resultSummary, setResultSummary] = useState(session.result_summary ?? "");
   const [linkedStoryId, setLinkedStoryId] = useState<string | null>(session.linked_story_id);
   const [linkedTaskId, setLinkedTaskId] = useState<string | null>(session.linked_task_id);
+  const [clientErrors, setClientErrors] = useState<Record<string, string | undefined>>({});
 
-  const topicValid = topic.trim().length > 0 && topic.trim().length <= 500;
-  const goalValid = goal.trim().length > 0 && goal.trim().length <= 500;
-  const roleValid = participantRole.trim().length > 0;
-  const canSubmit = topicValid && goalValid && roleValid && !isSubmitting;
+  const topicError = clientErrors.topic ?? fieldErrors.topic;
+  const goalError = clientErrors.goal ?? fieldErrors.goal;
+  const roleError = clientErrors.participant_role ?? fieldErrors.participant_role;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
+    const errors = validateSessionFields({ topic, goal, participantRole });
+    if (Object.keys(errors).length > 0) {
+      setClientErrors(errors);
+      return;
+    }
+    setClientErrors({});
     onSubmit({
       topic: topic.trim(),
       goal: goal.trim(),
@@ -91,16 +103,21 @@ export function SessionEditForm({
           id="session-edit-topic"
           type="text"
           value={topic}
-          onChange={(e) => setTopic(e.target.value)}
+          onChange={(e) => {
+            setTopic(e.target.value);
+            if (clientErrors.topic) setClientErrors((ce) => ({ ...ce, topic: undefined }));
+          }}
           maxLength={500}
           required
           disabled={isSubmitting}
-          aria-describedby={fieldErrors.topic ? "session-edit-topic-error" : undefined}
-          className={inputClass}
+          aria-required="true"
+          aria-invalid={Boolean(topicError)}
+          aria-describedby={topicError ? "session-edit-topic-error" : undefined}
+          className={`${inputClass} ${borderClass(Boolean(topicError))}`}
         />
-        {fieldErrors.topic && (
+        {topicError && (
           <p id="session-edit-topic-error" role="alert" className={errorClass}>
-            {fieldErrors.topic}
+            {topicError}
           </p>
         )}
       </div>
@@ -113,17 +130,22 @@ export function SessionEditForm({
         <textarea
           id="session-edit-goal"
           value={goal}
-          onChange={(e) => setGoal(e.target.value)}
+          onChange={(e) => {
+            setGoal(e.target.value);
+            if (clientErrors.goal) setClientErrors((ce) => ({ ...ce, goal: undefined }));
+          }}
           maxLength={500}
           required
           disabled={isSubmitting}
           rows={2}
-          aria-describedby={fieldErrors.goal ? "session-edit-goal-error" : undefined}
-          className={`${inputClass} resize-y`}
+          aria-required="true"
+          aria-invalid={Boolean(goalError)}
+          aria-describedby={goalError ? "session-edit-goal-error" : undefined}
+          className={`${inputClass} resize-y ${borderClass(Boolean(goalError))}`}
         />
-        {fieldErrors.goal && (
+        {goalError && (
           <p id="session-edit-goal-error" role="alert" className={errorClass}>
-            {fieldErrors.goal}
+            {goalError}
           </p>
         )}
       </div>
@@ -154,13 +176,18 @@ export function SessionEditForm({
         <select
           id="session-edit-participant-role"
           value={participantRole}
-          onChange={(e) => setParticipantRole(e.target.value)}
+          onChange={(e) => {
+            setParticipantRole(e.target.value);
+            if (clientErrors.participant_role) {
+              setClientErrors((ce) => ({ ...ce, participant_role: undefined }));
+            }
+          }}
           required
           disabled={isSubmitting}
-          aria-describedby={
-            fieldErrors.participant_role ? "session-edit-participant-role-error" : undefined
-          }
-          className={selectClass}
+          aria-required="true"
+          aria-invalid={Boolean(roleError)}
+          aria-describedby={roleError ? "session-edit-participant-role-error" : undefined}
+          className={`${selectClass} ${borderClass(Boolean(roleError))}`}
         >
           {roleOptions.map((r) => (
             <option key={r} value={r}>
@@ -168,9 +195,9 @@ export function SessionEditForm({
             </option>
           ))}
         </select>
-        {fieldErrors.participant_role && (
+        {roleError && (
           <p id="session-edit-participant-role-error" role="alert" className={errorClass}>
-            {fieldErrors.participant_role}
+            {roleError}
           </p>
         )}
       </div>
@@ -237,7 +264,7 @@ export function SessionEditForm({
         </button>
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={isSubmitting}
           className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {isSubmitting ? "Saving…" : "Save changes"}

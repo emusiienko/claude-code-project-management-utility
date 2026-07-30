@@ -2,7 +2,7 @@
 id: BUG-002
 story: STORY-009
 severity: minor
-status: open
+status: fixed
 assignee: frontend-developer
 ---
 
@@ -45,3 +45,25 @@ arbitrary unbroken strings.
 - The equivalent list view (`tc-017-list-long-topic.png`) does not show this problem for `topic`,
   since the session used to reproduce this only had a long unbroken value in `context`, not
   `topic`.
+
+## Fix
+**Root cause**: the shared `ReadField` read-only display component in `SessionDetailPage.tsx`
+rendered field values with only `whitespace-pre-wrap` (which wraps at spaces/newlines only). A
+long unbroken string has no such break opportunity, so it rendered as a single unbroken line that
+overflowed its `dl`/grid container and stretched the whole page horizontally.
+
+**Fix**: added Tailwind's `break-words` utility (`overflow-wrap: break-word`) alongside
+`whitespace-pre-wrap` on `ReadField`'s `<dd>` in
+`frontend/src/features/sessions/SessionDetailPage.tsx`. This lets the browser break within an
+otherwise-unbreakable string when needed to stay inside its container, eliminating the page-wide
+horizontal overflow. `ReadField` is shared by every read-only field in this view (Goal,
+Participant role, Context, Result — decisions, Result — summary, Created, Updated), so the same
+fix also covers `result_decisions`/`result_summary`, which the bug report flagged as likely
+affected by the same pattern. Kept local to `SessionDetailPage.tsx` — no new shared CSS utility
+was introduced, since a parallel fix for BUG-004 (Sessions List table overflow) is in flight in
+the same feature area and may want a different, list-specific treatment.
+
+**Verified**: `npx vitest run` — 252/252 tests passing, no regressions (baseline was also
+252/252). `npx tsc --noEmit` shows two pre-existing errors in `SessionForm.tsx` from a
+concurrent, in-progress parallel fix (BUG-003) in the same feature folder — unrelated to this
+change, which only touches `SessionDetailPage.tsx`.

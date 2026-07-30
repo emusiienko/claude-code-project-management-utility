@@ -2,7 +2,7 @@
 id: BUG-003
 story: STORY-009
 severity: minor
-status: open
+status: fixed
 assignee: frontend-developer
 ---
 
@@ -51,3 +51,39 @@ in-form explanation of why, beyond the `*` label indicator.
   `participant_role` submission through the UI at all. Not filed as a separate defect since the
   story's acceptance criteria don't require an empty-selection state to be reachable — noting it
   here for context since it's the same form.
+
+## Fix (frontend-developer)
+
+Root cause: `SessionForm` (create) and `SessionEditForm` (edit) computed a `canSubmit` boolean
+from client-side validity and used it purely to `disabled` the submit button — the button click
+handler was never reached with invalid data, so no inline error was ever produced. This diverges
+from the `StoryForm` convention, which always lets the submit attempt through to `handleSubmit`,
+runs validation there, and renders a per-field inline `role="alert"` message next to the offending
+input (clearing it as soon as the user edits that field again).
+
+Changes:
+- Added `frontend/src/features/sessions/utils/validateSessionFields.ts` — a shared
+  `validateSessionFields({ topic, goal, participantRole })` helper (used by both forms) producing
+  the same required-field messages as `StoryForm`'s pattern (`"Topic is required."`,
+  `"Goal is required."`, `"Participant role is required."`, plus the existing 500-char max-length
+  check for `topic`/`goal`).
+- `SessionForm.tsx` / `SessionEditForm.tsx`: removed the `canSubmit`/`topicValid`/`goalValid`/
+  `roleValid` gating. `handleSubmit` now always runs `validateSessionFields`; on failure it sets a
+  local `clientErrors` state and returns without calling `onSubmit` (the submit button itself is
+  now only disabled while `isSubmitting`, matching `StoryForm`). Client errors are merged with the
+  existing API-level `fieldErrors` prop (`clientErrors.topic ?? fieldErrors.topic`, etc.) so a
+  server-side 422 message still displays when there's no live client error, and clear individually
+  as the user edits that field.
+- Added the same visual treatment `StoryForm` uses for an invalid field: red border
+  (`border-status-error`) plus `aria-invalid`/`aria-required` on the three required inputs, in
+  addition to the pre-existing `aria-describedby` + `role="alert"` message wiring.
+- The `participant_role` dropdown-can-never-be-blank note from the bug report is unchanged/out of
+  scope, as originally called out — not a regression from this fix.
+
+Verified manually against the acceptance criteria: submitting Create/Edit Session with Topic,
+Goal, or Participant role empty now shows the matching inline alert next to that field and the
+mutation is never attempted; filling the field clears its error immediately.
+
+Baseline (`npx vitest run`, `npx tsc --noEmit`): 252/252 tests passing, no type errors — no
+Session form test files existed. Post-fix: 252/252 tests passing, `tsc --noEmit` clean — no
+regressions introduced.

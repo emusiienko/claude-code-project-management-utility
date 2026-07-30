@@ -29,7 +29,10 @@ function ReadField({ label, value }: { label: string; value: string | null | und
   return (
     <div>
       <dt className="text-xs font-medium text-text-secondary">{label}</dt>
-      <dd className="mt-0.5 whitespace-pre-wrap text-sm text-text">
+      {/* break-words: some fields (e.g. context) can hold one long unbroken
+          string with no spaces — without it the string overflows its
+          container and stretches the whole page horizontally (BUG-002) */}
+      <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm text-text">
         {value ? value : <span className="italic text-text-muted">—</span>}
       </dd>
     </div>
