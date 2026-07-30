@@ -2,7 +2,7 @@
 id: BUG-004
 story: STORY-009
 severity: major
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -76,3 +76,11 @@ own fixed-width cell instead of overflowing visually into neighboring cells. Cha
 entirely to `SessionList.tsx` — no new shared utility introduced, so as not to collide with the
 parallel BUG-002 fix (Session Detail view) which may want its own local wrapping/truncation
 treatment.
+
+## QA Verification (2026-07-30)
+Re-tested against the original repro session ("LongTopicStress-AAAA…", ~486-char unbroken topic)
+in "Test Project Alpha"'s 33-session list. The offending row now grows taller (wraps the topic
+across many lines) but every other row's Participant/Linked story/Linked task/Created/Status/
+Actions columns stay aligned and fully visible — confirmed via
+`document.documentElement.scrollWidth === document.documentElement.clientWidth` (no page-wide
+overflow) and visual inspection of both list pages. Marking `resolved`.

@@ -2,7 +2,7 @@
 id: BUG-003
 story: STORY-009
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -87,3 +87,10 @@ mutation is never attempted; filling the field clears its error immediately.
 Baseline (`npx vitest run`, `npx tsc --noEmit`): 252/252 tests passing, no type errors — no
 Session form test files existed. Post-fix: 252/252 tests passing, `tsc --noEmit` clean — no
 regressions introduced.
+
+## QA Verification (2026-07-30)
+Re-tested TC-006 on the Create Session form: submitting with topic empty shows "Topic is
+required." as an inline `role="alert"` next to the field and the form does not submit; the same
+holds for goal ("Goal is required."). Also re-tested on the Session Detail edit form: attempting
+to clear topic and save shows the same inline alert and rejects the save (per TC-011). Marking
+`resolved`.

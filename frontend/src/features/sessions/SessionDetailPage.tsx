@@ -108,7 +108,10 @@ export default function SessionDetailPage() {
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold text-text">{session.topic}</h1>
+        {/* break-words: topic can hold one long unbroken string with no
+            spaces — without it the heading overflows its container and
+            stretches the whole page horizontally (BUG-002 / BUG-006) */}
+        <h1 className="break-words text-2xl font-semibold text-text">{session.topic}</h1>
         <SessionStatusBadge status={session.status} />
         {session.archived_at && (
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">

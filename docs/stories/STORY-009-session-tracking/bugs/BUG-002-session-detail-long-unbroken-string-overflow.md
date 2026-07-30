@@ -2,7 +2,7 @@
 id: BUG-002
 story: STORY-009
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -67,3 +67,14 @@ the same feature area and may want a different, list-specific treatment.
 252/252). `npx tsc --noEmit` shows two pre-existing errors in `SessionForm.tsx` from a
 concurrent, in-progress parallel fix (BUG-003) in the same feature folder — unrelated to this
 change, which only touches `SessionDetailPage.tsx`.
+
+## QA Verification (2026-07-30)
+Re-tested against the original repro session (long unbroken `context`, ~2025 chars). Confirmed
+the Context field now wraps within its container via `break-words`, and no longer contributes to
+page-wide horizontal overflow. Goal/Result — decisions/Result — summary (also routed through
+`ReadField`) verified clean as well. Marking `resolved`.
+
+Note: a related but distinct overflow was found on the same page during this pass — the page's
+`<h1>` heading (which displays `topic`, not routed through `ReadField`) has no word-break handling
+and still overflows the page when `topic` itself is a long unbroken string. Filed separately as
+BUG-006 since it is a different element/field than this bug's original repro (`context`).

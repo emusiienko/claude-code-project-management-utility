@@ -2,7 +2,7 @@
 id: BUG-005
 story: STORY-009
 severity: minor
-status: fixed
+status: resolved
 assignee: frontend-developer
 ---
 
@@ -73,3 +73,10 @@ future cleanup could migrate them onto `SelectField` too so the whole app shares
 implementation, since they currently duplicate the pattern `SelectField` now centralizes.
 
 Verified: full `vitest` suite (252 tests) and `tsc --noEmit` both pass with no regressions.
+
+## QA Verification (2026-07-30)
+Checked computed styles (`appearance: none`, `padding-right: 32px`) on every Sessions select:
+the app-mode switcher, Session status control, Participant role (Create + Edit), Linked story
+(Create + Edit + list filter), and both steps of the Linked task picker (Task's story + Linked
+task) — all consistently render through `SelectField` with the chevron spaced the same as
+Task Manager's selects. Marking `resolved`.
