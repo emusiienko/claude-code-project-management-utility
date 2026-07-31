@@ -1,6 +1,16 @@
 ## Active wait
 waiting_for: none
 
+## STORY-010 ready for implementation (2026-07-31)
+SESSION-022 (architect) reduced STORY-010 to two additive REST+MCP operations: service status
+(liveness + version) and project work-state (breadth aggregate: project → stories → tasks
+core+status, per-story status counts) — the original broad "expose everything via MCP" ambition
+is already satisfied by prior stories. implementation_plan.md + 3 task files written (TASK-001
+service-status, TASK-002 project-work-state, TASK-003 automated tests). Spec-writer then aligned
+description.md to match: split AC into "already satisfied" (non-checkbox, not re-verified) vs.
+"new in this story" (checklist matching the plan). Story still `Planned`, ready for implementation.
+Not yet committed.
+
 ## STORY-009 + STORY-023 fully closed out (2026-07-30)
 Both stories Accepted and fully reconciled (Arch ✓/Spec ✓/Auto Rec ✓/QA Rec ✓). Story folders
 `STORY-009-session-tracking/` and `STORY-023-session-status-migration-drift/` deleted (user
