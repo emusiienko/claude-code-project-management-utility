@@ -88,3 +88,44 @@ class PaginationMeta(BaseModel):
     page: int
     limit: int
     totalPages: int
+
+
+# ---------------------------------------------------------------------------
+# Work-state aggregate (breadth read — see ProjectService.get_work_state)
+# ---------------------------------------------------------------------------
+
+
+class WorkStateTask(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    type: str
+    status: str
+    assignee_role: str | None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+
+class WorkStateStory(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    status: str | None
+    milestone_id: uuid.UUID | None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    tasks: list[WorkStateTask] = []
+    task_status_counts: dict[str, int] = {}
+
+
+class ProjectWorkState(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    description: str | None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    stories: list[WorkStateStory] = []

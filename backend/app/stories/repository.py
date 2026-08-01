@@ -70,6 +70,17 @@ class StoryRepository(BaseRepository[Story]):
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total
 
+    def list_all_for_project(self, project_id: str | uuid.UUID) -> list[Story]:
+        # Unpaginated breadth read for the project work-state aggregate — the
+        # whole project tree is one logical operation, not a paged list.
+        pid = self._coerce_uuid(project_id, "Project")
+        stmt = (
+            select(Story)
+            .where(Story.project_id == pid)
+            .order_by(Story.created_at.desc())
+        )
+        return list(self._session.scalars(stmt).all())
+
     def list_paginated_by_milestone(
         self,
         milestone_id: uuid.UUID,

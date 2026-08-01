@@ -23,6 +23,7 @@ container.wire(
         "app.projects",
         "app.sessions",
         "app.settings",
+        "app.status",
         "app.stories",
         "app.story_links",
         "app.task_links",

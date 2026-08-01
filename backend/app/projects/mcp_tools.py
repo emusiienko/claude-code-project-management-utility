@@ -11,6 +11,7 @@ from app.projects.schema import (
     CreateProject,
     PaginationMeta,
     Project,
+    ProjectWorkState,
     UpdateProject,
 )
 from app.projects.service import ProjectService
@@ -70,6 +71,23 @@ async def get_project(
         raise exc.to_tool_error() from exc
     except Exception as exc:
         logger.error("Unexpected error in get_project: %s", exc, exc_info=exc)
+        raise ToolError("Internal server error.") from exc
+
+
+@mcp_server_v1.tool()
+async def get_project_work_state(
+    id: str,
+    service: ProjectService = Depends(provide_project_service),
+) -> dict:
+    try:
+        work_state: ProjectWorkState = service.get_work_state(id)
+        return {"data": work_state.model_dump(mode="json")}
+    except DomainError as exc:
+        raise exc.to_tool_error() from exc
+    except Exception as exc:
+        logger.error(
+            "Unexpected error in get_project_work_state: %s", exc, exc_info=exc
+        )
         raise ToolError("Internal server error.") from exc
 
 

@@ -9,6 +9,7 @@ from app.projects.schema import (
     CreateProject,
     PaginationMeta,
     Project,
+    ProjectWorkState,
     UpdateProject,
 )
 from app.projects.service import ProjectService
@@ -69,6 +70,21 @@ async def get_project(
 ) -> dict:
     project = service.get(project_id)
     return {"data": Project.model_validate(project).model_dump()}
+
+
+@router.get(
+    "/{project_id}/work-state",
+    status_code=status.HTTP_200_OK,
+    response_model=dict,
+)
+@inject
+async def get_project_work_state(
+    project_id: str,
+    _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: ProjectService = Depends(Provide[AppContainer.project_service]),
+) -> dict:
+    work_state = service.get_work_state(project_id)
+    return {"data": work_state.model_dump(mode="json")}
 
 
 @router.put(

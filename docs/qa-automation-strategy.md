@@ -2,7 +2,7 @@
 
 > Owned by **qa-automation**. Update only at the user's explicit request.
 > Stack: Python 3.12 · pytest · httpx (async) · pytest-asyncio · Vitest · React Testing Library
-> Last updated: 2026-07-30 (rev 15)
+> Last updated: 2026-07-31 (rev 16)
 
 ---
 
@@ -76,7 +76,7 @@ Tests are **integration tests** — they run against a real backend process with
 backend/
   tests/
     conftest.py            # app fixture, client fixture, shared helpers
-    test_projects.py       # STORY-003
+    test_projects.py       # STORY-003 (+ STORY-010 work-state aggregate)
     test_stories.py        # STORY-004
     test_tasks.py          # STORY-005
     test_task_links.py     # STORY-006
@@ -84,6 +84,7 @@ backend/
     test_attachment_title_migration.py  # STORY-021 — 0010_attachment_title migration
     test_comments.py       # STORY-008
     test_sessions.py       # STORY-009
+    test_status.py          # STORY-010 — service status
     test_settings.py       # STORY-002 (+ STORY-021 attachment_types retirement)
     test_milestones.py     # STORY-012
     test_session_status_backfill_migration.py  # STORY-023 — 0014_session_status_backfill migration
@@ -97,7 +98,7 @@ One test file per domain module. File names mirror the backend app package they 
 backend/
   tests/
     conftest.py            # app fixture, client fixture, shared helpers
-    test_projects.py       # STORY-003
+    test_projects.py       # STORY-003 (+ STORY-010 work-state aggregate)
     test_stories.py        # STORY-004
     test_tasks.py          # STORY-005
     test_task_links.py     # STORY-006
@@ -105,6 +106,7 @@ backend/
     test_attachment_title_migration.py  # STORY-021 — 0010_attachment_title migration
     test_comments.py       # STORY-008
     test_sessions.py       # STORY-009
+    test_status.py          # STORY-010 — service status
     test_settings.py       # STORY-002 (+ STORY-021 attachment_types retirement)
     test_milestones.py     # STORY-012
     test_session_status_backfill_migration.py  # STORY-023 — 0014_session_status_backfill migration
@@ -155,7 +157,7 @@ Each test is responsible for creating the data it needs. Tests must not depend o
 | STORY-007 (Attachments) + STORY-021 (title field) | `test_attachments.py`, `test_attachment_title_migration.py` | Create document (JSON text + multipart), image, file (opaque binary), external-ref — per container (story/task/milestone); MIME allow-list per kind (400, no "any binary" fallthrough); MCP base64 create parity with REST multipart (image/file/document-as-file); `author_role` optional on every create path; container 404 / missing-field 422 (dictionary validation removed by STORY-021 — `title` is free-form, no `attachment_types` check on any path); `title` mandatory on every create path (JSON, multipart, MCP) — missing/empty/whitespace-only → 422; two attachments on the same container may share an identical title; multipart title default-from-filename: absent → defaults to (truncated ≤500-char) uploaded file name, present-but-empty/whitespace → 422 not silently defaulted, provided value honored over filename; MCP create tools (`create_document_attachment`, `create_external_ref_attachment`, `create_file_attachment`) require `title` explicitly, no default; 10 MB boundary (exactly vs just over, REST + MCP); list pagination/kind filter; a stale `type` list query param is ignored (not an error, does not filter) — REST only, since the MCP `list_attachments` tool never accepted `type` as an argument (unrecognized kwargs are a schema-level ToolError, not a silent no-op, for that transport); GET metadata (`file_path` never present, response has `title` and no `type`) + file download (Content-Type = mime_type; external-ref 400; 404); MCP `get_attachment_file` parity + errors; no PUT (update, title is immutable) and no archive route for any kind; DELETE hard-deletes every kind (row + file for document/image/file); cascade delete on story/task/milestone removal (rows + files); story/task/milestone detail composition (attachments; comments composition is covered by `test_comments.py`, STORY-008 — milestone detail comments are no longer always empty). Migration 0010_attachment_title (real Alembic upgrade/downgrade against a disposable per-test SQLite file, not a Python reimplementation): populated-DB backfill of `title` from `type`, no row left null, `type` column dropped + `title` NOT NULL, container-list index swapped from `type`- to `kind`-keyed, `attachment_types` rows deleted from both system_settings and project_settings; fresh-DB upgrade to head no-ops cleanly; downgrade restores `type` (backfilled from `title`, truncated to 100 chars) and re-seeds the system-level `attachment_types` default (project-level overrides are not recoverable, by design) |
 | STORY-008 (Comments) | `test_comments.py` | Create/list/get/update/delete on story/task/milestone (REST + MCP parity for every operation); `author_role` required (422 if missing/empty) and immutable; content 1–50,000 chars (empty/over-length → 422; exactly 50,000 accepted); `labels` and `author_role` never dictionary-validated; `in_reply_to` → persisted immutable `ancestors` path (`parent.ancestors + [parent.id]`), non-existent (404), cross-container (422); flat **newest-first** thread for multiple/nested replies (TASK-012/014 revision — was oldest-first at TASK-011); reply-to-a-later-deleted-target `ancestors` dangles gracefully (delete does not cascade to replies); list: **newest-first order** (page 1 = most recent, pagination walks newest→oldest), `label_key`/`label_value` filters (no-match → empty list, not an error), `after_id` watermark unchanged in name/semantics — still "strictly newer than the referenced comment" — now surfaced newest-first (incl. deleted-watermark 404), `descendant_of` sub-thread filter also newest-first (rides the same list query); `GET /comments/:id/ancestors` stays **root-first** (lineage path, not a chronological list — explicitly unaffected by the newest-first revision), empty for top-level, skips a deleted ancestor; update: content-only/labels-only independence, empty labels array clears, `author_role`/`ancestors` changes silently ignored; cascade delete (story/task/milestone removal cascades to comments); story/task/milestone detail composition returns comments **newest-first** (all three containers, parametrized). `default_web_ui_role` setting coverage (incl. BUG-001/BUG-004 migration-backfill + revision-id-length regressions) lives in `test_settings.py` (see STORY-002 row); BUG-002 (`@role` mention combobox not closing on Enter) and BUG-003 (long-word overflow) are frontend-only fixes with no dedicated automated test — BUG-002 is a **known coverage gap** (no `useMentionCombobox`/`MentionTextarea` test file exists yet; verified only via the implementor's disposable manual harness both times), BUG-003 is out of automated scope by design (visual/CSS rendering, manual QA territory). No dedicated frontend test file exists yet for the Comments feature (`CommentsSection`, `useComments`, `useMentionCombobox`, permalink resolver) — all Comments coverage today is backend REST+MCP via `test_comments.py`; this is a scope gap for a future qa-automation task, not something reconciled here |
 | STORY-009 (Sessions) | `test_sessions.py` | Create (minimal/with links/with context+status; `is_complete` ignored at create; missing/empty/too-long topic+goal; missing/invalid `participant_role`; missing/non-existent `project_id`; link to non-existent story/task 404; cross-project link 422); list (required `project_id`, newest-first, `incomplete` + `linked_story_id` filters independently and combined, `include_archived`, pagination); get (found/404/malformed-id 404); update (omitted-unchanged, explicit-null clears context/status/result fields/link ids, explicit-null topic/goal/participant_role/is_complete → 422, new topic/goal/participant_role re-validated, is_complete toggle); archive (happy path, double-archive 400, archived session still updatable); completion decoupled from result content; incomplete-query persistence (two independent requests hit the same durable rows); linkless session is valid; reference-clearing on story/task delete (application-level, passes on SQLite); project→session cascade delete (`xfail(strict=True)`, same standing `PRAGMA foreign_keys` gap as stories/tasks); a representative REST/MCP parity subset (`create_session`, `get_session` found+404, `list_sessions`, `update_session`, `archive_session` incl. double-archive) |
-| STORY-010 (MCP) | skip | MCP tools are REST-equivalent; REST coverage is sufficient; MCP smoke only if requested |
+| STORY-010 (Agent Access via MCP — status + work-state) | `test_status.py`, `test_projects.py` | Service status: `GET /v1/status` returns `{status: "ok", version}` and no other keys (no MCP-availability flag); version stable across calls; REST/MCP parity (`get_status`). Work-state (`GET /v1/projects/:id/work-state`, `get_project_work_state`): happy path returns project + every story + each story's tasks (core fields + status) + per-story task status-count aggregate in one call; omits attachments/comments/links at both story and task level; unknown project → 404 NOT_FOUND with the project id in the message; project with zero stories → empty stories list; story with zero tasks → empty tasks list + empty status-count dict; REST/MCP parity for the happy path and the not-found error. The general "MCP: No" scope line still holds for every other domain — this is the story that introduced the two operations, so their MCP tools get direct parity coverage the same way STORY-009's did |
 | STORY-012 (Milestones) | `test_milestones.py` | CRUD; single-project ownership; name-per-project uniqueness (409); story assignment; story_count; activate/finish lifecycle; single-active invariant + cross-project isolation; delete-clears-assignment; milestone_id filter on story list |
 | STORY-018 (Link type labels) | `linkLabels.test.ts` (frontend) | getLinkLabel: 3 known types × 2 directions; unknown type fallback; undefined direction fallback |
 | STORY-019 (Directional link creation) | `linkLabels.test.ts` (frontend) | getLinkOptions: empty input; 2 entries per key; label correctness; unknown key fallback; linkType preserved |

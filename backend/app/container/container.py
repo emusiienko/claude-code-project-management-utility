@@ -15,6 +15,7 @@ from app.sessions.repository import SessionRepository
 from app.sessions.service import SessionService
 from app.settings.repository import ProjectSettingsRepository, SystemSettingsRepository
 from app.settings.service import SettingsService
+from app.status.service import StatusService
 from app.stories.repository import StoryRepository
 from app.stories.service import StoryService
 from app.story_links.repository import StoryLinkRepository
@@ -57,6 +58,17 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
+    # Status domain — Factory
+    # --------------------------------------------------------------------------
+    # No repository: the status operation reads only the running app version
+    # from config and probes no dependency (STORY-010 TASK-001).
+
+    status_service = providers.Factory(
+        StatusService,
+        app_version=settings.app_version,
+    )
+
+    # --------------------------------------------------------------------------
     # Projects domain — Factories (resolved per injection)
     # --------------------------------------------------------------------------
 
@@ -65,10 +77,10 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    project_service = providers.Factory(
-        ProjectService,
-        repo=project_repository,
-    )
+    # project_service itself is declared further below, after story_repository
+    # and task_repository (STORY-010 TASK-002: it takes both as the
+    # StoryReaderProtocol/TaskReaderProtocol dependencies for the work-state
+    # aggregate read).
 
     # --------------------------------------------------------------------------
     # Settings domain — Factories (resolved per injection)
@@ -117,6 +129,20 @@ class AppContainer(containers.DeclarativeContainer):
     task_repository = providers.Factory(
         TaskRepository,
         session=db_session,
+    )
+
+    # --------------------------------------------------------------------------
+    # Projects domain — service (declared here, after story_repository and
+    # task_repository, so it can receive them as its cross-domain
+    # StoryReaderProtocol/TaskReaderProtocol dependencies for the work-state
+    # aggregate read — STORY-010 TASK-002).
+    # --------------------------------------------------------------------------
+
+    project_service = providers.Factory(
+        ProjectService,
+        repo=project_repository,
+        story_reader=story_repository,
+        task_reader=task_repository,
     )
 
     # --------------------------------------------------------------------------

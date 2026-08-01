@@ -80,6 +80,32 @@ class TaskRepository(BaseRepository[Task]):
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total
 
+    def list_all_for_stories(self, story_ids: list[uuid.UUID]) -> list[Task]:
+        # Batched breadth read for the project work-state aggregate: one query
+        # across every story in the project, never a query per story (no N+1).
+        stmt = (
+            select(Task)
+            .where(Task.story_id.in_(story_ids))
+            .order_by(Task.created_at.asc())
+        )
+        return list(self._session.scalars(stmt).all())
+
+    def get_status_counts_for_stories(
+        self, story_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, dict[str, int]]:
+        # Batched sibling of get_status_counts: one GROUP BY across every story
+        # in the project instead of one grouped query per story.
+        stmt = (
+            select(Task.story_id, Task.status, func.count(Task.id))
+            .where(Task.story_id.in_(story_ids))
+            .group_by(Task.story_id, Task.status)
+        )
+        rows = self._session.execute(stmt).all()
+        result: dict[uuid.UUID, dict[str, int]] = {}
+        for story_id, status, count in rows:
+            result.setdefault(story_id, {})[status] = count
+        return result
+
     def get_status_counts(self, story_id: uuid.UUID) -> dict[str, int]:
         # Returns per-status task counts for a single story in one grouped query
         # — used by the story aggregate endpoint to avoid an N-per-status query.

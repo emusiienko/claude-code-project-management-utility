@@ -126,6 +126,23 @@
 > `Body`/`Response` suffix). See ADR-026 (project scope + fixed status enum) and ADR-027 (Sessions as a
 > distinct app mode). All other domains unchanged.
 
+> **v1.9 revision — ratified at STORY-010 reconcile 2026-08-01 (Agent Access via MCP).** Two
+> **additive** operations, each exposed identically on REST and MCP (preserving the 1-to-1
+> tool↔endpoint invariant); nothing existing changed. **(1) Service status** — `GET /status`
+> (`get_status` MCP tool) returns a fixed `{ status, version }` shape: a liveness indicator (always
+> `"ok"`) plus the running application version string. It probes no dependencies, touches no database,
+> and carries **no** MCP-availability flag. **(2) Project work-state (breadth read)** —
+> `GET /projects/:id/work-state` (`get_project_work_state` MCP tool) returns, in one call, the project
+> plus every story in it, and for each story its tasks (a shallow field subset — no `content`/`labels`)
+> and that story's per-status task-count aggregate. It is a deliberately **narrow breadth read**: it
+> does **not** inline attachments, comments, or links (those fields are absent from the shapes, not
+> merely empty) — depth for one story/task stays with the existing `get_story_detail` /
+> `get_task_detail` operations. A non-existent project id returns the standard `404 NOT_FOUND` carrying
+> the resource type + id; a zero-story project returns an empty `stories` list; a zero-task story
+> returns an empty `tasks` list and an empty `task_status_counts` map — none of these are errors. The
+> composition is N+1-free (four batched queries regardless of tree size). See ADR-029. All other
+> domains unchanged.
+
 ---
 
 ## Shared shapes
@@ -377,6 +394,31 @@ interface UpdateProject { name?: string; description?: string; }
 //   (No attachment versions — attachments are immutable, one file each; see v1.5 / ADR-021.)
 //   Sessions linked to a deleted story/task keep the session and null just that link (v1.8).
 //   A malformed (non-UUID) :id returns 404 NOT_FOUND, not 422 (ADR-011).
+
+// v1.9 (STORY-010) — Project work-state: a single breadth read of the whole project tree.
+// GET /projects/:id/work-state           -> 200 Envelope<ProjectWorkState> | 404
+//   Returns the project + every story + each story's tasks (core fields only) + per-story status
+//   counts, in one call (replaces the 1 + 1 + N + N×M list/detail startup fan-out). Breadth only —
+//   attachments, comments, and links are NOT present in any of the three shapes (structurally absent,
+//   not empty). Depth stays with GET /stories/:id/detail and GET /tasks/:id/detail. 404 NOT_FOUND
+//   (with resource type + id) for an unknown project; a zero-story project -> stories: []; a
+//   zero-task story -> tasks: [] and task_status_counts: {}. Composed N+1-free (4 batched queries).
+//   Mirrored 1-to-1 by the MCP tool get_project_work_state. See ADR-029.
+interface ProjectWorkState {
+  id: string; name: string; description: string | null;
+  created_at: string; updated_at: string;
+  stories: WorkStateStory[];
+}
+interface WorkStateStory {
+  id: string; title: string; status: string | null; milestone_id: string | null;
+  created_at: string; updated_at: string;
+  tasks: WorkStateTask[];
+  task_status_counts: Record<string, number>;   // {} for a story with no tasks
+}
+interface WorkStateTask {                        // shallow subset — no content, labels, or creator_role
+  id: string; title: string; type: string; status: string;
+  assignee_role: string | null; created_at: string; updated_at: string;
+}
 ```
 
 **409 example:** `{ "error": "A project with this name already exists.", "code": "CONFLICT" }`
@@ -814,6 +856,28 @@ interface MilestoneDetail extends Milestone {
 // GET /tasks?page&limit&project_id&story_id&status&type&assignee_role&creator_role
 //                                          -> 200 ListEnvelope<Task> (each incl. story_id + derived project_id)
 ```
+
+---
+
+## Status
+
+<!-- v1.9 (2026-08-01, STORY-010): additive liveness + version read. Mirrored 1-to-1 by MCP. -->
+
+A lightweight service-liveness + version read. It probes **no** dependencies (no DB, no MCP-mount
+introspection) and carries **no** availability flag — it reports process liveness and the running
+application version only. Because REST and MCP share one service layer, REST stays independently
+available even if the MCP mount misbehaves; no fault-isolation mechanism is expressed here.
+
+```typescript
+// GET /status                             -> 200 Envelope<Status>
+interface Status {
+  status: string;    // always "ok"
+  version: string;   // running application version
+}
+```
+
+> **MCP.** `get_status` mirrors this one-to-one over the same `StatusService`, returning the identical
+> `{ status, version }` shape.
 
 ---
 

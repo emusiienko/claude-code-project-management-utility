@@ -1,4 +1,4 @@
-"""Integration tests for the Projects domain — STORY-003.
+"""Integration tests for the Projects domain — STORY-003 (+ STORY-010 work-state).
 
 Coverage zones (per TASK-006):
 - POST /v1/projects
@@ -19,6 +19,16 @@ Behaviors tested:
 - DELETE cascades: nested project_settings rows are removed (no orphan state)
 - Invalid UUID path → 404
 
+Coverage zones (per STORY-010 TASK-003 — GET /v1/projects/:id/work-state):
+- Happy path: project + every story + each story's tasks (core fields + status) +
+  per-story task status-count aggregate, composed in one call
+- Behaviors: work-state omits attachments/comments/links at both the story and task
+  level (breadth-only read); REST/MCP parity for both the happy path and the
+  not-found error
+- Edge cases: unknown project id → 404 NOT_FOUND carrying the project id in the
+  message; project with zero stories → empty stories list; story with zero tasks →
+  empty tasks list + empty (zeroed) status counts
+
 Notes:
 - Every test creates its own data and does not rely on execution order.
 - The `create_project_via_api` helper is used for tests that need a project created
@@ -31,7 +41,10 @@ Notes:
 import uuid
 
 import pytest
+from fastmcp import Client
 from httpx import AsyncClient
+
+from app.mcp.server import mcp_server_v1
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -39,6 +52,7 @@ from httpx import AsyncClient
 
 BASE_URL = "/v1/projects/"          # collection endpoint (POST, GET list)
 BASE_URL_ID = "/v1/projects"        # resource endpoint (GET/:id, PUT/:id, DELETE/:id)
+STORIES_URL = "/v1/stories"
 CONFLICT_MSG = "A project with this name already exists."
 
 
@@ -62,6 +76,40 @@ async def _create_project(
         f"{response.text}"
     )
     return response.json()["data"]
+
+
+async def _create_story(
+    client: AsyncClient, project_id: str, title: str = "Test Story"
+) -> dict:
+    resp = await client.post(
+        STORIES_URL,
+        json={"project_id": project_id, "title": title, "status": "planned"},
+    )
+    assert resp.status_code == 201, (
+        f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
+    )
+    return resp.json()["data"]
+
+
+async def _create_task(
+    client: AsyncClient,
+    story_id: str,
+    title: str = "Test Task",
+    status_value: str = "todo",
+) -> dict:
+    resp = await client.post(
+        f"{STORIES_URL}/{story_id}/tasks",
+        json={"title": title, "type": "task", "status": status_value},
+    )
+    assert resp.status_code == 201, (
+        f"Helper _create_task: expected 201, got {resp.status_code} — {resp.text}"
+    )
+    return resp.json()["data"]
+
+
+async def _mcp_call(tool_name: str, args: dict):
+    async with Client(mcp_server_v1) as mcp_client:
+        return await mcp_client.call_tool(tool_name, args)
 
 
 async def _delete_project(client: AsyncClient, project_id: str) -> None:
@@ -769,4 +817,200 @@ class TestDeleteProject:
         project_ids = [p["id"] for p in response.json()["data"]]
         assert data["id"] not in project_ids, (
             "Deleted project should not appear in the list"
+        )
+
+
+# ===========================================================================
+# GET /v1/projects/:id/work-state — STORY-010 TASK-002
+# ===========================================================================
+
+
+class TestWorkState:
+    async def test_work_state_happy_path(self, client: AsyncClient) -> None:
+        project = await _create_project(client, "Work State Happy Path Project")
+        try:
+            story_a = await _create_story(client, project["id"], "Story A")
+            story_b = await _create_story(client, project["id"], "Story B")
+            await _create_task(client, story_a["id"], "Task A1", "todo")
+            await _create_task(client, story_a["id"], "Task A2", "done")
+            await _create_task(client, story_b["id"], "Task B1", "in-progress")
+
+            response = await client.get(f"{BASE_URL_ID}/{project['id']}/work-state")
+            assert response.status_code == 200, (
+                f"work-state should return 200, got {response.status_code}"
+            )
+            data = response.json()["data"]
+
+            assert data["id"] == project["id"], (
+                "work-state should return the requested project"
+            )
+            assert data["name"] == "Work State Happy Path Project", (
+                f"project name mismatch: got '{data['name']}'"
+            )
+
+            story_ids = {s["id"] for s in data["stories"]}
+            assert story_ids == {story_a["id"], story_b["id"]}, (
+                f"work-state should list every story in the project, got {story_ids}"
+            )
+
+            ws_story_a = next(
+                s for s in data["stories"] if s["id"] == story_a["id"]
+            )
+            task_titles = {t["title"] for t in ws_story_a["tasks"]}
+            assert task_titles == {"Task A1", "Task A2"}, (
+                f"Story A's tasks should be nested in the work-state, got {task_titles}"
+            )
+            for task in ws_story_a["tasks"]:
+                assert set(task.keys()) >= {
+                    "id",
+                    "title",
+                    "type",
+                    "status",
+                    "assignee_role",
+                }, f"work-state task should carry core fields + status, got {task.keys()}"
+
+            assert ws_story_a["task_status_counts"] == {"todo": 1, "done": 1}, (
+                "Story A's per-status task counts should reflect its two tasks, "
+                f"got {ws_story_a['task_status_counts']}"
+            )
+
+            ws_story_b = next(
+                s for s in data["stories"] if s["id"] == story_b["id"]
+            )
+            assert ws_story_b["task_status_counts"] == {"in-progress": 1}, (
+                f"Story B's per-status task counts mismatch, got "
+                f"{ws_story_b['task_status_counts']}"
+            )
+        finally:
+            await _delete_project(client, project["id"])
+
+    async def test_work_state_omits_heavy_payloads(self, client: AsyncClient) -> None:
+        project = await _create_project(client, "Work State Heavy Payload Project")
+        try:
+            story = await _create_story(client, project["id"])
+            await _create_task(client, story["id"])
+
+            response = await client.get(f"{BASE_URL_ID}/{project['id']}/work-state")
+            data = response.json()["data"]
+
+            assert "attachments" not in data, (
+                "work-state should not inline project-level attachments"
+            )
+            assert "comments" not in data, (
+                "work-state should not inline project-level comments"
+            )
+
+            ws_story = data["stories"][0]
+            for heavy_key in ("attachments", "comments", "links"):
+                assert heavy_key not in ws_story, (
+                    f"work-state story should not carry '{heavy_key}'"
+                )
+
+            ws_task = ws_story["tasks"][0]
+            for heavy_key in ("attachments", "comments", "links"):
+                assert heavy_key not in ws_task, (
+                    f"work-state task should not carry '{heavy_key}'"
+                )
+        finally:
+            await _delete_project(client, project["id"])
+
+    async def test_work_state_unknown_project_returns_404(
+        self, client: AsyncClient
+    ) -> None:
+        fake_id = str(uuid.uuid4())
+        response = await client.get(f"{BASE_URL_ID}/{fake_id}/work-state")
+        assert response.status_code == 404, (
+            f"work-state for an unknown project should 404, got {response.status_code}"
+        )
+        body = response.json()
+        assert body.get("code") == "NOT_FOUND", (
+            f"Expected NOT_FOUND, got '{body.get('code')}'"
+        )
+        assert fake_id in body.get("error", ""), (
+            "Not-found error message should carry the requested project id, "
+            f"got: {body.get('error')}"
+        )
+
+    async def test_work_state_project_with_no_stories_returns_empty_list(
+        self, client: AsyncClient
+    ) -> None:
+        project = await _create_project(client, "Work State No Stories Project")
+        try:
+            response = await client.get(f"{BASE_URL_ID}/{project['id']}/work-state")
+            assert response.status_code == 200, (
+                f"work-state should return 200 even with no stories, "
+                f"got {response.status_code}"
+            )
+            data = response.json()["data"]
+            assert data["stories"] == [], (
+                f"A project with zero stories should return an empty stories list, "
+                f"got {data['stories']}"
+            )
+        finally:
+            await _delete_project(client, project["id"])
+
+    async def test_work_state_story_with_no_tasks_returns_empty_tasks_and_zeroed_counts(
+        self, client: AsyncClient
+    ) -> None:
+        project = await _create_project(client, "Work State No Tasks Project")
+        try:
+            story = await _create_story(client, project["id"], "Taskless Story")
+
+            response = await client.get(f"{BASE_URL_ID}/{project['id']}/work-state")
+            data = response.json()["data"]
+            ws_story = next(s for s in data["stories"] if s["id"] == story["id"])
+
+            assert ws_story["tasks"] == [], (
+                f"A story with zero tasks should return an empty tasks list, "
+                f"got {ws_story['tasks']}"
+            )
+            assert ws_story["task_status_counts"] == {}, (
+                "A story with zero tasks should have zeroed (empty) status counts, "
+                f"got {ws_story['task_status_counts']}"
+            )
+        finally:
+            await _delete_project(client, project["id"])
+
+
+# ===========================================================================
+# REST / MCP parity — work-state
+# ===========================================================================
+
+
+class TestWorkStateMcpParity:
+    async def test_mcp_get_project_work_state_matches_rest(
+        self, client: AsyncClient
+    ) -> None:
+        project = await _create_project(client, "MCP Work State Parity Project")
+        try:
+            story = await _create_story(client, project["id"])
+            await _create_task(client, story["id"])
+
+            rest_resp = await client.get(f"{BASE_URL_ID}/{project['id']}/work-state")
+            rest_data = rest_resp.json()["data"]
+
+            result = await _mcp_call("get_project_work_state", {"id": project["id"]})
+            mcp_data = result.data["data"]
+
+            assert mcp_data == rest_data, (
+                f"MCP get_project_work_state should return the identical shape as "
+                f"REST, got MCP={mcp_data!r} REST={rest_data!r}"
+            )
+        finally:
+            await _delete_project(client, project["id"])
+
+    async def test_mcp_get_project_work_state_not_found_matches_rest(
+        self, client: AsyncClient
+    ) -> None:
+        fake_id = str(uuid.uuid4())
+        with pytest.raises(Exception) as exc_info:
+            await _mcp_call("get_project_work_state", {"id": fake_id})
+        assert "not found" in str(exc_info.value).lower(), (
+            f"MCP not-found error should mirror REST's 404 semantics, "
+            f"got: {exc_info.value}"
+        )
+
+        rest_resp = await client.get(f"{BASE_URL_ID}/{fake_id}/work-state")
+        assert rest_resp.status_code == 404, (
+            f"REST should also 404 for the same unknown id, got {rest_resp.status_code}"
         )

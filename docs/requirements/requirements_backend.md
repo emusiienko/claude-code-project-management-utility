@@ -22,7 +22,7 @@ The following assumptions were made where the validated idea or conceptual docum
 | Stories | Top-level work containers within a project; dedicated `status` field (dictionary-validated); free-form labels; on-demand aggregated task state | P0 |
 | Tasks | Atomic work items within a story; `type`, `status`, `assignee_role`, `creator_role` from per-project dictionaries; validated at write | P0 |
 | Settings Module | Configurable value dictionaries per project (task statuses, task types, story statuses, link types, participant roles); system defaults; project-level overrides; plus one scalar (non-list) key, `default_web_ui_role`, resolved with the same system-default + project-override precedence <!-- updated: 2026-07-15 (STORY-021: attachment_types retired — see STORY-021 section); updated: 2026-07-21 (STORY-008: default_web_ui_role scalar key added) --> | P0 |
-| MCP Server | Full MCP protocol access surface exposing all operations for AI agents | P0 |
+| MCP Server | Full MCP protocol access surface exposing all operations for AI agents; additive service status read (`GET /status` / `get_status`) and project work-state breadth read (`GET /projects/:id/work-state` / `get_project_work_state`), both identical on REST and MCP — see STORY-010 <!-- updated: 2026-08-01 (STORY-010 reconcile) --> | P0 |
 | Work Item Linking | Typed directed links between tasks (`task_links`) and between stories (`story_links`); same semantic model — typed, directed, same-project-only, passive; detail endpoints return enriched link lists with id, title, and status of the linked item | P1 |
 | Attachments | Document (Markdown/text), image, and file (curated binary formats: PDF, DOCX, XLSX, PPTX, CSV, TXT, JSON, ZIP) attachments — stored on filesystem — plus external-reference attachments (URL + status) attached to stories, tasks, or milestones; immutable once created (a single stored file per attachment, no update, no version history); create + delete only, delete permanently removes every kind; agents get full base64 upload/download parity over MCP; every attachment carries a mandatory free-form `title` (defaults to the uploaded file name, editable; agents must supply it explicitly) — see STORY-021 | P1 |
 | Comments | Markdown text notes attached to stories, tasks, or milestones; required-and-immutable `author_role`; free-form labels; a reply carries a persisted, immutable materialized ancestor path (`ancestors`); newest-first listing with a keyset `after_id` watermark and a `descendant_of` sub-thread filter; a dedicated lineage (ancestors) endpoint; the Web UI pre-fills `author_role` from a new `default_web_ui_role` setting — see STORY-008 <!-- updated: 2026-07-21 (STORY-008 reconcile) --> | P1 |
@@ -359,6 +359,23 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 
 ---
 
+### Service Status <!-- new: 2026-08-01 (STORY-010 reconcile) -->
+
+A lightweight liveness check for AI agents and the Web UI, additive to every other operation in this
+document. It probes no dependencies (no database access) and carries no MCP-availability flag — MCP
+and REST always share one service layer, so if MCP is reachable at all, REST is already known to be up.
+
+#### GET /status
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 200:** `{ "data": { "status": "ok", "version": "string" } }` — `status` is a fixed
+  liveness indicator (always `"ok"` when the endpoint responds at all); `version` is the running
+  application version string.
+- **Response errors:** none (no dependency probing; if the process is up, this call succeeds)
+
+**MCP tool:** `get_status` — identical shape via the same underlying service logic.
+
+---
+
 ### Projects <!-- updated: 2026-07-06 (STORY-003 reconcile) -->
 
 > **As-built notes (STORY-003):**
@@ -399,6 +416,41 @@ A milestone is scoped to exactly one project (single-project model — the M:N d
 - **Auth:** none  **Rate limit:** 1,000 req/min
 - **Response 204:** no body
 - **Response errors:** 404
+
+#### GET /projects/:id/work-state <!-- new: 2026-08-01 (STORY-010 reconcile) -->
+A single-call **breadth read** of a project's full work state, replacing the
+`1 + 1 + N + N×M` startup fan-out (`list_projects` → `list_stories` → `list_tasks` →
+`get_task_detail`) an agent previously had to perform to understand what a project contains.
+- **Auth:** none  **Rate limit:** 1,000 req/min
+- **Response 200:**
+  ```json
+  {
+    "data": {
+      "...all Project fields...",
+      "stories": [
+        {
+          "id": "uuid", "title": "string", "status": "string | null",
+          "milestone_id": "uuid | null", "created_at": "...", "updated_at": "...",
+          "tasks": [
+            { "id": "uuid", "title": "string", "type": "string", "status": "string",
+              "assignee_role": "string | null", "created_at": "...", "updated_at": "..." }
+          ],
+          "task_status_counts": { "todo": 2, "in-progress": 1, "done": 0 }
+        }
+      ]
+    }
+  }
+  ```
+  Deliberately **shallow**: each story omits `content`/`labels`, each task omits `content`/`labels`/
+  `creator_role` — the fields that would make this "breadth" read heavy again — and neither shape
+  carries `attachments`, `comments`, or `links` fields at all (absent, not merely empty). Depth for
+  one story or task is still reached via the existing `GET /stories/:id/detail` /
+  `GET /tasks/:id/detail`. A project with zero stories returns `stories: []`; a story with zero tasks
+  returns `tasks: []` and `task_status_counts: {}` — none of these are errors. Composed with a fixed
+  number of batched queries regardless of story/task count (no per-story or per-task round trip).
+- **Response errors:** 404 (project not found, standard `NOT_FOUND` error carrying resource type + id)
+
+**MCP tool:** `get_project_work_state` — identical shape via the same underlying service logic.
 
 ---
 
@@ -1076,6 +1128,8 @@ The story list endpoint accepts an optional `milestone_id` query parameter. An u
 27. Every session belongs to exactly one project (`project_id`, required, immutable) — there is no project-less session and no cross-project session listing or incomplete-sessions query; every session read is scoped to a chosen `project_id`. Deleting a project cascades to delete all of its sessions. <!-- new: 2026-07-30 (STORY-009 reconcile) -->
 28. A session's `participant_role` is required and validated against the project's effective `participant_roles` dictionary (422 otherwise, the same message convention as `default_web_ui_role` and task `assignee_role`/`creator_role`); it is updatable but cannot be cleared (explicit `null` → 422). <!-- new: 2026-07-30 (STORY-009 reconcile) -->
 29. `linked_story_id` and `linked_task_id` are two independent optional fields on a Session — either, both, or neither may be set; neither substitutes for the other or for the mandatory `project_id` scope. Each is validated independently when set (referenced story/task must exist — 404 — and belong to the same `project_id` as the session — 422) and each is nulled automatically (application-side, since the SQLite FK action is inert) when its target story/task is deleted, unaffected by the state of the other link. <!-- new: 2026-07-30 (STORY-009 reconcile) -->
+30. `GET /status` performs no dependency probing whatsoever (no database access) and carries no MCP-availability flag — REST and MCP share one service layer, so MCP reachability already implies REST reachability. <!-- new: 2026-08-01 (STORY-010 reconcile) -->
+31. `GET /projects/:id/work-state` is a deliberately narrow breadth read: it never inlines attachments, comments, or links (those fields are structurally absent from its response shapes, not merely returned empty), and its composition always issues a fixed number of batched queries regardless of story or task count (no per-story or per-task round trip). Depth for any single story or task is reached via the existing `GET /stories/:id/detail` / `GET /tasks/:id/detail` operations, unchanged by this read. <!-- new: 2026-08-01 (STORY-010 reconcile) -->
 
 ---
 
@@ -1141,6 +1195,8 @@ The following requirements are **partially implemented** as of STORY-002. They a
 - List endpoints (up to 1,000 records): p95 < 500 ms
 - `GET /stories/:id/aggregate` (up to 500 tasks): < 300 ms
 - `GET /tasks/:id/detail` (up to 100 attachments + 200 comments): < 500 ms
+- `GET /projects/:id/work-state` (up to 50 stories × 20 tasks): fixed number of batched queries regardless of tree size, no per-story or per-task round trip <!-- new: 2026-08-01 (STORY-010 reconcile) -->
+- `GET /status`: no dependency probing, no database access — effectively instant
 - Concurrent load: ≥ 5 simultaneous requests without degradation
 
 ### Security

@@ -10,6 +10,7 @@ from app.milestones.service import MilestoneService
 from app.projects.service import ProjectService
 from app.sessions.service import SessionService
 from app.settings.service import SettingsService
+from app.status.service import StatusService
 from app.stories.service import StoryService
 from app.story_links.service import StoryLinkService
 from app.task_links.service import TaskLinkService
@@ -107,5 +108,16 @@ async def provide_comment_service(
 async def provide_session_service(
     _db: Session = Closing[Provide[AppContainer.db_session]],
     service: SessionService = Provide[AppContainer.session_service],
+):
+    yield service
+
+
+@asynccontextmanager
+@inject
+async def provide_status_service(
+    # No Closing[Provide[db_session]] here: the status operation touches no
+    # database or other dependency (per the task's no-probing requirement),
+    # so this bridge has nothing to tear down.
+    service: StatusService = Provide[AppContainer.status_service],
 ):
     yield service
