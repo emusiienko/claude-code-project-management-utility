@@ -1,5 +1,5 @@
 ---
-status: Pending Approval
+status: Accepted
 type: chore
 priority: P2
 date: 2026-08-01

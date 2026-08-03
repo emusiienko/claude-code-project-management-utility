@@ -1,7 +1,18 @@
 ## Active wait
-waiting_for: user's Accept decision on STORY-024 (Pending Approval). No qa-automation/manual-qa
-Execute run — devops-only infra story, no automated/UI test surface (SDLC convention: Auto ✓
-skipped for devops-only stories).
+waiting_for: user to run the two-stack (prod+dev) test manually; once satisfied, user will ask
+to delete the STORY-024 story folder. No other active wait — story fully reconciled.
+
+## STORY-024 accepted + reconciled, folder retained pending user verification (2026-08-03)
+User accepted STORY-024. Architect Reconcile: ADR-030 (env-configurable ports/image tags per
+stack), ADR-031 (Postgres deployment default + two-file .env split, refines but doesn't supersede
+ADR-002), architecture.md + CLAUDE.md updated, `Arch ✓` marked. Spec-writer Reconcile:
+requirements_backend.md annotated (deployment note only, no contract/data-model change), row
+moved to `docs/stories/archive.md` with `Arch ✓`/`Spec ✓`, removed from `docs/stories/index.md`
+(now empty). QA Reconcile explicitly skipped per user request — story never had an `Auto ✓`/`QA ✓`
+(no automated or manual test surface for this devops-only infra story), so there was nothing to
+merge. Story folder `docs/stories/STORY-024-dual-local-deployment/` deliberately NOT deleted yet —
+user wants to personally run both stacks (prod + dev) concurrently first and will ask for deletion
+once satisfied. Nothing committed yet.
 
 ## STORY-024 amended before Accept — prod/dev split + Postgres default (2026-08-01)
 Still `Pending Approval` (not Accepted — user's call). User requested two pre-Accept changes,

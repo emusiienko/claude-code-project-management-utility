@@ -42,9 +42,9 @@
 
 | Dependency                         | Rationale |
 |------------------------------------|---|
-| Docker + Docker Compose            | Whole stack runs on a single developer machine; ports mapped to localhost only. |
+| Docker + Docker Compose            | Whole stack runs on a single developer machine; ports mapped to localhost only. Host ports and image tags are env-configurable (`BACKEND_PORT`/`WEB_PORT`/`POSTGRES_PORT`/`STACK_NAME`) so two checkouts in differently-named folders run concurrently (prod + dev). <!-- updated: 2026-08-03 (STORY-024 reconcile): concurrent-stack capability; see ADR-030. --> |
 | nginx (frontend container)         | Serves the static React build and is the single web entry. |
-| PostgreSQL 18 (optional container) | Activated via a Compose profile only when `DATABASE_URL` targets Postgres. |
+| PostgreSQL 18 (container)          | <!-- updated: 2026-08-03 (STORY-024 reconcile): now the **deployment default** — the `postgres` Compose profile is active in `.env.example`/prod, and every `docker-compose.yml` fallback resolves to Postgres. SQLite is the opt-in mode (default in `.env.dev.example` and still the backend code's no-`DATABASE_URL` fallback). See ADR-031; DB-agnosticism (ADR-002) unchanged. --> |
 | uv (backend image dependency install) | <!-- updated: 2026-07-02 --> The backend image installs Python dependencies with `uv sync --frozen` against the committed `backend/uv.lock`, matching the local dev toolchain and giving reproducible, locked builds. Runtime commands (`alembic`, `uvicorn`) run from the uv-managed venv (on `PATH`). See STORY-014. |
 
 ---
@@ -382,13 +382,16 @@ Configuration is read from environment variables (12-factor); secrets are not ap
 local-only). Variables grouped by concern:
 
 **Database**
-- `DATABASE_URL` — single switch between dialects. SQLite (default) e.g. `sqlite:///data/app.db`; PostgreSQL e.g. `postgresql+psycopg://user:pass@db:5432/app`.
+- `DATABASE_URL` — single switch between dialects. PostgreSQL e.g. `postgresql+psycopg://user:pass@db:5432/app`; SQLite e.g. `sqlite:///data/app.db`. <!-- updated: 2026-08-03 (STORY-024 reconcile): PostgreSQL is now the **deployment default** — uncommented in `.env.example` (prod) and the resolved `docker-compose.yml` fallback; SQLite is opt-in (`.env.dev.example`/dev, and still the backend code fallback when no `DATABASE_URL` is set anywhere). The DB-agnostic contract (ADR-002) is unchanged. See ADR-031. -->
 
 **Storage**
 - `ATTACHMENTS_DIR` — server-managed directory (Docker volume) for attachment files; outside the web root; paths never constructed from user input.
 
 **Service ports (localhost-mapped only)**
-- Backend `:8000` (single port serving **both** REST and the MCP server — MCP is path-mounted on the same app, e.g. `/mcp`, not a separate port; see ADR-007), Web UI `:3000` (defaults; final mapping owned by devops in `docker-compose.yml`).
+- Backend `:8000` (single port serving **both** REST and the MCP server — MCP is path-mounted on the same app, e.g. `/mcp`, not a separate port; see ADR-007), Web UI `:3000`. <!-- updated: 2026-08-03 (STORY-024 reconcile): the **host** side of each mapping is env-configurable — `BACKEND_PORT` (8000), `WEB_PORT` (3000), `POSTGRES_PORT` (5432) — with the canonical values as defaults; container-internal ports stay fixed. `STACK_NAME` (default `prod`) namespaces both built image tags. These enable two concurrent stacks; the browser-coupling vars (`VITE_API_BASE_URL`, `CORS_ALLOWED_ORIGINS`) must track a stack's own ports. Mappings owned by devops in `docker-compose.yml`. See ADR-030. -->
+
+**Concurrent stacks (STORY-024, ADR-030)** <!-- updated: 2026-08-03 (STORY-024 reconcile) -->
+- Two checkouts in differently-named folders run at once (a stable prod stack + the active dev stack). Container/volume/network isolation comes from Compose's folder-based project naming; the env-configurable host ports and per-stack image tags cover the two things Compose does not namespace. Two committed env templates align to this: `.env.example` (prod — `STACK_NAME=prod`, canonical ports, PostgreSQL) and `.env.dev.example` (dev — `STACK_NAME=dev`, offset ports `8100`/`3100`/`5433`, SQLite). Each stack runs its own PostgreSQL container (no shared server). `deploy.sh` is unchanged. See `docs/devops-strategy.md` § Running Two Stacks Concurrently.
 
 **CORS**
 - `CORS_ALLOWED_ORIGINS` — localhost origins for the Web UI (no reverse proxy in V1).
@@ -397,9 +400,11 @@ local-only). Variables grouped by concern:
 **Limits**
 - Rate limit 1,000 req/min on all endpoints; attachment upload max 10 MB.
 
-**Dev vs prod** — same image; differences are env-only (`DATABASE_URL`, log verbosity). PostgreSQL
-is enabled through a Docker Compose profile activated only when `DATABASE_URL` targets Postgres;
-with SQLite there is no `db` container.
+**Dev vs prod** — same image; differences are env-only (`DATABASE_URL`, ports, `STACK_NAME`, log
+verbosity), captured by the two committed templates (`.env.example` = prod/PostgreSQL,
+`.env.dev.example` = dev/SQLite). <!-- updated: 2026-08-03 (STORY-024 reconcile): "prod" and "dev" are now the two named concurrent stacks, not release environments — both run on the developer's localhost. --> PostgreSQL runs through a Docker Compose profile
+activated when `DATABASE_URL` targets Postgres (the deployment default); with SQLite there is no
+`db` container.
 
 ---
 
