@@ -274,6 +274,39 @@ If both stacks are accidentally left on identical default ports (the user forget
 second `./deploy.sh up` **fails fast** with a Docker `port is already allocated` error rather than
 silently interfering with the already-running stack.
 
+### The devops agent always operates in the dev checkout
+
+The devops agent (and every implementor agent) is **only ever invoked inside the active working
+checkout**, which is the **dev** stack. It does not choose, detect, or switch between stacks — there
+is no mechanism for it to do so:
+
+- The stack identity is fixed **by the user**, out of band, by copying one env template to `.env`
+  before running the stack (`.env.dev.example` in the working checkout, `.env.example` in a separate
+  prod checkout). `deploy.sh` takes **no** environment argument and does not branch on stack
+  identity — it simply runs Compose against whatever `.env` the folder already has.
+- A **"prod" stack is a separate checkout** (e.g. a standalone download of a released `main`) that the
+  user manages and runs entirely on their own, in a different folder, with **no agent involvement
+  there at all**. The devops agent never has a working directory in a prod checkout, so it cannot and
+  does not touch, start, stop, rebuild, migrate, wipe, or send traffic to the prod stack.
+
+Therefore, whenever any agent-run command needs a local stack — bringing it up, tailing logs,
+inspecting containers/volumes, `curl`-ing an endpoint for troubleshooting or verification — it targets
+the **dev** stack, because that is the only context it runs in:
+
+- **Dev stack** (the only stack agents see): `.env.dev.example` → `STACK_NAME=dev`, backend/MCP on
+  `http://localhost:8100`, Web UI on `http://localhost:3100`, Postgres host port `5433` (SQLite by
+  default, so no Postgres container unless switched).
+- **Prod stack** (out of scope for agents): `.env.example` → `STACK_NAME=prod`, backend/MCP on
+  `http://localhost:8000`, Web UI on `http://localhost:3000`, Postgres host port `5432` — a separate,
+  user-managed checkout the agent never enters.
+
+**Why:** it is the user, not the agent, who converts an env template to `.env`, and `deploy.sh` is
+fixed in that regard. There is no "pick the stack at runtime" step for the agent, so there is also no
+"confirm before touching prod" scenario — a prod checkout is simply never the agent's working
+directory. Keeping this explicit prevents an agent from reasoning about, or trying to reach, the
+canonical `8000`/`3000`/`5432` ports when they belong to a separate instance the user may be running
+live. (`deploy.sh` also remains user-run, never agent-run — see § Deployment / Run.)
+
 ### PostgreSQL: separate container per stack (decision)
 
 The story left open whether two concurrent stacks that both use PostgreSQL should share one server
@@ -345,7 +378,7 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
 ## Ownership
 
 | Area | Owner |
-|---|---|
+| --- | --- |
 | `docker-compose.yml`, `deploy.sh`, `.pre-commit-config.yaml`, `.gitignore`, `.env.example`, `.env.dev.example` | devops |
 | Backend Dockerfile (`backend/`) | devops (build), backend-developer (app contents) |
 | Frontend Dockerfile (`frontend/`) | devops (build), frontend-developer (app contents) |

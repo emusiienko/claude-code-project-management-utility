@@ -1,7 +1,7 @@
 # Manual QA Strategy
 
 > Owned by **manual-qa**. Update only at the user's explicit request.
-> Last updated: 2026-06-29
+> Last updated: 2026-08-03
 
 ---
 
@@ -25,7 +25,19 @@ Manual QA covers the **visual and UI aspects** of the frontend application. Auto
 
 ## Target Environment
 
-- **App URL**: `http://localhost:3000` (default local Docker mapping)
+**Two concurrent local stacks exist (STORY-024) — always default to dev.**
+
+| Stack | Web UI | Backend/MCP | When to use |
+|-------|--------|-------------|-------------|
+| **dev** (`STACK_NAME=dev`) | `http://localhost:3100` | `http://localhost:8100` | **Default — use for every manual/exploratory test run** |
+| **prod** (`STACK_NAME=prod`) | `http://localhost:3000` | `http://localhost:8000` | Only when the user explicitly asks to test prod |
+
+Rules:
+- Point Playwright and any `WebFetch` calls at the **dev** addresses (`:3100` web / `:8100` backend) by default, for every TC, smoke run, and regression run.
+- Never navigate to, exercise, or otherwise touch the prod addresses (`:3000` / `:8000`) unless the user's own message explicitly asks for prod to be tested. Being aware prod exists is not the same as testing it.
+- If dev is not reachable at `:3100`, do not fall back to prod silently — report the environment as unreachable (bug assignee `devops` per the policy below) and ask the user whether to proceed against prod.
+- This rule is environment-address guidance only — it does not change which screens/TCs are in scope.
+
 - **Browser targets**: Chromium (primary — Playwright default)
 - **Viewport breakpoints** (from Tailwind config):
   - `md: 768px` — main responsive breakpoint
@@ -114,8 +126,8 @@ Apply to every visual TC at every resolution column:
 
 ## Test Run Process
 
-1. Start app locally (`docker compose up` or equivalent)
-2. Navigate to each screen; set viewport before navigating
+1. Confirm the **dev** stack is up (`http://localhost:3100`) — do not start or touch prod (`:3000`) to do this; if only prod is running, ask the user before proceeding
+2. Navigate to each screen using the dev addresses from § Target Environment; set viewport before navigating
 3. Execute TC checklist row by row; mark pass (✓) or fail (✗)
 4. On failure: take screenshot with `browser_take_screenshot`, note exact resolution and check that failed
 5. Write run log to `docs/qa/results/STORY-NNN-<date>.md`
