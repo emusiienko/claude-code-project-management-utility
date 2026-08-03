@@ -6,7 +6,7 @@ A single-developer, locally-hosted utility that stores the operational state of 
 
 Single environment: the developer's local machine (Docker Compose, localhost-only). All ports bind to `127.0.0.1`.
 
-Requires Docker with the Compose v2 plugin. On first run, `./deploy.sh` creates `.env` from `.env.example` (SQLite default).
+Requires Docker with the Compose v2 plugin. On first run, `./deploy.sh` creates `.env` from `.env.example` (the prod stack, PostgreSQL default).
 
 ### Run locally
 
@@ -18,7 +18,20 @@ Requires Docker with the Compose v2 plugin. On first run, `./deploy.sh` creates 
 ./deploy.sh logs      # follow stack logs
 ```
 
-Database: SQLite is the default. To use PostgreSQL, set `DATABASE_URL=postgresql+psycopg://app:app@db:5432/app` in `.env` — `deploy.sh` then starts the `db` container automatically.
+Database: PostgreSQL is the default. To use SQLite instead, set `DATABASE_URL=sqlite:///data/app.db` in `.env` — `deploy.sh` then runs with no `db` container.
+
+### Running two stacks concurrently
+
+Two checkouts of this repo, in differently-named folders, can run at the same time: a stable **prod**
+stack plus the active **dev** checkout. Each has its own committed env template — copy the matching
+one to `.env`:
+
+- **Prod checkout:** `cp .env.example .env` (`STACK_NAME=prod`, ports `8000` / `3000` / `5432`,
+  PostgreSQL). `./deploy.sh` bootstraps this automatically on first run.
+- **Dev checkout:** `cp .env.dev.example .env` (`STACK_NAME=dev`, ports `8100` / `3100` / `5433`,
+  SQLite; `VITE_API_BASE_URL` / `CORS_ALLOWED_ORIGINS` already matched to the offset ports).
+
+Then run `./deploy.sh up` in each. See `docs/devops-strategy.md` § Running Two Stacks Concurrently.
 
 ### Resources
 
@@ -27,7 +40,9 @@ Database: SQLite is the default. To use PostgreSQL, set `DATABASE_URL=postgresql
 | Backend REST API | http://localhost:8000 (OpenAPI docs at `/v1/docs`) |
 | MCP server | http://localhost:8000/mcp |
 | Web UI | http://localhost:3000 |
-| PostgreSQL (opt-in only) | localhost:5432 |
+| PostgreSQL (default DB) | localhost:5432 |
+
+Ports above are the defaults; a second concurrent stack uses its own `BACKEND_PORT` / `WEB_PORT` / `POSTGRES_PORT` (see "Running two stacks concurrently").
 
 ---
 

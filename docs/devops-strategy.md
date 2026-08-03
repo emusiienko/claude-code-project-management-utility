@@ -18,11 +18,15 @@ not apply here are explicitly marked **Not applicable (V1)** rather than padded 
 > - **Branch model**: `main` + short-lived feature branches (`feat/` `fix/` `chore/`), matching the
 >   conventions docs. No `develop` branch — unnecessary for a solo project.
 > - **Deploy**: `deploy.sh` is a thin wrapper over `docker compose` (build → migrate → up), with the
->   SQLite/PostgreSQL switch handled by `DATABASE_URL` + a Compose profile. **SQLite is the default**
->   (matching the shipped backend config `app.core.config` and `docs/architecture.md`); PostgreSQL is
->   the opt-in alternative, activated by the `postgres` profile. *(Corrected in TASK-006: the setup-time
->   draft assumed Postgres default, but the implemented config defaults to SQLite — code is the source
->   of truth.)*
+>   SQLite/PostgreSQL switch handled by `DATABASE_URL` + a Compose profile. *(Corrected in TASK-006:
+>   the setup-time draft assumed Postgres default, but the implemented backend config
+>   (`app.core.config`) defaults to SQLite — code is the source of truth.)* **STORY-024 amendment
+>   (2026-08-01):** by user direction, the **deployment** default is now **PostgreSQL** — the shipped
+>   `.env.example` (the "prod" stack) sets `DATABASE_URL` to the Postgres URL and `deploy.sh` falls
+>   back to it, so `postgres` profile activates out of the box. SQLite stays a fully-supported opt-in
+>   (and remains the backend code's built-in fallback, used only when no `DATABASE_URL` is provided at
+>   all — which the shipped env never leaves unset). The new `.env.dev.example` (the "dev" stack) uses
+>   SQLite by default. See § Running Two Stacks Concurrently.
 
 ---
 
@@ -32,7 +36,7 @@ not apply here are explicitly marked **Not applicable (V1)** rather than padded 
 - Local Docker Compose stack: `backend` (single service serving **both** REST and MCP on the same
   port :8000 via path-based routing), `web` (nginx + React build :3000), `db` (PostgreSQL 18, opt-in).
 - A single deployment/run entry point: `deploy.sh`.
-- DB-agnostic operation: SQLite (**default**, no container) or PostgreSQL (opt-in, `postgres` profile).
+- DB-agnostic operation: PostgreSQL (**deployment default**, `postgres` profile) or SQLite (opt-in, no container). *(STORY-024 flipped the deployment default from SQLite to Postgres — see the assumptions note above.)*
 - Alembic migrations run as part of bringing the stack up.
 - Local quality gates via **pre-commit hooks** (lint, format, type-check) — no test execution, owned by QA roles.
 - `.gitignore`, `.env.example`, and repository hygiene.
@@ -50,9 +54,10 @@ If V2 ever exposes this tool beyond `localhost`, this document must be revisited
 
 ## Environments
 
-There is exactly **one** environment: the developer's local machine. "dev" and "prod" are the *same*
-stack; the only difference is the `DATABASE_URL` (SQLite default vs PostgreSQL opt-in) and log
-verbosity, per the architecture's "same image, env-only differences" rule.
+There is exactly **one** environment: the developer's local machine. The optional "prod" and "dev"
+concurrent stacks (STORY-024) run the *same* image; they differ only by env — host ports, image tag
+(`STACK_NAME`), and `DATABASE_URL` (the prod stack defaults to PostgreSQL; the dev stack to SQLite),
+per the architecture's "same image, env-only differences" rule. See § Running Two Stacks Concurrently.
 
 | Environment | Purpose | Runs on | Brought up by |
 |---|---|---|---|
@@ -88,11 +93,11 @@ The whole system is one Docker Compose project. All ports are mapped to `127.0.0
 |---|---|---|---|
 | `backend` | Built from `backend/` | `8000` | Single FastAPI/Uvicorn process serving **both** the REST surface and the MCP server. MCP HTTP streamable transport is mounted on a path of the same app (e.g. `/mcp`), not a separate port — the `api-contract.md` defines no distinct MCP port (ADR-003). |
 | `web` | Built from `frontend/` (multi-stage: Vite build → nginx) | `3000` | Serves the static SPA; single web entry. |
-| `db` | `postgres:18` | `5432` | **Opt-in** database. Started **only** under the `postgres` Compose profile, activated when `DATABASE_URL` targets Postgres; absent on the SQLite default (ADR-002). |
+| `db` | `postgres:18` | `5432` | **Default** database (STORY-024). Started under the `postgres` Compose profile, which `deploy.sh` activates automatically because the shipped `.env` targets Postgres; absent when `DATABASE_URL` is switched to the SQLite opt-in (ADR-002). |
 
 Volumes (named, managed by Compose):
 - `attachments` → mounted at `ATTACHMENTS_DIR` in `backend`; holds attachment files + version snapshots (ADR-005). Outside any web root.
-- `sqlite_data` → holds `app.db` on the SQLite default (mounted at `/app/backend/data`, so the database survives `down`).
+- `sqlite_data` → holds `app.db` on the SQLite opt-in (mounted at `/app/backend/data`, so the database survives `down`).
 - `pg_data` → PostgreSQL data dir; populated only under the `postgres` profile.
 
 REST and MCP run in the **same container, same image, same process** — MCP is a sub-application
@@ -104,20 +109,23 @@ one build, one process, one port to reason about.
 
 ## Database & Migrations
 
-- **Default:** SQLite. `DATABASE_URL=sqlite:///data/app.db` is the default in `.env.example`, in the
-  shipped backend config (`app.core.config`), and in `deploy.sh`. The file lives on the `sqlite_data`
+- **Deployment default:** PostgreSQL (STORY-024). `DATABASE_URL=postgresql+psycopg://app:app@db:5432/app`
+  is the uncommented value in `.env.example` (the "prod" stack) and the fallback in `deploy.sh` and the
+  Compose interpolation, so `deploy.sh up` activates the `postgres` profile and starts the `db`
+  container (PostgreSQL 18) out of the box. *(The backend code `app.core.config` still carries a SQLite
+  built-in fallback for the case where no `DATABASE_URL` is set at all; the shipped `.env` never leaves
+  it unset, so the effective deployment default is Postgres.)*
+- **SQLite (opt-in alternative):** enabled by switching `DATABASE_URL` to `sqlite:///data/app.db`
+  (commented in `.env.example`; the default in `.env.dev.example`). The file lives on the `sqlite_data`
   volume in **WAL mode** (required to meet the ≥5 concurrent-request target — ADR-002), with no `db`
-  container.
-- **PostgreSQL (opt-in alternative):** enabled by switching `DATABASE_URL` to a
-  `postgresql+psycopg://…` URL; `deploy.sh` then activates the `postgres` Compose profile so the
-  `db` container starts. PostgreSQL 18 runs in the `db` container.
+  container and no profile.
 - **Migrations:** `alembic upgrade head` runs automatically — both inside the backend container's
   entrypoint (so a bare `docker compose up` is correct) and explicitly in `deploy.sh` *after* the
   database is reachable and *before* the `backend` service starts serving. The same Alembic scripts
   run on both dialects (dialect-aware where unavoidable — ADR-002). The `system_settings` seed ships
   as an Alembic data migration, so a fresh install needs no manual configuration.
-- **Startup ordering (PostgreSQL opt-in):** `deploy.sh` starts `db` and waits for its healthcheck
-  before running migrations; on the SQLite default there is no `db` container and no wait.
+- **Startup ordering (PostgreSQL default):** `deploy.sh` starts `db` and waits for its healthcheck
+  before running migrations; on the SQLite opt-in there is no `db` container and no wait.
 
 ---
 
@@ -126,13 +134,17 @@ one build, one process, one port to reason about.
 12-factor: all configuration is read from environment variables. There are **no application secrets**
 (no auth, local-only — `docs/architecture.md` § Authentication / Environment Configuration).
 
-- `.env.example` is committed and lists every variable with safe placeholder values.
+- **Two committed templates** (STORY-024): `.env.example` is the **prod** stack (canonical ports,
+  PostgreSQL default); `.env.dev.example` is the **dev** stack (offset ports, SQLite). Both list every
+  variable with safe placeholder values. Copy the one matching a checkout's role to that checkout's
+  `.env` (`cp .env.example .env` for prod — also what `deploy.sh` bootstraps automatically —
+  or `cp .env.dev.example .env` for a concurrent dev checkout).
 - `.env` is **git-ignored** and holds the developer's local values.
 - Variables (from the architecture):
-  - `DATABASE_URL` — dialect switch (SQLite **default** | PostgreSQL opt-in).
+  - `DATABASE_URL` — dialect switch (PostgreSQL **default** | SQLite opt-in).
   - `ATTACHMENTS_DIR` — attachments volume mount path.
   - `CORS_ALLOWED_ORIGINS` — localhost origins for the Web UI.
-  - Service ports (`8000` backend — REST + MCP on the same port, `3000` Web) — defaults; final mapping owned here in `docker-compose.yml`.
+  - Host ports (`BACKEND_PORT` `8000` — REST + MCP on the same port, `WEB_PORT` `3000`, `POSTGRES_PORT` `5432`) and `STACK_NAME` (`prod`) — env-configurable (STORY-024) so two checkouts can run concurrently; the `.env.example` defaults are the prod stack. See § Running Two Stacks Concurrently.
 - The **only** sensitive-looking value is the local PostgreSQL password (`POSTGRES_PASSWORD`), used
   only when the Postgres profile is active. It is used only between containers on the host, lives only
   in the git-ignored `.env`, and is never transmitted off the machine. A cloud secret manager would be
@@ -192,9 +204,9 @@ point hides the Compose details and the DB-dialect branching.
 ```
 
 Behaviour:
-- Reads `DATABASE_URL` from `.env`. **Default** targets SQLite: the script runs with no `db`
-  container. If `DATABASE_URL` is switched to PostgreSQL, the script activates the `postgres` Compose
-  profile, starts `db`, and waits for its healthcheck before migrating.
+- Reads `DATABASE_URL` from `.env`. **Default** targets PostgreSQL: the script activates the
+  `postgres` Compose profile, starts `db`, and waits for its healthcheck before migrating. If
+  `DATABASE_URL` is switched to the SQLite opt-in, the script runs with no `db` container.
 - Always runs `alembic upgrade head` before the `backend` service (REST + MCP, same process) starts serving.
 - The user runs `deploy.sh`; the devops agent never runs it autonomously.
 
@@ -202,6 +214,107 @@ This is intentionally a thin, readable wrapper over `docker compose` — no orch
 remote state, no CD trigger. Smallest footprint that gives one obvious command.
 
 ---
+
+## Running Two Stacks Concurrently (dual local deployment)
+
+Added in **STORY-024**. The developer can run two independent stacks on the same machine at once —
+typically a stable **"prod"** stack (a separate checkout of a released version, e.g. `main`) plus
+the active **"dev"** checkout — to keep a stable instance up while developing against a second one.
+
+Each stack has its **own committed env template** (STORY-024): the prod checkout copies `.env.example`
+(canonical ports, PostgreSQL) to its `.env`; the dev checkout copies `.env.dev.example` (offset ports,
+SQLite) to its `.env`. There are no commented alternate blocks to hand-edit — the two files are the
+two ready-to-use configs.
+
+**Why this works with almost no new machinery.** Docker Compose already namespaces **containers,
+networks, and named volumes** by *project name*, which defaults to the compose file's containing
+**folder basename**. Two checkouts in differently-named folders therefore get fully isolated
+containers and volumes (`sqlite_data`, `pg_data`, `attachments`) for free — this is the same
+mechanism, not a new one. The only things Compose does **not** namespace, and which STORY-024 makes
+configurable, are:
+
+- **Host port bindings** — two stacks can't both publish `127.0.0.1:8000` (etc.). Now driven by
+  `BACKEND_PORT` / `WEB_PORT` / `POSTGRES_PORT` (prod `8000` / `3000` / `5432`; dev `8100` / `3100` /
+  `5433`). Only the host side is variable; container-internal ports stay fixed, so nothing inside the
+  stack changes.
+- **Built image tags** — `aiacu-backend` / `aiacu-web`. The **web** image bakes `VITE_API_BASE_URL`
+  at build time, so a shared tag would let the two stacks overwrite each other's web image. Now
+  namespaced by `STACK_NAME` (prod `prod`, dev `dev`), so each stack owns its images.
+
+### How to stand up a second (dev) stack
+
+1. Clone or download the second version into a **differently-named folder** (the different basename
+   is what gives it a distinct Compose project — and thus separate containers/volumes/networks).
+   Example: keep the released version in `aiacu-prod/`, put the working checkout in `aiacu-dev/`.
+2. In the dev checkout, create its `.env` from the dev template: `cp .env.dev.example .env`.
+   (The prod checkout uses `.env.example` — `./deploy.sh` bootstraps that automatically on first run.)
+3. `.env.dev.example` already carries the **six interdependent values** so nothing collides with the
+   prod stack; the example offsets the app ports by +100 and Postgres by +1:
+   - `STACK_NAME=dev` — own image tags (`aiacu-*:dev`), no shared-tag overwrite.
+   - `BACKEND_PORT=8100` — own backend host port.
+   - `WEB_PORT=3100` — own web host port.
+   - `POSTGRES_PORT=5433` — own Postgres host port (only relevant if the dev stack switches to Postgres).
+   - `VITE_API_BASE_URL=http://localhost:8100` — **must** equal `http://localhost:<BACKEND_PORT>`;
+     baked into the SPA at build time, so the browser calls the right backend.
+   - `CORS_ALLOWED_ORIGINS=http://localhost:3100` — **must** include `http://localhost:<WEB_PORT>`,
+     or the browser's API calls are blocked by CORS.
+4. Run `./deploy.sh up` in **each** checkout. `deploy.sh` is unchanged and unaware of these
+   variables — Compose auto-loads each folder's `.env` for interpolation. The prod stack keeps its
+   defaults; the single-stack workflow is entirely unaffected.
+
+The prod stack runs **PostgreSQL** (its `.env.example` default) and the dev stack runs **SQLite**
+(its `.env.dev.example` default), so out of the box the two don't even contend for a Postgres host
+port. Either stack can switch dialect independently by editing only its own `.env`. If the dev stack
+is switched to Postgres, its internal `DATABASE_URL` stays `postgresql+psycopg://app:app@db:5432/app`:
+that targets the dev project's *own* `db` service on its private network, so it does not need to
+differ; `POSTGRES_PORT` (5433) only affects the host-published port used for external `psql`
+inspection. Migrations and the `deploy.sh` subcommands are identical per stack.
+
+If both stacks are accidentally left on identical default ports (the user forgets to override), the
+second `./deploy.sh up` **fails fast** with a Docker `port is already allocated` error rather than
+silently interfering with the already-running stack.
+
+### PostgreSQL: separate container per stack (decision)
+
+The story left open whether two concurrent stacks that both use PostgreSQL should share one server
+(distinct database names) or run fully separate containers. **Decision: separate container per
+stack.** (With the shipped templates the prod stack uses Postgres and the dev stack SQLite, so this
+only bites when the dev stack is switched to Postgres too.)
+
+- Each Postgres stack gets its own `db` container and its own `pg_data` volume via folder-based
+  project naming — full isolation, matching how a SQLite stack is already self-contained. The only
+  added requirement is a distinct `POSTGRES_PORT` per stack, now supported.
+- Sharing one server via distinct DB names was rejected: it would **couple the two stacks'
+  lifecycles** (stopping or wiping the "prod" stack would take down "dev"'s database), require one
+  checkout to own the server and the other to reach it over `host.docker.internal`, and introduce
+  cross-stack state — more complexity and coupling for zero benefit on a single dev machine.
+- Because the two `db` containers are separate servers, they may even keep the **same**
+  `POSTGRES_DB`/`POSTGRES_USER` (`app`) — they never share storage.
+
+### Verifying isolation (do not assume it)
+
+Two levels, matching the story's "verify explicitly" requirement:
+
+- **Config-level (done, no side effects).** `docker compose config` was rendered for both env
+  templates (prod: `docker compose --env-file .env.example --profile postgres config`; dev:
+  `docker compose --env-file .env.dev.example config`). Result: container-internal ports stay fixed
+  at 8000/3000 (backend/web) in both; host-published ports are distinct and non-overlapping
+  (prod 8000/3000/5432 with the `db` container present, dev 8100/3100 with **no** `db` container since
+  it defaults to SQLite); image tags are distinct (`:prod` vs `:dev`); and the resolved backend
+  `DATABASE_URL` is Postgres for prod, SQLite for dev. This proves the port, image-tag, and dialect
+  isolation without building or binding anything.
+- **Runtime data isolation (user-run, one-time).** To confirm volumes are isolated end-to-end:
+  1. In the prod checkout (`.env.example` → `.env`, `STACK_NAME=prod`, ports 8000/3000) run
+     `./deploy.sh up`; create a project via the Web UI at `http://localhost:3000` (or
+     `POST http://localhost:8000/v1/projects`).
+  2. In the dev checkout (`.env.dev.example` → `.env`, `STACK_NAME=dev`, ports 8100/3100) run
+     `./deploy.sh up`; open `http://localhost:3100` and list projects — the project created in the
+     prod stack must be **absent**.
+  3. Create a different project in the dev stack; confirm it is absent from prod. Optionally confirm
+     distinct volumes with `docker volume ls` — the names are prefixed by each folder's project name
+     (e.g. `aiacu-dev_sqlite_data` vs `aiacu-prod_pg_data`).
+  The two data sets never intersect because each stack's `sqlite_data` / `pg_data` / `attachments`
+  volumes are separate Docker named volumes under separate Compose projects.
 
 ## Rollback / Recovery (minimal-infra)
 
@@ -224,7 +337,7 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
 - `.gitignore` covers: `.env`, `__pycache__/`, `*.pyc`, `.venv/`, `node_modules/`, `dist/`,
   `frontend` build output, local SQLite files outside the volume, `.idea/`/editor cruft, and any
   `data/` scratch dir.
-- `.env.example` committed; `.env` never committed.
+- `.env.example` (prod) and `.env.dev.example` (dev) committed; `.env` never committed.
 - `README.md` quick-start points at `./deploy.sh up`.
 
 ---
@@ -233,7 +346,7 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
 
 | Area | Owner |
 |---|---|
-| `docker-compose.yml`, `deploy.sh`, `.pre-commit-config.yaml`, `.gitignore`, `.env.example` | devops |
+| `docker-compose.yml`, `deploy.sh`, `.pre-commit-config.yaml`, `.gitignore`, `.env.example`, `.env.dev.example` | devops |
 | Backend Dockerfile (`backend/`) | devops (build), backend-developer (app contents) |
 | Frontend Dockerfile (`frontend/`) | devops (build), frontend-developer (app contents) |
 | Alembic migration **scripts** | backend-developer (authoring) — devops only runs them via `deploy.sh` |
@@ -247,8 +360,10 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
 
 1. **Quality gates** — confirmed: local **pre-commit hooks**, no CI service.
 2. **Branch model** — assumed: `main` + feature branches, no `develop`.
-3. **`deploy.sh` as a Compose wrapper** — confirmed: yes, with **SQLite default** / PostgreSQL opt-in
-   switch (aligned to the shipped backend config in TASK-006).
+3. **`deploy.sh` as a Compose wrapper** — confirmed: yes, with a `DATABASE_URL` dialect switch.
+   Deployment default is **PostgreSQL** (STORY-024, by user direction); **SQLite** is the opt-in and
+   the `.env.dev.example` dev-stack default. *(Supersedes the earlier SQLite-default framing from
+   TASK-006, which described the backend code fallback — still SQLite — not the deployment default.)*
 4. **Single backend container** — confirmed: REST + MCP share one image and one process on port :8000
    (MCP mounted on a path; no separate MCP port, per `api-contract.md`).
 

@@ -5,13 +5,24 @@
 # by design; see docs/architecture.md § Authentication and docs/devops-strategy.md).
 #
 # Database selection is driven entirely by DATABASE_URL in .env:
-#   - DEFAULT: SQLite (sqlite:///data/app.db) — no `db` container, no profile.
-#   - OPT-IN:  PostgreSQL — set DATABASE_URL to the postgresql+psycopg URL AND
-#              run with the `postgres` profile so the `db` container starts.
+#   - DEFAULT: PostgreSQL — the `postgres` profile is activated (by deploy.sh, or
+#              `docker compose --profile postgres`) so the `db` container starts.
+#   - OPT-IN:  SQLite (sqlite:///data/app.db) — no `db` container, no profile.
 #
 # Bring the stack up via ./deploy.sh (the single entry point), which selects the
-# profile based on DATABASE_URL. A bare `docker compose up` also works for the
-# SQLite default; for Postgres use `docker compose --profile postgres up`.
+# profile based on DATABASE_URL. For the Postgres default use
+# `docker compose --profile postgres up`; a bare `docker compose up` works only
+# after switching DATABASE_URL to the SQLite opt-in.
+#
+# CONCURRENT STACKS (STORY-024): every host-side port binding and both image tags
+# are env-configurable so two checkouts can run at the same time from
+# differently-named folders — a stable "prod" stack + the active "dev" stack. Only
+# the HOST side of each port mapping is a variable — the container-internal ports
+# stay fixed (8000/3000/5432), so inter-container networking and healthchecks are
+# unchanged. Two committed env templates carry the two configs: `.env.example` is
+# the "prod" stack (canonical ports, PostgreSQL default); `.env.dev.example` is the
+# "dev" stack (offset ports, SQLite default). Copy the matching one to `.env` per
+# checkout. See docs/devops-strategy.md § Running Two Stacks Concurrently.
 
 services:
   # ---------------------------------------------------------------------------
@@ -22,20 +33,25 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: aiacu-backend:local
+    # STACK_NAME namespaces the image tag so the dev stack builds its own image
+    # instead of overwriting the prod tag. Default (`prod`) is the stable stack.
+    image: aiacu-backend:${STACK_NAME:-prod}
     env_file:
       - .env
     environment:
-      # Defaults applied only when the variable is absent from .env. SQLite is
-      # the default dialect; switch to Postgres by editing .env (and using the
-      # postgres profile). The path resolves to /app/backend/data/app.db, which
-      # is the sqlite_data volume mount below.
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/app.db}
+      # Defaults applied only when the variable is absent from .env. PostgreSQL is
+      # the default dialect (the `db` container runs under the postgres profile,
+      # which deploy.sh activates automatically). Switch to SQLite by editing .env;
+      # its path then resolves to /app/backend/data/app.db, the sqlite_data volume
+      # mount below.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://app:app@db:5432/app}
       ATTACHMENTS_DIR: ${ATTACHMENTS_DIR:-/data/attachments}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
-      # REST + MCP share this port. localhost-only.
-      - "127.0.0.1:8000:8000"
+      # REST + MCP share this host port. localhost-only. Host side is BACKEND_PORT
+      # (default 8000); the container port stays 8000. The dev stack sets a
+      # different BACKEND_PORT (and matching VITE_API_BASE_URL — see .env.dev.example).
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
       # SQLite database file survives `down` (only removed by `down -v`).
       # Harmless when DATABASE_URL targets Postgres — the dir is just unused.
@@ -54,8 +70,8 @@ services:
       db:
         condition: service_healthy
         # `required: false` lets backend start even when the db service is not
-        # part of the active profile (i.e. the SQLite default). When the
-        # postgres profile is active, the healthy condition is enforced.
+        # part of the active profile (i.e. the SQLite opt-in). When the
+        # postgres profile is active (the default), the healthy condition is enforced.
         required: false
     restart: unless-stopped
 
@@ -72,9 +88,14 @@ services:
         # reaches the backend at this origin, so localhost:8000 is correct for
         # the local stack.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
-    image: aiacu-web:local
+    # STACK_NAME namespaces the tag. The web image bakes VITE_API_BASE_URL at BUILD
+    # time, so the dev stack MUST both set STACK_NAME (own image) and rebuild with a
+    # matching VITE_API_BASE_URL, or its browser would call the wrong backend.
+    image: aiacu-web:${STACK_NAME:-prod}
     ports:
-      - "127.0.0.1:3000:3000"
+      # Host side is WEB_PORT (default 3000); the container port stays 3000. A second
+      # stack sets a different WEB_PORT (and matching CORS_ALLOWED_ORIGINS on backend).
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
       interval: 10s
@@ -86,8 +107,9 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # db — PostgreSQL 18. OPT-IN only: started solely under the `postgres` profile.
-  # With the SQLite default this container never starts.
+  # db — PostgreSQL 18. The DEFAULT database. Started under the `postgres` profile,
+  # which deploy.sh activates automatically because DATABASE_URL targets Postgres
+  # out of the box. Switch DATABASE_URL to the SQLite opt-in to run without it.
   # ---------------------------------------------------------------------------
   db:
     image: postgres:18
@@ -98,8 +120,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
       POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
-      # localhost-only; exposed for local inspection (psql) — not off-host.
-      - "127.0.0.1:5432:5432"
+      # localhost-only; exposed for local inspection (psql) — not off-host. Host side
+      # is POSTGRES_PORT (default 5432); the container port stays 5432. The internal
+      # DATABASE_URL still targets db:5432 on the project network, so a second stack
+      # only needs a different POSTGRES_PORT for its own external psql access.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       # postgres:18+ changed the recommended layout: mount a single volume at
       # /var/lib/postgresql (NOT /var/lib/postgresql/data). The image then places
@@ -115,7 +140,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  # SQLite database file (default dialect). Survives `down`; removed by `down -v`.
+  # SQLite database file (opt-in dialect). Survives `down`; removed by `down -v`.
   sqlite_data:
   # PostgreSQL data dir (only populated under the postgres profile).
   pg_data:

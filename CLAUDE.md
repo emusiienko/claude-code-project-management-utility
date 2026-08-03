@@ -129,7 +129,9 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 |---------|-----------------|-------|
 | Backend (REST + MCP) | http://localhost:8000 | One Uvicorn process; MCP path-mounted at `/mcp`; OpenAPI docs at `/v1/docs` |
 | Web UI | http://localhost:3000 | nginx serving the static React (Vite) build |
-| PostgreSQL (opt-in) | localhost:5432 | Only under the `postgres` profile; absent on the SQLite default |
+| PostgreSQL (default DB) | localhost:5432 | Runs under the `postgres` profile, which `deploy.sh` activates automatically because the shipped `.env` targets Postgres; absent only when `DATABASE_URL` is switched to the SQLite opt-in |
+
+**Concurrent stacks (STORY-024)**: two checkouts in differently-named folders can run at once — a stable "prod" stack + the active "dev" stack. Each has its own committed env template; copy the matching one to `.env`: `.env.example` (prod — `STACK_NAME=prod`, ports 8000/3000/5432, **PostgreSQL**) or `.env.dev.example` (dev — `STACK_NAME=dev`, ports 8100/3100/5433, **SQLite**, with `VITE_API_BASE_URL`/`CORS_ALLOWED_ORIGINS` pre-matched to the offset ports). The env-configurable knobs are `BACKEND_PORT`/`WEB_PORT`/`POSTGRES_PORT`/`STACK_NAME` (host side only; container ports stay fixed). Container/volume/network isolation comes from Compose's folder-based project naming; each stack that uses Postgres runs its own db container (no shared server). `deploy.sh` is unchanged. See `docs/devops-strategy.md` § Running Two Stacks Concurrently.
 
 **Run** (single entry point — the user runs this, never an agent):
 
@@ -141,13 +143,13 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 | `./deploy.sh migrate` | Run `alembic upgrade head` only |
 | `./deploy.sh logs` | Follow stack logs |
 
-**Database**: SQLite is the **default** (`sqlite:///data/app.db`, WAL, on the `sqlite_data` volume — no container). PostgreSQL is **opt-in**: set `DATABASE_URL=postgresql+psycopg://...` in `.env` and `deploy.sh` auto-activates the `postgres` profile. The same Alembic migrations run unchanged on both dialects; the backend entrypoint applies them before serving.
+**Database**: PostgreSQL is the **deployment default** (STORY-024) — `DATABASE_URL=postgresql+psycopg://app:app@db:5432/app` is the shipped `.env.example` value and the `deploy.sh`/Compose fallback, so `deploy.sh` auto-activates the `postgres` profile out of the box. SQLite is the **opt-in** (`sqlite:///data/app.db`, WAL, on the `sqlite_data` volume — no container; the `.env.dev.example` dev-stack default, and the backend code's built-in fallback used only when no `DATABASE_URL` is set at all). The same Alembic migrations run unchanged on both dialects; the backend entrypoint applies them before serving.
 
-**Config**: all via env vars (`.env`, git-ignored; copy from `.env.example`). No application secrets (no auth, local-only); the only credential is the local Postgres password, used between containers only.
+**Config**: all via env vars (`.env`, git-ignored). Two committed templates: `.env.example` (prod stack, Postgres) and `.env.dev.example` (dev stack, SQLite) — copy the matching one to `.env` per checkout. No application secrets (no auth, local-only); the only credential is the local Postgres password, used between containers only. Host ports (`BACKEND_PORT`/`WEB_PORT`/`POSTGRES_PORT`) and image-tag `STACK_NAME` are env-configurable, enabling concurrent stacks (see above).
 
 **Volumes** (survive `down`; wiped only by `docker compose down -v`): `sqlite_data` (SQLite file), `pg_data` (Postgres data), `attachments` (attachment files).
 
-**IaC files**: `docker-compose.yml`, `deploy.sh`, `backend/Dockerfile` (+ `docker-entrypoint.sh`), `frontend/Dockerfile` (+ `nginx.conf`), `.env.example`.
+**IaC files**: `docker-compose.yml`, `deploy.sh`, `backend/Dockerfile` (+ `docker-entrypoint.sh`), `frontend/Dockerfile` (+ `nginx.conf`), `.env.example`, `.env.dev.example`.
 
 **Backend image dependencies**: installed with **uv** (`uv sync --frozen` against the committed `backend/uv.lock`), matching the local dev toolchain for reproducible locked builds. `alembic` and `uvicorn` resolve from the uv-managed venv via `PATH` — the entrypoint and CMD are unchanged. Do not reintroduce `pip install` in the backend image.
 

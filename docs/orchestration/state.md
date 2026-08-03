@@ -1,5 +1,43 @@
 ## Active wait
-waiting_for: none
+waiting_for: user's Accept decision on STORY-024 (Pending Approval). No qa-automation/manual-qa
+Execute run — devops-only infra story, no automated/UI test surface (SDLC convention: Auto ✓
+skipped for devops-only stories).
+
+## STORY-024 amended before Accept — prod/dev split + Postgres default (2026-08-01)
+Still `Pending Approval` (not Accepted — user's call). User requested two pre-Accept changes,
+devops applied (no architect, same override): (1) explicit **prod/dev** stack semantics — the
+uncommented defaults are the "prod"/stable stack; split into **two committed env templates**
+instead of one file with a commented block: `.env.example` (prod: `STACK_NAME=prod`, ports
+8000/3000/5432, PostgreSQL) and new `.env.dev.example` (dev: `STACK_NAME=dev`, ports 8100/3100/5433,
+SQLite); a dev checkout does `cp .env.dev.example .env`. (2) **PostgreSQL is now the deployment
+default** (was SQLite); SQLite is the opt-in and the dev-stack default. Flipped every
+`docker-compose.yml` `${VAR:-default}` fallback + the `deploy.sh` fallback so a `.env`-less render
+still yields Postgres/prod (verified via `docker compose config`, incl. `--env-file /dev/null`).
+`STACK_NAME` default `local`→`prod`; host ports unchanged. Docs updated: devops-strategy, README,
+CLAUDE.md § Infrastructure, both task reports + implementation_plan § Amendment. Backend code
+(`app.config` SQLite fallback) left untouched — out of devops scope. Flagged for architect: the
+`CLAUDE.md` § Gotchas line still says "SQLite default" (architect-owned, not edited). Not committed.
+
+## STORY-024 implemented, no architect (2026-08-01)
+Devops self-authored implementation_plan.md + 2 tasks, per user's explicit override. Beyond the
+story's own AC, devops caught and fixed an extra real collision: shared image tags
+(`aiacu-backend:local`/`aiacu-web:local`) would let two stacks silently overwrite each other's
+web image (VITE_API_BASE_URL is baked in at build time) — added a `STACK_NAME` env var to
+namespace both image tags per stack, alongside BACKEND_PORT/WEB_PORT/POSTGRES_PORT. PostgreSQL
+open question resolved: separate container per stack (not shared server). Verification done via
+`docker compose config` render-only checks (confirmed non-overlapping ports/tags between default
+and second-stack env) — the actual end-to-end two-stacks-running-simultaneously + data-isolation
+test still needs the user to run it manually (needs two real `./deploy.sh up` builds).
+Story `Pending Approval`. Not yet committed.
+
+## STORY-010 fully closed out (2026-08-01)
+Accepted, fully reconciled (Arch/Spec/Auto Rec/QA Rec ✓), folder deleted, committed (`f264b91`
+on `feature/mcp-improvements`).
+
+## STORY-024 — devops implementing directly, no architect (2026-08-01)
+User explicit override: skip architect entirely for this story — devops authors its own
+implementation_plan.md + task files (in the format architect would normally use) and implements
+directly. Currently running.
 
 ## STORY-010 ready for implementation (2026-07-31)
 SESSION-022 (architect) reduced STORY-010 to two additive REST+MCP operations: service status

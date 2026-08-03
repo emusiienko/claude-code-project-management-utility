@@ -9,9 +9,9 @@
 #   ./deploy.sh logs      # follow stack logs
 #
 # Database selection is automatic, driven by DATABASE_URL in .env:
-#   - SQLite (default)  -> no `db` container.
-#   - PostgreSQL        -> the `postgres` Compose profile is activated and the
-#                          backend waits for the db healthcheck before migrating.
+#   - PostgreSQL (default) -> the `postgres` Compose profile is activated and the
+#                             backend waits for the db healthcheck before migrating.
+#   - SQLite (opt-in)      -> no `db` container.
 #
 # This is a thin, readable wrapper over `docker compose`. There is no remote
 # deploy, no orchestration tool, no CD trigger — "deploy" means "bring the local
@@ -40,10 +40,13 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-# Bootstrap .env from .env.example on first run so a clean machine works.
+# Bootstrap .env from .env.example (the prod stack, PostgreSQL default) on first
+# run so a clean machine works. For a concurrent DEV stack, copy .env.dev.example
+# to .env in that checkout instead (see docs/devops-strategy.md § Running Two
+# Stacks Concurrently) before running this script.
 if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -f "$ENV_EXAMPLE" ]]; then
-    echo "[deploy] No .env found — creating one from .env.example (SQLite default)."
+    echo "[deploy] No .env found — creating one from .env.example (prod stack, PostgreSQL default)."
     cp "$ENV_EXAMPLE" "$ENV_FILE"
   else
     echo "[deploy] ERROR: neither .env nor .env.example exists." >&2
@@ -56,15 +59,15 @@ fi
 # Read the value WITHOUT sourcing .env (avoids executing arbitrary lines).
 # ---------------------------------------------------------------------------
 DATABASE_URL="$(grep -E '^DATABASE_URL=' "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)"
-DATABASE_URL="${DATABASE_URL:-sqlite:///data/app.db}"
+DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://app:app@db:5432/app}"
 
 COMPOSE=(docker compose)
 if [[ "$DATABASE_URL" == postgres* ]]; then
-  echo "[deploy] DATABASE_URL targets PostgreSQL — activating the 'postgres' profile."
+  echo "[deploy] DATABASE_URL targets PostgreSQL (default) — activating the 'postgres' profile."
   COMPOSE+=(--profile postgres)
   USING_POSTGRES=1
 else
-  echo "[deploy] DATABASE_URL targets SQLite (default) — no db container."
+  echo "[deploy] DATABASE_URL targets SQLite (opt-in) — no db container."
   USING_POSTGRES=0
 fi
 
