@@ -21,6 +21,7 @@ build/
 .env
 .env.*
 # ...but the committed templates must stay tracked.
+!uv.lock
 !.env.example
 !.env.dev.example
 !frontend/.env.example
