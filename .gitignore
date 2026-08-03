@@ -22,6 +22,7 @@ build/
 .env.*
 # ...but the committed templates must stay tracked.
 !.env.example
+!.env.dev.example
 !frontend/.env.example
 
 # Local data (SQLite db files, attachment volume mounts)
