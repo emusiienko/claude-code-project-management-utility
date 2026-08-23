@@ -1,6 +1,38 @@
+## Recent changes
+- 2026-08-20: SESSION-023 (product-strategist) processed and closed. Report: the "agents/skills
+  folder" idea is not a feature of this product — it's a separate product, "Fast SDLC", already
+  spun into its own repo at `/Users/Evgeniy/Work/pet/fast-sdlc`. Add Scope Phase 2 (spec-writer)
+  belongs to that repo, not this one — out of scope here. No `waiting_for` remains.
+- 2026-08-20 (correction): the two entries below this one, and SESSION-024, described a fast-sdlc
+  adoption (`fast-sdlc-project-setup.md`, `.fast-sdlc/`, STORY-025→STORY-001) that was **never
+  actually written to disk** — confirmed absent on a fresh session. SESSION-024's business-analyst
+  briefing was created but its `## Report` was never filled in. That attempt is abandoned; nothing
+  from it should be treated as done. The setup was redone from scratch the same day, this time
+  actually persisted — see `.fast-sdlc/orchestrator/state.md`, this role's own state file going
+  forward under the new Configs Folder (`.fast-sdlc/`). This file continues to exist only as the
+  historical record of the pre-`fast-sdlc` process (mirrors `docs/stories/`'s role).
+- 2026-08-20 (superseded, kept for record — see correction above): this project adopted the
+  `fast-sdlc` orchestration plugin, per explicit user instruction to ignore the prior custom setup
+  entirely. `fast-sdlc-project-setup.md` created at repo root: Team =
+  business-analyst/architect/lead-developer/coder/devops/qa-automation/manual-qa (+ orchestrator),
+  each with its own `docs/<role>/` folder; Task Management = `file-based-task-management` @
+  `docs/stories/`; Sessions = `file-based-session-management` @ `docs/sessions/`; PRs target `main`
+  directly. Orchestrator's own state moved from `docs/orchestration/state.md` to
+  `docs/orchestrator/state.md`. `docs/stories/index.md` header dropped the legacy Auto ✓/QA ✓/Arch
+  ✓/Spec ✓/Auto Rec ✓/QA Rec ✓ flag columns for stories from STORY-025 onward (archive.md's
+  pre-STORY-025 history is untouched). Created STORY-025 (Fast SDLC Project Setup, chore, In
+  Progress) with one Setup Task per active role (TASK-001–007, all `ToDo`, dependency-chained
+  business-analyst → architect → {lead-developer → coder, devops, qa-automation, manual-qa}).
+- 2026-08-20 (superseded, kept for record — see correction above): per user instruction, moved Task
+  Management into a new `.fast-sdlc/` folder at repo root (separate from `docs/`, which stays the
+  historical record for now — the rest of the project's docs will migrate into `.fast-sdlc/` too
+  "at the end", not yet done). STORY-025 → renumbered STORY-001, moved to
+  `.fast-sdlc/stories/STORY-001-fast-sdlc-project-setup/` (description.md + tasks/index.md +
+  TASK-001–007, all references updated). `docs/stories/index.md` reverted to its original
+  pre-STORY-025 form (legacy columns, no new rows) — it and `archive.md` now serve only as history
+  for STORY-001–024 (old numbering).
 ## Active wait
-waiting_for: user to run the two-stack (prod+dev) test manually; once satisfied, user will ask
-to delete the STORY-024 story folder. No other active wait — story fully reconciled.
+waiting_for: none — see `.fast-sdlc/agents/orchestrator/state.md` for current state.
 
 ## STORY-024 accepted + reconciled, folder retained pending user verification (2026-08-03)
 User accepted STORY-024. Architect Reconcile: ADR-030 (env-configurable ports/image tags per

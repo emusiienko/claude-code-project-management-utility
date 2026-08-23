@@ -1,0 +1,13 @@
+model_context:
+  subject_area: "Settings"
+  purpose: "System-level default settings, individually overridable per project."
+  entities_ref: catalog.yaml
+relationships:
+  - from: Project
+    to: Setting
+    verb: overrides
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    rule: "A setting instance either belongs to no project (a system-level default) or to exactly one project (that project's override for the same key); a project may override any number of settings, including none. An override, when present, completely replaces the system-level value for that key — the two are never merged."
+assumptions:
+  - "System-level defaults and project-level overrides are modeled as the same entity (Setting), distinguished by whether a project relationship is present, since they share identical structure and meaning — only their scope differs."

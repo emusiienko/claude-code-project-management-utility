@@ -1,0 +1,22 @@
+model_context:
+  subject_area: "Settings"
+  purpose: "System-level default settings, individually overridable per project."
+  entities_ref: catalog.yaml
+  layer: logical
+relationships:
+  - from: Project
+    to: Setting
+    verb: overrides
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Setting, attribute: project_id, references: Project.id}
+    rule: "A setting instance either belongs to no project (a system-level default) or to exactly one project (that project's override for the same key); a project may override any number of settings, including none. An override, when present, completely replaces the system-level value for that key — the two are never merged."
+  - from: Setting
+    to: SettingValue
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: mandatory, to: mandatory}
+    foreign_key: {on: SettingValue, attribute: setting_id, references: Setting.id}
+    rule: "Every setting has at least one value; a scalar setting (e.g. the default participant role) has exactly one. outbound_label/inbound_label are populated only for the one setting whose values carry a directional label pair."
+assumptions:
+  - "outbound_label/inbound_label on SettingValue exist only to represent the one setting (link types) whose entries carry a directional label pair; every other setting's values leave both null."

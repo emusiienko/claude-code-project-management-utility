@@ -1,0 +1,48 @@
+model_context:
+  subject_area: "Collaboration"
+  purpose: "Attachments and comments, each attached to exactly one story, task, or milestone; comments may also reply to one another."
+  entities_ref: catalog.yaml
+relationships:
+  - from: Story
+    to: Attachment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "An attachment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a story."
+  - from: Task
+    to: Attachment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "An attachment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a task."
+  - from: Milestone
+    to: Attachment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "An attachment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a milestone."
+  - from: Story
+    to: Comment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "A comment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a story."
+  - from: Task
+    to: Comment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "A comment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a task."
+  - from: Milestone
+    to: Comment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "A comment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a milestone."
+  - from: Comment
+    to: Comment
+    verb: "is replied to by"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    rule: "A reply comment references the comment it directly replies to; not every comment is a reply, and a comment may have any number of direct replies, including none."
+assumptions: []

@@ -1,3 +1,6 @@
+<!-- Superseded — see docs/requirements.md for where its business-facing content moved (business-
+     analyst Setup, STORY-001, 2026-08-21). Kept as historical record only. -->
+
 # Web UI Requirements
 
 The Web UI is the browser-based interface for the human orchestrator. It is served by a Docker container with its port mapped to localhost, requires no authentication, and provides full CRUD access to all entities. It consumes the REST API defined in [Backend Requirements](requirements_backend.md).

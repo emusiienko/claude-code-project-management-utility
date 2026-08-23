@@ -1,0 +1,30 @@
+model_context:
+  subject_area: "Work Item Linking"
+  purpose: "Typed, directed links between two tasks in the same story, and between two stories in the same project."
+  entities_ref: catalog.yaml
+relationships:
+  - from: Task
+    to: TaskLink
+    verb: "is the source of"
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "Every task link has exactly one source task; a task may be the source of any number of task links, including none."
+  - from: Task
+    to: TaskLink
+    verb: "is the target of"
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "Every task link has exactly one target task, which must belong to the same story as the source task; a task may be the target of any number of task links, including none."
+  - from: Story
+    to: StoryLink
+    verb: "is the source of"
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "Every story link has exactly one source story; a story may be the source of any number of story links, including none."
+  - from: Story
+    to: StoryLink
+    verb: "is the target of"
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    rule: "Every story link has exactly one target story, which must belong to the same project as the source story; a story may be the target of any number of story links, including none."
+assumptions: []

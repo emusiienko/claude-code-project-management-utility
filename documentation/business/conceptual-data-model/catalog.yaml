@@ -1,0 +1,35 @@
+model_context:
+  subject_area: "Shared entity catalog"
+  purpose: "Entities shared across the AI Agent Coordination Utility's subject areas."
+entities:
+  - name: Project
+    definition: "The top-level namespace that every other piece of work and configuration in the utility belongs to."
+    attributes: [name]
+  - name: Story
+    definition: "A unit of work within a project that groups related tasks."
+    attributes: [title]
+  - name: Task
+    definition: "An atomic piece of work within a story."
+    attributes: [title]
+  - name: Milestone
+    definition: "A named planning marker within a project that groups stories intended to ship together."
+    attributes: [name]
+  - name: TaskLink
+    definition: "A typed, directed link from one task to another, indicating how the two relate (e.g. one depends on the other)."
+    attributes: [link_type]
+  - name: StoryLink
+    definition: "A typed, directed link from one story to another, indicating how the two relate."
+    attributes: [link_type]
+  - name: Attachment
+    definition: "A document, image, file, or external reference attached to a story, a task, or a milestone."
+    attributes: [title]
+  - name: Comment
+    definition: "A discussion note attached to a story, a task, or a milestone."
+    attributes: []
+  - name: Session
+    definition: "A record of a working session on a project, capturing why it started, its current progress, and, once finished, what came of it."
+    attributes: [topic]
+  - name: Setting
+    definition: "A configurable list of allowed values (or a single value) that governs what's acceptable elsewhere in the product, at either the system level or overridden for a specific project."
+    attributes: [key]
+assumptions: []

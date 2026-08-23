@@ -1,0 +1,150 @@
+model_context:
+  subject_area: "Shared entity catalog"
+  purpose: "Entities shared across the AI Agent Coordination Utility's subject areas."
+  layer: logical
+entities:
+  - name: Project
+    definition: "The top-level namespace that every other piece of work and configuration in the utility belongs to."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: name, type: text, required: true}
+      - {name: description, type: text, required: false}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Story
+    definition: "A unit of work within a project that groups related tasks."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: title, type: text, required: true}
+      - {name: content, type: text, required: false}
+      - {name: status, type: text, required: false}
+      - {name: project_id, type: text, required: true}
+      - {name: milestone_id, type: text, required: false}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Task
+    definition: "An atomic piece of work within a story."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: title, type: text, required: true}
+      - {name: content, type: text, required: false}
+      - {name: type, type: text, required: true}
+      - {name: status, type: text, required: true}
+      - {name: assignee_role, type: text, required: false}
+      - {name: creator_role, type: text, required: false}
+      - {name: story_id, type: text, required: true}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Milestone
+    definition: "A named planning marker within a project that groups stories intended to ship together."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: name, type: text, required: true}
+      - {name: description, type: text, required: false}
+      - {name: status, type: text, required: true}
+      - {name: project_id, type: text, required: true}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Label
+    definition: "A free-form key-value tag attached to a story, a task, or (see Collaboration area) a comment."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: key, type: text, required: true}
+      - {name: value, type: text, required: true}
+      - {name: story_id, type: text, required: false}
+      - {name: task_id, type: text, required: false}
+      - {name: comment_id, type: text, required: false}
+  - name: TaskLink
+    definition: "A typed, directed link from one task to another, indicating how the two relate (e.g. one depends on the other)."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: link_type, type: text, required: true}
+      - {name: source_task_id, type: text, required: true}
+      - {name: target_task_id, type: text, required: true}
+      - {name: created_at, type: datetime, required: true}
+  - name: StoryLink
+    definition: "A typed, directed link from one story to another, indicating how the two relate."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: link_type, type: text, required: true}
+      - {name: source_story_id, type: text, required: true}
+      - {name: target_story_id, type: text, required: true}
+      - {name: created_at, type: datetime, required: true}
+  - name: Attachment
+    definition: "A document, image, file, or external reference attached to a story, a task, or a milestone."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: title, type: text, required: true}
+      - {name: kind, type: text, required: true}
+      - {name: mime_type, type: text, required: false}
+      - {name: file_size_bytes, type: number, required: false}
+      - {name: external_url, type: text, required: false}
+      - {name: external_status, type: text, required: false}
+      - {name: author_role, type: text, required: false}
+      - {name: story_id, type: text, required: false}
+      - {name: task_id, type: text, required: false}
+      - {name: milestone_id, type: text, required: false}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Comment
+    definition: "A discussion note attached to a story, a task, or a milestone."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: content, type: text, required: true}
+      - {name: author_role, type: text, required: true}
+      - {name: story_id, type: text, required: false}
+      - {name: task_id, type: text, required: false}
+      - {name: milestone_id, type: text, required: false}
+      - {name: parent_comment_id, type: text, required: false}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Session
+    definition: "A record of a working session on a project, capturing why it started, its current progress, and, once finished, what came of it."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: topic, type: text, required: true}
+      - {name: goal, type: text, required: true}
+      - {name: context, type: text, required: false}
+      - {name: status, type: text, required: true}
+      - {name: participant_role, type: text, required: true}
+      - {name: result_decisions, type: text, required: false}
+      - {name: result_summary, type: text, required: false}
+      - {name: project_id, type: text, required: true}
+      - {name: linked_story_id, type: text, required: false}
+      - {name: linked_task_id, type: text, required: false}
+      - {name: archived_at, type: datetime, required: false}
+      - {name: created_at, type: datetime, required: true}
+      - {name: updated_at, type: datetime, required: true}
+  - name: Setting
+    definition: "A configurable list of allowed values (or a single value) that governs what's acceptable elsewhere in the product, at either the system level or overridden for a specific project."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: key, type: text, required: true}
+      - {name: project_id, type: text, required: false}
+      - {name: updated_at, type: datetime, required: true}
+  - name: SettingValue
+    definition: "One allowed value within a Setting's list (or the single value, for a scalar setting)."
+    identifier: [id]
+    attributes:
+      - {name: id, type: text, required: true}
+      - {name: value, type: text, required: true}
+      - {name: outbound_label, type: text, required: false}
+      - {name: inbound_label, type: text, required: false}
+      - {name: setting_id, type: text, required: true}
+assumptions:
+  - "Label is introduced as a normalized entity (1NF) to represent the repeating labels[] collection carried by Story and Task in the as-built system; it is not itself a user-facing named concept."
+  - "Label.comment_id was added when the Collaboration subject area was processed, since Comment also carries labels; Label was extended, not redefined."
+  - "TaskLink is unique on (source_task_id, target_task_id, link_type); StoryLink is unique on (source_story_id, target_story_id, link_type) — the same pair may not carry the same link_type twice."
+  - "The as-built system also persists a denormalized 'ancestors' materialized path (the full root-first chain of ancestor comment ids) on Comment, for read-time performance. The logical model represents only the normalized parent_comment_id adjacency relationship, from which the full ancestor chain is derivable; the materialized path is a physical-layer optimization, out of scope here."
+  - "outbound_label/inbound_label on SettingValue exist only to represent the one setting (link types) whose entries carry a directional label pair; every other setting's values leave both null."

@@ -1,3 +1,7 @@
+<!-- Superseded by .fast-sdlc/requirements/validated_idea/ (fast-sdlc-project-setup.md > Artifacts >
+     Validated Business Idea), adopted as-is during business-analyst Setup (STORY-001, 2026-08-21).
+     Kept here as historical record only — not written to going forward. -->
+
 # Validated Idea: AI Agent Coordination Utility
 
 > **Status:** Validated — core problem and scope confirmed through discovery session

@@ -1,3 +1,6 @@
+<!-- Superseded by .fast-sdlc/requirements/validated_idea/changelog.md — new entries (starting with v3,
+     STORY-001) are recorded there, not here. Kept as historical record for v1–v2. -->
+
 # Validated Business Idea — Changelog
 
 ## v1 [2026-06-27]: Initial validated idea — AI Agent Coordination Utility

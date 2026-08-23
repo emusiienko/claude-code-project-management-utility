@@ -1,0 +1,38 @@
+model_context:
+  subject_area: "Project & Work Items"
+  purpose: "The core work hierarchy: projects contain stories, stories contain tasks, and stories may be grouped into milestones."
+  entities_ref: catalog.yaml
+relationships:
+  - from: Project
+    to: Story
+    verb: contains
+    cardinality: one-to-many
+    optionality:
+      from: optional
+      to: mandatory
+    rule: "Every story belongs to exactly one project; a project may contain any number of stories, including none."
+  - from: Story
+    to: Task
+    verb: contains
+    cardinality: one-to-many
+    optionality:
+      from: optional
+      to: mandatory
+    rule: "Every task belongs to exactly one story; a story may contain any number of tasks, including none."
+  - from: Project
+    to: Milestone
+    verb: defines
+    cardinality: one-to-many
+    optionality:
+      from: optional
+      to: mandatory
+    rule: "Every milestone belongs to exactly one project; a project may define any number of milestones, including none."
+  - from: Milestone
+    to: Story
+    verb: groups
+    cardinality: one-to-many
+    optionality:
+      from: optional
+      to: optional
+    rule: "A story may optionally be assigned to at most one milestone within its own project; a milestone may group any number of stories, including none."
+assumptions: []

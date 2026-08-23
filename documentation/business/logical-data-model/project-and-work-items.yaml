@@ -1,0 +1,49 @@
+model_context:
+  subject_area: "Project & Work Items"
+  purpose: "The core work hierarchy: projects contain stories, stories contain tasks, and stories may be grouped into milestones."
+  entities_ref: catalog.yaml
+  layer: logical
+relationships:
+  - from: Project
+    to: Story
+    verb: contains
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Story, attribute: project_id, references: Project.id}
+    rule: "Every story belongs to exactly one project; a project may contain any number of stories, including none."
+  - from: Story
+    to: Task
+    verb: contains
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Task, attribute: story_id, references: Story.id}
+    rule: "Every task belongs to exactly one story; a story may contain any number of tasks, including none."
+  - from: Project
+    to: Milestone
+    verb: defines
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Milestone, attribute: project_id, references: Project.id}
+    rule: "Every milestone belongs to exactly one project; a project may define any number of milestones, including none."
+  - from: Milestone
+    to: Story
+    verb: groups
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Story, attribute: milestone_id, references: Milestone.id}
+    rule: "A story may optionally be assigned to at most one milestone within its own project; a milestone may group any number of stories, including none."
+  - from: Story
+    to: Label
+    verb: "is tagged with"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Label, attribute: story_id, references: Story.id}
+    rule: "A label belongs to exactly one of a story, a task, or a comment; story_id is null on a label that belongs to a task or a comment instead."
+  - from: Task
+    to: Label
+    verb: "is tagged with"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Label, attribute: task_id, references: Task.id}
+    rule: "A label belongs to exactly one of a story, a task, or a comment; task_id is null on a label that belongs to a story or a comment instead."
+assumptions: []

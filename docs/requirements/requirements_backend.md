@@ -1,3 +1,7 @@
+<!-- Superseded — see docs/requirements.md for where its business-facing content moved (business-
+     analyst Setup, STORY-001, 2026-08-21). Kept as historical record only; the API-contract content
+     here remains architect's live reference until/unless architect migrates it elsewhere. -->
+
 # Backend Requirements
 
 ## Assumptions

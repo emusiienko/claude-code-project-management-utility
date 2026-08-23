@@ -1,0 +1,64 @@
+model_context:
+  subject_area: "Collaboration"
+  purpose: "Attachments and comments, each attached to exactly one story, task, or milestone; comments may also reply to one another."
+  entities_ref: catalog.yaml
+  layer: logical
+relationships:
+  - from: Story
+    to: Attachment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Attachment, attribute: story_id, references: Story.id}
+    rule: "An attachment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a story."
+  - from: Task
+    to: Attachment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Attachment, attribute: task_id, references: Task.id}
+    rule: "An attachment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a task."
+  - from: Milestone
+    to: Attachment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Attachment, attribute: milestone_id, references: Milestone.id}
+    rule: "An attachment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a milestone."
+  - from: Story
+    to: Comment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Comment, attribute: story_id, references: Story.id}
+    rule: "A comment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a story."
+  - from: Task
+    to: Comment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Comment, attribute: task_id, references: Task.id}
+    rule: "A comment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a task."
+  - from: Milestone
+    to: Comment
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Comment, attribute: milestone_id, references: Milestone.id}
+    rule: "A comment belongs to exactly one of a story, a task, or a milestone; this relationship applies only when its owner is a milestone."
+  - from: Comment
+    to: Comment
+    verb: "is replied to by"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Comment, attribute: parent_comment_id, references: Comment.id}
+    rule: "A reply comment references the comment it directly replies to; not every comment is a reply, and a comment may have any number of direct replies, including none."
+  - from: Comment
+    to: Label
+    verb: "is tagged with"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Label, attribute: comment_id, references: Comment.id}
+    rule: "A label belongs to exactly one of a story, a task, or a comment; comment_id is null on a label that belongs to a story or a task instead."
+assumptions:
+  - "The as-built system also persists a denormalized 'ancestors' materialized path (the full root-first chain of ancestor comment ids) on Comment, for read-time performance. The logical model represents only the normalized parent_comment_id adjacency relationship, from which the full ancestor chain is derivable; the materialized path is a physical-layer optimization, out of scope here."

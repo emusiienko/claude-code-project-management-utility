@@ -1,0 +1,28 @@
+model_context:
+  subject_area: "Sessions"
+  purpose: "Project-scoped working session records, optionally referencing one story and/or one task within that project."
+  entities_ref: catalog.yaml
+  layer: logical
+relationships:
+  - from: Project
+    to: Session
+    verb: has
+    cardinality: one-to-many
+    optionality: {from: optional, to: mandatory}
+    foreign_key: {on: Session, attribute: project_id, references: Project.id}
+    rule: "Every session belongs to exactly one project; a project may have any number of sessions, including none."
+  - from: Story
+    to: Session
+    verb: "is referenced by"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Session, attribute: linked_story_id, references: Story.id}
+    rule: "A session may optionally reference one story within its own project; a story may be referenced by any number of sessions, including none."
+  - from: Task
+    to: Session
+    verb: "is referenced by"
+    cardinality: one-to-many
+    optionality: {from: optional, to: optional}
+    foreign_key: {on: Session, attribute: linked_task_id, references: Task.id}
+    rule: "A session may optionally reference one task within its own project; a task may be referenced by any number of sessions, including none."
+assumptions: []
