@@ -28,6 +28,12 @@
   Implementation Report/Report text as-is (historical record of the old path at the time it ran).
 - Next: fulfill TASK-002 (architect Setup).
 
+## Recent changes
+- 2026-08-23: user confirmed their face-to-face session with business-analyst is complete.
+  Committed all pending fast-sdlc adoption + business-analyst Setup work (`1d99a0a` on
+  `feature/agents`), per explicit user request to commit personally. `.claude/` deliberately left
+  uncommitted (local tool settings, not a project artifact).
+
 ## Active wait
-waiting_for: user's own face-to-face session with business-analyst (not yet finished, per user)
-next_step: fulfill TASK-002 (architect Setup) once the user confirms business-analyst is done
+None.
+next_step: fulfill TASK-002 (architect Setup).

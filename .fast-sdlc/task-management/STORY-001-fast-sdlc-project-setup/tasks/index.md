@@ -2,7 +2,7 @@
 
 | ID | Title | Assignee | Status |
 |----|-------|----------|--------|
-| [TASK-001](TASK-001-business-analyst-setup.md) | business-analyst Setup | business-analyst | ToDo |
+| [TASK-001](TASK-001-business-analyst-setup.md) | business-analyst Setup | business-analyst | Done |
 | [TASK-002](TASK-002-architect-setup.md) | architect Setup | architect | ToDo |
 | [TASK-003](TASK-003-lead-developer-setup.md) | lead-developer Setup | lead-developer | ToDo |
 | [TASK-004](TASK-004-coder-setup.md) | coder Setup | coder | ToDo |
