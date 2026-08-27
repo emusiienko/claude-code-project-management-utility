@@ -40,6 +40,10 @@ every Task, Quick Fix, and Bug Fix on this stack. This supersedes the "for QA" w
 not change any other line of the Coding Conventions. Flag this again to lead-developer if the
 Coding Conventions are ever revised to state a different test-ownership model explicitly.
 
+**Mechanics:** invoke `Skill("superpowers:test-driven-development")` at the start of the Implement
+step for every Task/Quick Fix/Bug Fix on this stack, and follow it for the write-test → watch it
+fail → write minimal code → pass cycle, rather than improvising TDD mechanics inline.
+
 ## Standards I follow (not restated in Coding Conventions)
 
 - Layer order is fixed and never skipped: feature page → component → hook → endpoint function → HTTP
