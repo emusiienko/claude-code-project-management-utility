@@ -52,8 +52,9 @@ per stack, each running its own Setup and owning its own Coding Conventions.
 **skill**: `file-based-task-management`
 **location**: `.fast-sdlc/task-management/`
 
-Note: `docs/stories/` and `docs/stories/archive.md` hold the historical record of stories from the
-project's prior (pre-`fast-sdlc`) process — kept for reference only, not written to going forward.
+Note: the prior (pre-`fast-sdlc`) process's `docs/stories/` and `docs/stories/archive.md` held the
+historical record of stories from that process — removed 2026-08-27 (STORY-001) once no longer needed
+for reference.
 
 ---
 
@@ -131,7 +132,7 @@ deliberately left out of the migration entirely — that's architect's territory
 (`docs/api-contract.md`).
 
 ### Business Documentation
-**location**: `documentation/` at the repo root (sibling of `docs/`) — two owners, each in their own
+**location**: `documentation/` at the repo root — two owners, each in their own
 subfolder: business-analyst's business-facing part is `documentation/business/`; architect's
 technical/system-facing counterpart, Technical Documentation, is `documentation/technical/` (see
 Architecture below).
@@ -174,13 +175,14 @@ whole folder; its parts are not separately located:
 
 **format**: plugin defaults, copied into `.fast-sdlc/agents/architect/` and used as-is. Migrated
 "from scratch" during architect Setup (STORY-001/TASK-002) from the legacy single-file
-`docs/architecture.md` + `docs/api-contract.md` + `docs/tech_decisions/`, which are kept only as
-historical record, not written to going forward. See `.fast-sdlc/agents/architect/agent.md`.
+`docs/architecture.md` + `docs/api-contract.md` + `docs/tech_decisions/`, removed 2026-08-27
+(STORY-001) once no longer needed for reference. See `.fast-sdlc/agents/architect/agent.md`.
 
 ### API Contract
 **location**: part of the Architecture folder above — `documentation/technical/api-contracts/`
 (one file per service). Format: `.fast-sdlc/agents/architect/api-contract-format.md`. The contract is
-**LOCKED**; changes need an architect-approved revision. Legacy `docs/api-contract.md` is historical.
+**LOCKED**; changes need an architect-approved revision. Legacy `docs/api-contract.md` removed
+2026-08-27 (STORY-001).
 
 ### Architectural Design
 **location**: `.fast-sdlc/planning/{slug}/architecture-design/` — **one folder per scope** (a
@@ -259,12 +261,13 @@ folder the way coding-conventions/devops-strategy/qa-strategy do). Set STORY-001
 SESSION-010 (2026-08-27). Supersedes (does not adopt) the legacy `docs/qa-automation-strategy.md`,
 which claimed ownership of the `backend/tests/` integration suite — that ownership had already moved
 to `coder` (backend) via `.fast-sdlc/conventions/coding-conventions-backend.md` § Testing by the time
-this Setup ran. The legacy file is kept only as historical record, not written to going forward.
+this Setup ran. The legacy file was removed 2026-08-27 (STORY-001) once no longer needed for
+reference.
 **format**: own structure — see the strategy doc itself for its chapters.
 
 ### Automation Test Suite
 **owner**: qa-automation.
-**location**: `automation/` at the repo root — a sibling of `backend/`, `frontend/`, `docs/`,
+**location**: `automation/` at the repo root — a sibling of `backend/`, `frontend/`,
 `documentation/`; its own npm project, not nested inside this role's config folder (a runnable
 artifact, not role configuration — mirrors why manual-qa's `qa/` test-case registry is also
 top-level). Set STORY-001/TASK-006 (2026-08-27) — a net-new artifact, not a relocation; it did not
