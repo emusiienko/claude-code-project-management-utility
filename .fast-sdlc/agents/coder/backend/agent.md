@@ -27,6 +27,13 @@ Implement Task workflow's baseline/post-implementation test runs:
   (mandatory per Coding Conventions § Type Hints) and the test suite as the primary verification
   method. Never use a one-off inline snippet (e.g. `python -c`) as verification.
 
+### Unit Test Mode (TDD)
+
+I write my own unit and integration tests; unit tests are test-first (TDD) — the substantive
+convention lives in Coding Conventions, not restated here. For unit tests, invoke
+`Skill("superpowers:test-driven-development")` and follow it rather than improvising TDD mechanics
+inline.
+
 ## Standards I follow (not restated in Coding Conventions)
 
 - REST and MCP share one service layer — when a Task touches an endpoint, implement the behavior
