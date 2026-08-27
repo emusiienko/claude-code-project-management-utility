@@ -222,7 +222,41 @@
   `fast-sdlc-project-setup.md`, user-directed mid-session, no `Co-Authored-By` trailer per that user's
   explicit request in-session). Noting, not undoing.
 
+- 2026-08-27: user asked me personally to commit the STORY-001 Setup batch. Committed `1f9341d` on
+  `feature/agents` (312 files) — everything staged at that point, respecting the `.fast-sdlc/**`
+  gitignore policy (new files under it stay local by design, confirmed by the user in SESSION-010).
+- 2026-08-27: user asked to remove `docs/` entirely — including files business-analyst, architect, and
+  qa-automation had each explicitly chosen to keep as historical record during their own Setups
+  (`docs/architecture.md`, `docs/api-contract.md`, `docs/technical_roadmap.md`,
+  `docs/qa-automation-strategy.md`, `docs/validated-business-idea/`, `docs/requirements*`), plus the
+  fully-superseded pre-`fast-sdlc` orchestration bookkeeping (`docs/orchestrator/`, `docs/sessions/`,
+  `docs/team.md`, `docs/stories/`). Flagged the conflict with those explicit keep-as-historical
+  decisions; user confirmed full removal anyway. Ran `git rm -r docs/` personally (explicit
+  assignment) — 34 files staged as deleted. Also fixed the dangling references this created: `CLAUDE.md`
+  § Key Docs (Requirements/User Stories/Team/DevOps Strategy/QA Strategy/Automation Strategy pointers
+  updated to their current fast-sdlc locations; stale "kept as historical record" parentheticals
+  removed) and § Gotchas (clear-override pointer redirected to `documentation/technical/sad.md` §
+  Risks & Technical Debt); `fast-sdlc-project-setup.md`'s several "kept only as historical record, not
+  written to going forward" notes updated to say removed instead. Left untouched, correctly: historical
+  provenance mentions inside architect's own `sad.md`/ADRs and manual-qa's `qa/results/` archive — those
+  describe the past accurately and aren't live pointers. Staged (`git add`), not committed — awaiting
+  the user's call on whether to fold this into a new commit now or later.
+
+- 2026-08-27: user asked me to commit the docs/ removal. Committed `59e3aa2` — but discovered
+  afterward that HEAD had silently ended up on the local `development` branch (created off `main` by
+  devops in SESSION-008), not `feature/agents`, so both this and my *own* earlier `1f9341d` commit's
+  intended branch needed re-checking — `1f9341d` did land correctly on `feature/agents` (confirmed by
+  its branch pointer), but `59e3aa2` landed on `development` directly, bypassing the `to-development`
+  PR strategy entirely (direct commits to the integration branch, not via a feature-branch PR). Root
+  cause not fully diagnosed (likely a `git checkout development` run from one of the face-to-face
+  session terminals, which share this same working directory/HEAD with this orchestrator session) —
+  not chasing further since the fix is the same regardless. **Fixed**: checked out `feature/agents`,
+  cherry-picked `59e3aa2` onto it (now `7f52733`), then reset local `development` back to
+  `origin/development` (exactly `1f9341d`, so nothing else was lost). `feature/agents` is the correct,
+  current working branch, holding both commits. Lesson: check `git rev-parse --abbrev-ref HEAD` before
+  any commit from now on, since another terminal's `git checkout` can move it without this session's
+  knowledge.
+
 ## Active wait
 None.
-next_step: get the user's sign-off on the `.fast-sdlc/**` gitignore policy and how to handle the
-scattered partial commits, then proceed to Acceptance for STORY-001 (open the PR).
+next_step: proceed to Acceptance for STORY-001 (open the PR from `feature/agents` into `development`).
