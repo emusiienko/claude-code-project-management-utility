@@ -46,3 +46,8 @@ revision.
 **Summary**: coder's frontend Setup (STORY-001/TASK-010) is complete. `agent.md` produced at
 `.fast-sdlc/agents/coder/frontend/agent.md`; both coder instances (backend TASK-004, frontend
 TASK-010) are now set up. Task marked `Done`.
+
+**Post-completion addendum**: at the user's follow-up request, added a "Mechanics" note to the
+Convention Gap section instructing coder (frontend) to invoke
+`Skill("superpowers:test-driven-development")` at the start of the Implement step, rather than
+improvising TDD mechanics inline. Committed separately (`0455c2a`).
