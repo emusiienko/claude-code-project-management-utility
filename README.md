@@ -31,7 +31,7 @@ one to `.env`:
 - **Dev checkout:** `cp .env.dev.example .env` (`STACK_NAME=dev`, ports `8100` / `3100` / `5433`,
   SQLite; `VITE_API_BASE_URL` / `CORS_ALLOWED_ORIGINS` already matched to the offset ports).
 
-Then run `./deploy.sh up` in each. See `docs/devops-strategy.md` § Running Two Stacks Concurrently.
+Then run `./deploy.sh up` in each. See `.fast-sdlc/conventions/devops-strategy.md` § Running Two Stacks Concurrently.
 
 ### Resources
 

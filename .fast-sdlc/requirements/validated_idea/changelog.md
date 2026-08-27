@@ -1,4 +1,4 @@
-# Validated Business Idea — Changelog
+# Validated Idea — Changelog
 
 ## v1 [2026-06-27]: Initial validated idea — AI Agent Coordination Utility
 
@@ -23,5 +23,15 @@ During a face-to-face session (SESSION-018), triggered by a spec-review question
 Migrated this artifact's location from `docs/validated-business-idea/` to `.fast-sdlc/requirements/validated_idea/` as part of adopting the `fast-sdlc` orchestration process (STORY-001, business-analyst Setup). Format, versioning mechanism, and content are unchanged — this is a location move only, confirmed with the user during Setup. The prior location's files are left in place as historical record, superseded by this one going forward.
 
 **Integration Points:** None — location change only.
+**Breaking Changes:** None.
+**Stories:** STORY-001
+
+## v4 [2026-08-27]: Artifact renamed "Validated Business Idea" → "Validated Idea" — no content change
+
+Renamed to match the current `fast-sdlc` plugin's canonical artifact naming (`sdlc` skill > Artifacts),
+found during business-analyst's TASK-008 review of its owned artifacts against the current plugin
+templates. Naming only — format, versioning mechanism, and content are unchanged.
+
+**Integration Points:** None — naming change only.
 **Breaking Changes:** None.
 **Stories:** STORY-001

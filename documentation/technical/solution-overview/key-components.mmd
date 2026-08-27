@@ -1,0 +1,21 @@
+# Key Components — Diagram
+# Generated from key-components.yaml. Do not hand-edit independently of that data.
+
+```mermaid
+C4Container
+  title Container Diagram — AI Agent Coordination Utility
+
+  Person(operator, "Human Operator", "Via the Web UI")
+  Person(ai_agents, "AI Agents", "Via MCP")
+
+  Container(web_ui, "Web UI", "React 19 + Vite, served by nginx", "Human orchestration surface; consumes REST only")
+  Container(backend, "Backend (REST + MCP)", "FastAPI + Uvicorn", "One process serving REST and the path-mounted MCP server over a shared service layer")
+  ContainerDb(database, "Application Database", "PostgreSQL (default) / SQLite (opt-in), via SQLAlchemy", "All pipeline state")
+  Container(attachments_storage, "Attachments Storage", "Filesystem / Docker volume", "Immutable attachment file content")
+
+  Rel(operator, web_ui, "Uses", "HTTPS/localhost")
+  Rel(web_ui, backend, "Consumes REST API", "sync")
+  Rel(ai_agents, backend, "Calls MCP tools", "MCP, sync")
+  Rel(backend, database, "Reads/writes", "SQLAlchemy, sync")
+  Rel(backend, attachments_storage, "Reads/writes file bytes", "sync")
+```

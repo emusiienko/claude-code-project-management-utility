@@ -1,0 +1,26 @@
+# System Context — Graph Data
+# C4 Level 1 for the AI Agent Coordination Utility.
+# A self-contained, single-developer, localhost-only tool. It deliberately stores the
+# operational state of a multi-agent development pipeline OUTSIDE git; git is a source-control
+# tool for the codebase, not a runtime integration of this system. There are therefore no
+# external systems at the context boundary.
+
+actors:
+  - id: operator
+    name: Human Operator
+    description: The single developer orchestrating the multi-agent pipeline, working through the Web UI.
+  - id: ai_agents
+    name: AI Agents
+    description: The pipeline's AI agents, reading and writing pipeline state through the MCP server.
+
+external_systems: []              # none — self-contained localhost tool; git is not a runtime integration
+
+relationships:
+  - from: operator
+    to: system
+    type: sync
+    description: Manages projects, stories, tasks, milestones, sessions, attachments and comments via the Web UI.
+  - from: ai_agents
+    to: system
+    type: sync
+    description: Read and write pipeline state over the Model Context Protocol (MCP).

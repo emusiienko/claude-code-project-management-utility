@@ -37,3 +37,4 @@ frontend/dist/
 
 # Playwright MCP session data
 .playwright-mcp/
+.fast-sdlc/**

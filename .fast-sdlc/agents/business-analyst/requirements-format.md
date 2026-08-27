@@ -1,4 +1,4 @@
-<!-- Proposed format for the Requirements artifact — not a confirmed default. Walk the user through it and confirm/adjust with business-analyst during Step 0 (Confirm Artifact Formats). -->
+<!-- Proposed format for the Requirements artifact — not a confirmed default. Walk the user through it and confirm/adjust with business-analyst during Step 0 (Confirm Artifact Formats). Revised 2026-08-27 (TASK-008): the Logical Data Model no longer lives here — its sole, permanent home is Business Documentation's `logical-data-model/`. -->
 
 # Requirements Structure
 
@@ -8,7 +8,6 @@ Requirements is a folder, not a single file — a flat requirements.md doesn't s
 <Requirements location>/
   index.md
   conceptual-data-model/
-  logical-data-model/
   non-functional.md
   <feature-slug>.md            (flat — default)
   <domain>/<feature-slug>.md   (grouped — optional, for projects where features cluster into domains, e.g. admin/, support/)
@@ -55,11 +54,7 @@ Paths that diverge from the happy path — what can go wrong from the user's per
 
 ## `conceptual-data-model/` (project-wide — entities are often shared across features)
 
-Format: `${CLAUDE_PLUGIN_ROOT}/templates/business-analyst/conceptual-data-model-format.md`. Composed and approved by the user, per subject area, before Logical work starts on that area (see business-analyst agent > DATA MODELING).
-
-## `logical-data-model/` (project-wide — mirrors Conceptual's subject areas)
-
-Format: `${CLAUDE_PLUGIN_ROOT}/templates/business-analyst/logical-data-model-format.md`. Composed only from an already-approved Conceptual subject area; approved by the user in its own checkpoint.
+Format: `${CLAUDE_PLUGIN_ROOT}/templates/business-analyst/conceptual-data-model-format.md`. Composed and approved by the user, per subject area, before Logical work starts on that area (see business-analyst agent > DATA MODELING). The Logical Data Model is **not** produced here — see Business Documentation's `logical-data-model/`, its sole, permanent home.
 
 ## `non-functional.md` (project-wide)
 

@@ -1,5 +1,5 @@
 ---
-status: In Progress
+status: Pending Approval
 type: chore
 priority: P0
 date: 2026-08-20
@@ -22,12 +22,14 @@ workflow for the first time under the new process.
 
 ## Acceptance Criteria
 - [x] business-analyst Setup complete
-- [ ] architect Setup complete
-- [ ] lead-developer Setup complete
-- [ ] coder Setup complete
-- [ ] devops Setup complete
-- [ ] qa-automation Setup complete
-- [ ] manual-qa Setup complete
+- [x] architect Setup complete
+- [x] lead-developer Setup complete (backend)
+- [x] lead-developer Setup complete (frontend)
+- [x] coder Setup complete (backend)
+- [x] coder Setup complete (frontend)
+- [x] devops Setup complete
+- [x] qa-automation Setup complete
+- [x] manual-qa Setup complete
 
 ## Edge Cases & Error Scenarios
 - [ ] Existing pre-`fast-sdlc` artifacts (`docs/requirements.md`, `docs/validated-business-idea/`,

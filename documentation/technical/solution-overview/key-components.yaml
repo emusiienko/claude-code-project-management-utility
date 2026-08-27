@@ -1,0 +1,46 @@
+# Key Components — Graph Data
+# C4 Level 2 (container level only) for the AI Agent Coordination Utility.
+# The whole stack runs on the developer's local machine under Docker Compose, bound to localhost.
+
+components:
+  - id: web_ui
+    name: Web UI
+    type: frontend
+    bounded_context: Human Orchestration
+    description: React 19 + Vite single-page app served as a static build by nginx; the human operator's surface. Consumes the REST contract only, never MCP.
+
+  - id: backend
+    name: Backend (REST + MCP)
+    type: service
+    bounded_context: Coordination Core
+    description: One FastAPI/Uvicorn process serving BOTH the REST API and the path-mounted MCP server (e.g. /mcp) over a single shared per-domain service layer, so the two surfaces stay behavior-identical.
+
+  - id: database
+    name: Application Database
+    type: database
+    bounded_context: Coordination Core
+    description: Relational store for all pipeline state. DB-agnostic via SQLAlchemy — PostgreSQL is the deployment default, SQLite (WAL) the opt-in; the same Alembic migrations run on both.
+
+  - id: attachments_storage
+    name: Attachments Storage
+    type: filesystem
+    bounded_context: Coordination Core
+    description: Server-managed filesystem directory (Docker volume) holding immutable attachment file content. The DB stores only metadata plus a server-internal file_path, never exposed in responses.
+
+relationships:
+  - from: web_ui
+    to: backend
+    type: sync
+    description: Consumes the REST API over HTTP (localhost).
+  - from: ai_agents
+    to: backend
+    type: sync
+    description: Calls MCP tools over the path-mounted MCP server (HTTP streamable transport).
+  - from: backend
+    to: database
+    type: sync
+    description: Reads/writes all entities via SQLAlchemy; migrations applied by Alembic.
+  - from: backend
+    to: attachments_storage
+    type: sync
+    description: Writes/reads/deletes attachment file bytes on the attachments volume.

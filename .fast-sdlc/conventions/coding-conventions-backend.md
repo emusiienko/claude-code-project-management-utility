@@ -1,8 +1,14 @@
 # Backend Coding Conventions
 
-> Owned by **backend-developer**. Update only at the user's explicit request.
+> Owned by **lead-developer** (backend stack). Update only at the user's explicit request.
 > Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · fastmcp
-> Last updated: 2026-07-02 (rev 8)
+> Last updated: 2026-08-27 (rev 10 — new § Testing: the implementer owns this stack's unit and
+> integration tests, unit tests are test-first via `Skill("superpowers:test-driven-development")`,
+> plus test kinds/locations and per-test rules. User-directed, no Task)
+>
+> rev 9 (2026-08-27) — adopted into fast-sdlc: relocated from
+> `docs/backend-coding-conventions.md`; corrected `core/config.py`→`app/config.py`
+> and "app factory"→`app/main.py` to match the as-built code
 
 ---
 
@@ -187,7 +193,7 @@
   full file into memory
 - Rate-limit header enforcement is infrastructure-level (nginx/Compose); the backend does not
   implement rate limiting itself
-- CORS is configured once in the app factory via `CORSMiddleware` using `CORS_ALLOWED_ORIGINS`
+- CORS is configured once in `app/main.py` via `CORSMiddleware` using `CORS_ALLOWED_ORIGINS`
 - Attachment uploads: max 10 MB enforced at the router level before calling the service
 
 ---
@@ -296,7 +302,7 @@ which are not available in the SDK's bundled FastMCP.
 - Log levels: `DEBUG` for expected flow, `WARNING` for recoverable issues, `ERROR` for unexpected
   failures
 - The centralized exception handler in `core/errors.py` maps all domain error classes to their
-  HTTP status codes and standard error envelope — register it once in the app factory
+  HTTP status codes and standard error envelope — register it once in `app/main.py`
 
 ---
 
@@ -422,17 +428,17 @@ Constraints for `container/mcp_dependencies.py`:
 
 ## Environment Configuration
 
-- Never hardcode secrets, ports, or environment-specific values — use `core/config.py`
-- `core/config.py` is the only place that reads environment variables (`os.environ` / `pydantic-settings`)
+- Never hardcode secrets, ports, or environment-specific values — use `app/config.py`
+- `app/config.py` is the only place that reads environment variables (`os.environ` / `pydantic-settings`)
 - Validate and parse all env vars at startup via `pydantic-settings`; fail fast with a clear error
   message if a required variable is missing or invalid
-- Do not call `os.environ` anywhere outside `core/config.py`
+- Do not call `os.environ` anywhere outside `app/config.py`
 - **`.env.example`** is maintained at the project root and is the canonical documentation of all
   supported environment variables:
-  - Every variable declared in `core/config.py` must have a corresponding entry in `.env.example`
+  - Every variable declared in `app/config.py` must have a corresponding entry in `.env.example`
   - Use placeholder values or safe defaults — never real secrets (`.env.example` is committed to git)
   - Group variables by concern with a comment header (e.g. `# Database`, `# Storage`, `# Auth`)
-  - When adding or removing a variable in `core/config.py`, update `.env.example` in the same commit
+  - When adding or removing a variable in `app/config.py`, update `.env.example` in the same commit
 
 ---
 
@@ -492,6 +498,61 @@ Required environment variables:
 
 `ATTACHMENTS_DIR` is set by the `conftest.py` fixture — no manual export needed. `DATABASE_URL`
 is set explicitly on the command line; `.env` is not used for tests.
+
+---
+
+## Testing
+
+### Ownership
+
+- The implementer writes this stack's **unit and integration tests** as part of the same Task, Quick
+  Fix, or Bug Fix that changes the code. Test-writing is not deferred to another role.
+- `qa-automation` tests the **running system black-box from the outside** (across surfaces and repos);
+  it does not add or edit files under `backend/tests/`.
+- The existing `backend/tests/` suite was authored under the prior process by `qa-automation`. It is
+  now maintained by whoever changes the code it covers — extend and correct it in place.
+- A Task is not `Done` until the tests for its change exist and pass. A pre-existing failure unrelated
+  to the change goes in the Implementation Report; a test that passed in the baseline and fails after
+  is a regression and must be fixed before `Done`.
+
+### Two kinds, two locations
+
+| Kind | Covers | Location | Reaches |
+|---|---|---|---|
+| Unit | One service method, helper, schema validator, or `core/` function in isolation | `backend/tests/unit/test_<module>.py` (a package, with `__init__.py`, mirroring `tests/`) | No HTTP, no migrations; take the `db_session` fixture only when the unit under test genuinely needs the data layer |
+| Integration | A full path through a real surface — `controller → service → data layer`, or an MCP tool through the same service | `backend/tests/test_<domain>.py` — the existing flat layout, one file per domain | The `client` httpx fixture against the real migrated in-process SQLite database |
+
+- A new domain gets a new `tests/test_<domain>.py`; never bundle two domains' integration tests in one
+  file.
+- Both surfaces of a shared service must be covered: when a change touches an endpoint, the
+  integration test asserts the REST route **and** the MCP tool behave identically.
+
+### Mode: TDD for unit tests
+
+- Unit tests are written **test-first**. Before writing the first unit test of a Task, invoke
+  `Skill("superpowers:test-driven-development")` and follow it. That skill is the authority on the
+  red-green-refactor mechanics — do not improvise them, and do not restate them here.
+- Integration tests are not required to be test-first: write them once the unit-level behavior is
+  green, before marking the Task `Done`.
+
+### Rules for every test, either kind
+
+- One behavior per test. The test name states the behavior and its expected outcome — e.g.
+  `test_create_project_duplicate_name_conflicts`.
+- Assert on observable output only: response status and body, the returned schema, or the raised
+  `DomainError` subclass and its `ErrorCode`. Never assert on internal call order or private state.
+- **Do not mock the database.** The suite runs against a real, migrated SQLite database — use
+  `conftest.py`'s fixtures (`client`, `db_session`, `session_factory`, `create_project`) rather than
+  building private setup or substituting a fake data layer.
+- Override `container.session_factory`, never `container.db_session` — see
+  § Dependency Injection > Testing with the container.
+- Tests are deterministic: never assert against a value derived from `datetime.now()` or
+  `uuid.uuid4()` computed inside the code under test — pass it in (see § Engineering Principles).
+- A test module never imports from another test module; shared setup belongs in `conftest.py`.
+- `asyncio_mode = "auto"` is set in `pyproject.toml` — async tests need no `@pytest.mark.asyncio`.
+- Test-only dependencies are added with `uv add --dev`, never as runtime dependencies.
+
+Commands: see § Local Development Environment > Running Tests.
 
 ---
 

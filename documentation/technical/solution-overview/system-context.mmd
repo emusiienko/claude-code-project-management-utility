@@ -1,0 +1,15 @@
+# System Context — Diagram
+# Generated from system-context.yaml. Do not hand-edit independently of that data.
+
+```mermaid
+C4Context
+  title System Context — AI Agent Coordination Utility
+
+  Person(operator, "Human Operator", "Single developer orchestrating the pipeline via the Web UI")
+  Person(ai_agents, "AI Agents", "Pipeline agents reading/writing state over MCP")
+
+  System(system, "AI Agent Coordination Utility", "Stores multi-agent pipeline state outside git; localhost-only")
+
+  Rel(operator, system, "Manages projects/stories/tasks/sessions via Web UI", "sync")
+  Rel(ai_agents, system, "Read/write pipeline state", "MCP, sync")
+```
