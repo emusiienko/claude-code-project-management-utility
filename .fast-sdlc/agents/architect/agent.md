@@ -70,9 +70,14 @@ STORY-001 was a **process** story (every role's `fast-sdlc` Setup); no product c
 Solution Overview, NFR, the Deployment/Infrastructure View, and the C4 graph/diagram pairs needed **no
 correction** — they were already as-built and the system they describe is untouched. What did change:
 
-- **API Contract → v1.10, an as-built correction only.** Three documented reads were found never to have
-  been built (see Known open items below) and are now marked `NOT IMPLEMENTED` in place rather than
-  deleted; the `/v1` base path and the `projects` trailing-slash quirk are now stated explicitly.
+- **API Contract → v1.10, an as-built correction.** Three documented reads were found never to have been
+  built — cross-project `GET /stories`, top-level `GET /tasks`, `GET /tasks/:id/dependencies` — and are
+  **retired from the contract entirely** (the whole `Cross-project Queries` section with them), by
+  explicit user decision. I had first marked them `NOT IMPLEMENTED` in place, reasoning that build-vs-
+  retire was a product call; the user made that call — retire — so they are deleted rather than
+  annotated. The `/v1` base path and the `projects` trailing-slash quirk are now stated explicitly.
+  **Precedent for future Reconciles: on this project, a specified-but-unbuilt surface gets retired from
+  the contract, not carried as an annotated placeholder.** The contract describes what exists.
 - **No new ADRs.** Every decision this story made was about *where documentation lives* — no ecosystem
   choice, nothing hard to reverse in code, no data/security/performance impact. Deliberately dropped
   per TECH DECISIONS POLICY; next id is still **ADR-032**.
@@ -100,12 +105,11 @@ Recorded so they aren't lost; each is a real gap, not a documentation artifact o
   (ADR-018); the resolution path is to enable the PRAGMA and restore the downgraded cascade tests.
 - **`link_types` duplicate-value returns 400, not the story-specified 422** — status-code-only
   divergence; behavior/message correct.
-- **Three contract endpoints were never built** (found by qa-automation Setup, STORY-001/TASK-006;
-  confirmed against the routers at Reconcile): cross-project `GET /stories` (`project_id` is a required
-  query param as built), the top-level `GET /tasks` list (no such route — story-scoped only), and
-  `GET /tasks/:id/dependencies` (no handler, no MCP tool). Nothing in the product depends on them.
-  Marked `NOT IMPLEMENTED` in the contract; **needs a product decision — build or retire** — which is
-  why they weren't simply deleted.
+- ~~**Three contract endpoints were never built**~~ — **closed at STORY-001 Reconcile.** Cross-project
+  `GET /stories`, top-level `GET /tasks` and `GET /tasks/:id/dependencies` were retired from the contract
+  by user decision (v1.10). Nothing in the product depended on them. Substitutes:
+  `GET /projects/:id/work-state` for project-wide breadth, `GET /tasks/:id/detail`'s `links` for
+  dependencies. Do not re-add them to the contract without a story that actually builds them.
 - **`projects` is the one trailing-slash collection route** (`/v1/projects/` vs. `/v1/stories`), so
   `/v1/projects` answers `307` and a redirect-following client can silently drop a `POST` body. A
   one-line router fix resolves it.
