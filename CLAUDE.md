@@ -11,29 +11,40 @@ via an MCP server and to the human orchestrator via a web UI.
 | `backend/app/<domain>/` | One package per domain (projects, stories, tasks, task_links, attachments, comments, sessions, milestones, settings) |
 | `backend/app/core/` | Cross-cutting: config, DB engine/session, errors, storage, dictionary resolution |
 | `backend/migrations/` | Alembic migrations |
-| `frontend/` | React 19 + Vite SPA (screen-based: `src/screens`, `src/shared`, `src/core`, `src/api`) |
-| `docs/` | SDLC documentation |
+| `frontend/` | React 19 + Vite SPA (feature-based: `src/app`, `src/features`, `src/shared`, `src/core`, `src/api`) |
+| `documentation/` | As-built docs — `business/` (business-analyst), `technical/` (architect) |
+| `.fast-sdlc/` | Fast SDLC operating folder — task management, requirements, per-role configs, shared conventions |
+| `automation/` | Black-box API test suite (Playwright/TypeScript) — owned by qa-automation |
+| `qa/` | Manual test case registry — owned by manual-qa |
+
+> The legacy `docs/` folder is **gone** (STORY-001) — every path that used to live there has moved;
+> resolve locations from `fast-sdlc-project-setup.md` > Artifacts, never from memory of `docs/*`.
 
 ## Commands
-> Canonical commands are owned by **devops** (`docker-compose.yml`, `deploy.sh`) and the dev
-> conventions docs. Placeholders below — update during implementation.
+> Canonical commands are owned by **devops** (`docker-compose.yml`, `deploy.sh`, and
+> `.fast-sdlc/conventions/devops-strategy.md`). See `## Infrastructure` below for the full
+> `deploy.sh` surface and the prod/dev port split — the table here is the short list only.
 
 | Command | Description |
 |---------|-------------|
-| `docker compose up` | Start full stack (REST :8000, MCP :8001, Web :3000) on localhost |
-| `./deploy.sh` | Single entry point (owned by devops) |
+| `./deploy.sh up` | Single entry point — build, migrate, start the stack (**user-run, never agent-run**) |
+| `docker compose up` | Start the stack directly (REST + MCP :8000, Web :3000 on the prod stack) |
 | `alembic upgrade head` | Apply DB migrations |
+
+REST and MCP share **one port** — MCP is path-mounted at `/mcp` on the backend app (ADR-007). There is
+no separate MCP port.
 
 ## Key Docs
 - Architecture (Technical Documentation): `documentation/technical/` — **start at `sad.md`**. As-built folder: Solution Overview (+ C4 L1/L2), NFR, Physical Data Model, API Contracts, Deployment/Infrastructure View, ADR Log. (Migrated from the legacy `docs/architecture.md`, since removed — STORY-001/TASK-002.)
-- API Contract: `documentation/technical/api-contracts/coordination-service.md` ← **LOCKED** (as-built head v1.9; one backend service, REST + path-mounted MCP over a shared service layer). Do not change shapes without an architect-approved revision. (Migrated from the legacy `docs/api-contract.md`, since removed — STORY-001/TASK-002.)
+- API Contract: `documentation/technical/api-contracts/coordination-service.md` ← **LOCKED** (as-built head v1.10; one backend service, REST + path-mounted MCP over a shared service layer). Every route is under the `/v1` base path. Three documented reads are marked **NOT IMPLEMENTED** — see Gotchas. Do not change shapes without an architect-approved revision. (Migrated from the legacy `docs/api-contract.md`, since removed — STORY-001/TASK-002.)
 - ADR Log: `documentation/technical/adr-log/` (ADR-001…ADR-031; **next id ADR-032**. ADR-009 superseded by ADR-010; ADR-005 by ADR-021. Referenced by ID from the SAD.) (Migrated from the legacy `docs/tech_decisions/`, since removed.)
 - Backend Conventions: `.fast-sdlc/conventions/coding-conventions-backend.md` ← owned by lead-developer (backend). Relocated from the legacy `docs/backend-coding-conventions.md`, since removed (STORY-001/TASK-003).
 - Frontend Conventions: `.fast-sdlc/conventions/coding-conventions-frontend.md` ← owned by lead-developer (frontend). Relocated from the legacy `docs/frontend-coding-conventions.md`, since removed (STORY-001/TASK-009).
 - DevOps Strategy: `.fast-sdlc/conventions/devops-strategy.md` ← owned by devops. Relocated from the legacy `docs/devops-strategy.md`, since removed (STORY-001/TASK-005).
 - QA Strategy: `.fast-sdlc/conventions/qa-strategy.md` ← owned by manual-qa; test case registry at `qa/test-cases.md` + `qa/test-cases/`. Relocated from the legacy `docs/qa-strategy.md`/`docs/qa/`, since removed (STORY-001/TASK-007).
 - Automation Strategy: `.fast-sdlc/agents/qa-automation/strategy.md` ← owned by qa-automation; test suite at `automation/` (STORY-001/TASK-006).
-- Requirements: `.fast-sdlc/requirements/specs/` (pending scope only) — as-built behavior lives in Business Documentation, `documentation/business/` (owned by business-analyst). Migrated from the legacy `docs/requirements.md`/`docs/requirements/`, since removed (STORY-001/TASK-001).
+- Requirements: `.fast-sdlc/requirements/specs/` (pending scope only — currently empty) — as-built behavior lives in Business Documentation, `documentation/business/` (owned by business-analyst). Migrated from the legacy `docs/requirements.md`/`docs/requirements/`, since removed (STORY-001/TASK-001).
+- Data models — three layers, two owners: **Conceptual** + **Logical** at `documentation/business/conceptual-data-model/` and `logical-data-model/` (business-analyst, YAML, one file per subject area + a shared `catalog.yaml`); **Physical** at `documentation/technical/data-models/physical-data-model.md` (architect). The Logical model is the business-meaning anchor the Physical one traces to.
 - User Stories: `.fast-sdlc/task-management/index.md`. Legacy `docs/stories/` removed.
 - Team / active roles: `fast-sdlc-project-setup.md` > Team. Legacy `docs/team.md` removed.
 
@@ -140,7 +151,7 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 
 **Concurrent stacks (STORY-024)**: two checkouts in differently-named folders can run at once — a stable "prod" stack + the active "dev" stack. Each has its own committed env template; copy the matching one to `.env`: `.env.example` (prod — `STACK_NAME=prod`, ports 8000/3000/5432, **PostgreSQL**) or `.env.dev.example` (dev — `STACK_NAME=dev`, ports 8100/3100/5433, **SQLite**, with `VITE_API_BASE_URL`/`CORS_ALLOWED_ORIGINS` pre-matched to the offset ports). The env-configurable knobs are `BACKEND_PORT`/`WEB_PORT`/`POSTGRES_PORT`/`STACK_NAME` (host side only; container ports stay fixed). Container/volume/network isolation comes from Compose's folder-based project naming; each stack that uses Postgres runs its own db container (no shared server). `deploy.sh` is unchanged. See `.fast-sdlc/conventions/devops-strategy.md` § Running Two Stacks Concurrently.
 
-**Implementor agents always operate in the dev checkout.** devops, backend-developer, frontend-developer, and qa-automation are only ever invoked inside the active working checkout, which is the **dev** stack (`STACK_NAME=dev`, backend/MCP `http://localhost:8100`, Web UI `http://localhost:3100`, Postgres `5433`). They do not pick or detect a stack: the user is the one who copies an env template to `.env` before running the stack, and `deploy.sh` takes no environment argument. A **prod** stack (`http://localhost:8000` / `http://localhost:3000` / `5432`) is a *separate, user-managed checkout* (e.g. a standalone download of a released `main`) that these agents never enter — so any agent-run local command (bring the stack up, tail logs, inspect containers, `curl` an endpoint for troubleshooting/verification) targets the dev ports, because that is the only context they run in. The tables above show the prod (canonical) ports only for reference. **Exception:** manual-qa drives a browser against a live URL and defaults to dev, but the user may explicitly ask it to target the prod stack for a specific check (see `docs/qa-strategy.md`). See `.fast-sdlc/conventions/devops-strategy.md` § The devops agent always operates in the dev checkout. (`deploy.sh` itself stays user-run, never agent-run, on either stack.)
+**Implementor agents always operate in the dev checkout.** devops, coder (backend), coder (frontend), and qa-automation are only ever invoked inside the active working checkout, which is the **dev** stack (`STACK_NAME=dev`, backend/MCP `http://localhost:8100`, Web UI `http://localhost:3100`, Postgres `5433`). They do not pick or detect a stack: the user is the one who copies an env template to `.env` before running the stack, and `deploy.sh` takes no environment argument. A **prod** stack (`http://localhost:8000` / `http://localhost:3000` / `5432`) is a *separate, user-managed checkout* (e.g. a standalone download of a released `main`) that these agents never enter — so any agent-run local command (bring the stack up, tail logs, inspect containers, `curl` an endpoint for troubleshooting/verification) targets the dev ports, because that is the only context they run in. The tables above show the prod (canonical) ports only for reference. **Exception:** manual-qa drives a browser against a live URL and defaults to dev, but the user may explicitly ask it to target the prod stack for a specific check (see `.fast-sdlc/conventions/qa-strategy.md`). See `.fast-sdlc/conventions/devops-strategy.md` § The devops agent always operates in the dev checkout. (`deploy.sh` itself stays user-run, never agent-run, on either stack.)
 
 **Run** (single entry point — the user runs this, never an agent):
 
@@ -169,6 +180,8 @@ Single environment: the developer's local machine (Docker Compose, localhost-onl
 - **Attachment content lives on the filesystem** (attachments Docker volume), not in the DB. `file_path` is server-internal and must never appear in API responses. Attachments are immutable (no update) and not archived — lifecycle is create + delete only; `DELETE /attachments/:id` works for every kind and removes the row plus, for document/image/file, the stored file. Four kinds: document, image, `file` (opaque binary, curated MIME allow-list), external-ref. `author_role` is a stored descriptive field on the attachment (set at create). Agents upload/read binary over MCP as base64 (`get_attachment_file` reads; base64 create tools upload); the UI uploads via multipart and downloads via `GET /attachments/:id/file`.
 - **Never edit an already-applied migration in place** — ship a post-apply schema/seed change as a new corrective revision (structurally detecting the stale shape), never by editing the existing revision file. Alembic keys execution off the revision id, not file content, so an in-place edit silently diverges fresh installs from already-migrated DBs. This has caused live drift twice (`0012_web_ui_role_backfill` fixing `0002_settings`; `0014_session_status_backfill` fixing `0013_session`). See ADR-028. The only freely-editable migration is one that has never run anywhere (ADR-010's greenfield-rewrite licence).
 - **The utility stores facts; it never enforces process** — no blocking on dependencies, no workflow automation, no status transition rules.
-- **API contract is LOCKED at v1.0** — do not change shapes without an architect-approved revision.
-- **Top-level nav is exactly 3 items** (Projects `/`, Sessions `/sessions`, Settings `/settings`). All other domains are sub-views under their parent context — do not add them as top-level nav entries. Routes exist as placeholder screens; STORY-003+ fill them in.
+- **API contract is LOCKED** (as-built head v1.10) — do not change shapes without an architect-approved revision.
+- **Every REST route lives under `/v1`.** The contract's endpoint headings omit the prefix; the wire never does. One inconsistency: the `projects` collection is declared with a trailing slash (`/v1/projects/`) while every sibling collection is not, so `/v1/projects` answers `307` and a client that doesn't re-send the body on redirect silently loses a `POST`.
+- **Three documented endpoints do not exist.** Cross-project `GET /stories` (the `project_id` query param is required as built), the top-level `GET /tasks` list (tasks are story-scoped only, `GET /stories/:id/tasks`), and `GET /tasks/:id/dependencies` (no handler, no MCP tool). They are marked **NOT IMPLEMENTED** in the contract rather than deleted. Use `GET /projects/:id/work-state` for a project-wide breadth read.
+- **Top-level nav is exactly 3 entries** (Task Manager, Sessions `/sessions`, and the global Projects/Config entries). Since STORY-022 the Projects and Config entries are **state-driven overlays, not routes** — `/projects`, `/settings`, and `/projects/:id/settings` were retired (ADR-025). All other domains are sub-views under their parent context — do not add them as top-level nav entries.
 - **Clear-override is broken end-to-end (known gap, STORY-002).** Service has `clear_project_setting` but no REST/MCP route exposes it; the frontend calls a non-existent `DELETE /projects/:id/settings/:key`. Needs a contract revision + backend route. See `documentation/technical/sad.md` § Risks & Technical Debt.

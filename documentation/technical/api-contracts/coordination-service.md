@@ -4,14 +4,22 @@ This document is the contract — every consumer of the coordination service mus
 
 The coordination service is a single backend application that exposes **two behavior-identical surfaces over one shared service layer**:
 
-- **REST API** — all routes below are relative to the API root (e.g. `http://localhost:8000`).
+- **REST API** — every route below is relative to the **versioned base path `/v1`**, i.e. the full URL is
+  `http://<host>:<port>/v1<path>` (e.g. `GET /stories` → `http://localhost:8000/v1/stories`). The `/v1`
+  prefix is omitted from the endpoint headings throughout, never from the wire. OpenAPI docs are served
+  at `/v1/docs`, the schema at `/v1/openapi.json`.
+  - **Trailing-slash quirk (as-built).** The `projects` collection is the one route pair declared with a
+    trailing slash (`/v1/projects/`); every other collection is declared without one (`/v1/stories`).
+    A request to `/v1/projects` therefore gets a `307` redirect, and a client that does not re-send the
+    body on redirect silently drops a `POST` payload. Clients must call `/v1/projects/` directly. This
+    is an as-built inconsistency, not an intended contract feature — see the SAD's Risks & Technical Debt.
 - **MCP server** — the same operations exposed as tools over HTTP streamable transport. MCP is **not a separate port**: it is path-mounted on the same backend app that serves REST (same container, same port `:8000`, e.g. `http://localhost:8000/mcp`). MCP tool names mirror the REST endpoints 1-to-1 (e.g. `create_task`, `list_stories`, `get_task_detail`); request and response payloads use the same schemas defined here. Domain errors map to MCP tool errors with the same `code`.
 
 Each endpoint group below names its MCP tools. REST and MCP are behavior-identical, including error codes. The only inherent transport differences are noted where they occur (e.g. lenient REST query strings vs. strict MCP RPC kwargs; binary crosses MCP only as base64).
 
 ## Versioning & status
 
-**This contract is LOCKED.** It was locked at **v1.0** and has evolved through a sequence of architect-approved revisions to its current as-built head, **v1.9**. Shapes are not changed without an architect-approved revision. The revisions folded into this document are:
+**This contract is LOCKED.** It was locked at **v1.0** and has evolved through a sequence of architect-approved revisions to its current as-built head, **v1.10**. Shapes are not changed without an architect-approved revision. The revisions folded into this document are:
 
 - **v1.1** — Stories list/create move to a single `/stories` base path; `project_id` becomes a body field (POST) and required query param (GET list).
 - **v1.2** — A milestone belongs to exactly one project and carries a lifecycle status (`planned` → `active` → `finished`); activate/finish action endpoints; `Story.milestone_id`.
@@ -22,14 +30,21 @@ Each endpoint group below names its MCP tools. REST and MCP are behavior-identic
 - **v1.7** — Work Item Comments built for story/task/milestone (`author_role` required + immutable; persisted materialized `ancestors` reply path; newest-first lists; lineage endpoint); Settings gains scalar `default_web_ui_role`.
 - **v1.8** — Sessions as built: project-scoped, required `goal`, fixed 3-value `status` enum, two independent optional links.
 - **v1.9** — Additive service `Status` read and project `work-state` breadth read, each mirrored 1-to-1 on REST + MCP.
+- **v1.10** — *As-built correction only; no running behavior changed.* Records the `/v1` base path and
+  the `projects` trailing-slash quirk explicitly, and marks three previously-documented reads as
+  **NOT IMPLEMENTED** (cross-project `GET /stories` without `project_id`; top-level `GET /tasks`;
+  `GET /tasks/:id/dependencies`). These were specified but never built — the divergence was found by
+  qa-automation's Setup suite (STORY-001/TASK-006) against the live `/v1/openapi.json` and confirmed
+  against the routers at STORY-001 Reconcile. They are retained here, marked, rather than deleted, so
+  consumers can see that the surface is specified-but-absent rather than merely undocumented.
 
 ## Auth (applies to every endpoint)
 
-**None — localhost-only, no auth by design.** No login, roles, or RBAC on any endpoint. The only access boundary is Docker localhost port mapping (see the Authentication Flow subsection of the Solution Overview / `docs/architecture.md`). This applies to **all** endpoints below; it is not restated per-endpoint. Rate limit: 1,000 req/min on every endpoint. All `*_role` fields are descriptive metadata, never access control.
+**None — localhost-only, no auth by design.** No login, roles, or RBAC on any endpoint. The only access boundary is Docker localhost port mapping (see the Authentication Flow subsection of the Solution Overview, `../solution-overview/solution-overview.md`). This applies to **all** endpoints below; it is not restated per-endpoint. Rate limit: 1,000 req/min on every endpoint. All `*_role` fields are descriptive metadata, never access control.
 
 ## Shared shapes
 
-The **error envelope** is defined once in the Error Handling Strategy subsection of the Solution Overview (`docs/architecture.md`) and referenced from every endpoint's Errors field below, never restated. Its shape and the pagination shape are:
+The **error envelope** is defined once in the Error Handling Strategy subsection of the Solution Overview (`../solution-overview/solution-overview.md`) and referenced from every endpoint's Errors field below, never restated. Its shape and the pagination shape are:
 
 ```typescript
 // Standard success envelope (single resource)
@@ -288,7 +303,7 @@ MCP tools: `create_story`, `list_stories`, `get_story`, `update_story`, `delete_
 - **Example (422)**: `{ "error": "Status value 'foo' is not allowed. Allowed: planned, in-progress, pending-approval, accepted.", "code": "UNPROCESSABLE" }`
 
 ### GET /stories?project_id&page&limit&status&label_key&label_value&milestone_id
-`project_id` is a required query param (404 if the project does not exist). `milestone_id` (optional, v1.2) filters to stories assigned to that milestone; an unknown `milestone_id` yields an empty page. (When `project_id` is omitted, the same handler serves the cross-project list — see Cross-project Queries.)
+`project_id` is a required query param (404 if the project does not exist). `milestone_id` (optional, v1.2) filters to stories assigned to that milestone; an unknown `milestone_id` yields an empty page. (Omitting `project_id` was specified to serve a cross-project list from the same handler — **not built**: the param is required as built and omitting it is a `422`. See Cross-project Queries.)
 - **Response**: `200 ListEnvelope<Story>`
 - **Errors**: `404`.
 
@@ -347,7 +362,12 @@ MCP tools: `create_task`, `list_tasks`, `get_task`, `get_task_detail`, `update_t
 - **Response**: `200 Envelope<TaskDetail>` — `TaskDetail extends Task { links: EnrichedTaskLink[]; attachments: Attachment[]; comments: Comment[]; }` (`comments` newest-first)
 - **Errors**: `404`.
 
-### GET /tasks/:id/dependencies
+### GET /tasks/:id/dependencies — **NOT IMPLEMENTED** (specified, never built)
+> **As-built status (v1.10):** this route does not exist. No handler is registered on the tasks router
+> and no MCP tool mirrors it; a call returns `404` from the router, not from the domain. The shape below
+> is the original specification, retained as the reference for whoever builds it. Callers needing the
+> same information today derive it from `GET /tasks/:id/detail`'s `links` (the `depends-on` link type).
+
 - **Response**: `200 Envelope<TaskDependencies>` — `TaskDependencies { task_id: string; inbound_depends_on: { task_id: string; task_title: string; task_status: string; }[]; }` (raw data only — the utility never enforces blocking)
 - **Errors**: `404`.
 
@@ -597,15 +617,24 @@ Composes the milestone's side collections in one call. Assigned stories are NOT 
 
 ---
 
-## Cross-project Queries
+## Cross-project Queries — **NOT IMPLEMENTED** (specified, never built)
 
-The `GET /stories` and `GET /tasks` list handlers also serve cross-project reads when `project_id` is omitted. MCP tools: `list_stories`, `list_tasks` (the same tools, with `project_id` optional).
+> **As-built status (v1.10):** neither read below exists. `GET /stories` declares `project_id` as a
+> **required** query param, so omitting it is a `422`, not a cross-project list. There is no top-level
+> `GET /tasks` list route at all — tasks are only listable story-scoped, via `GET /stories/:storyId/tasks`.
+> The MCP tools match: `list_stories` requires `project_id`; there is no project-wide `list_tasks`.
+> Both specs are retained below as the reference for whoever builds them. A caller needing a
+> project-wide read today uses `GET /projects/:id/work-state` (v1.9), which returns every story in a
+> project and each story's tasks in one call — that is the built substitute, and it is single-project,
+> not cross-project.
 
-### GET /stories?page&limit&project_id&status&label_key&label_value&milestone_id
+The `GET /stories` and `GET /tasks` list handlers were specified to also serve cross-project reads when `project_id` is omitted. MCP tools: `list_stories`, `list_tasks` (the same tools, with `project_id` optional).
+
+### GET /stories?page&limit&project_id&status&label_key&label_value&milestone_id — not implemented
 Same handler as the primary Story list: with `project_id` present it scopes to that project (404 if the project is missing); when absent it returns stories across all projects.
 - **Response**: `200 ListEnvelope<Story>` (each incl. `project_id`)
 
-### GET /tasks?page&limit&project_id&story_id&status&type&assignee_role&creator_role
+### GET /tasks?page&limit&project_id&story_id&status&type&assignee_role&creator_role — not implemented
 - **Response**: `200 ListEnvelope<Task>` (each incl. `story_id` + derived `project_id`)
 
 ---

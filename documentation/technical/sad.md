@@ -91,7 +91,7 @@ path.
 
 See `deployment/deployment-infrastructure-view.md` — single environment (developer's local machine),
 Docker Compose, localhost-only, with the prod/dev concurrent-stack model (ADR-030) and PostgreSQL/
-SQLite selection (ADR-031). Concrete IaC is owned by devops (`docs/devops-strategy.md`).
+SQLite selection (ADR-031). Concrete IaC is owned by devops (`.fast-sdlc/conventions/devops-strategy.md`).
 
 ## Quality Requirements
 
@@ -115,6 +115,14 @@ Summary only — full detail, Source, and Notes live in `nfr.md`.
 ## Architecture Decisions
 
 Full records in `adr-log/`. Next id: **ADR-032**.
+
+> **Reading note.** Some ADR bodies cite pre-`fast-sdlc` document paths that no longer exist
+> (`docs/architecture.md`, `docs/api-contract.md`, `docs/devops-strategy.md`,
+> `docs/backend-coding-conventions.md` — in ADR-001, ADR-007, ADR-011, ADR-015, ADR-026). Those
+> references are **deliberately not corrected**: an ADR body is immutable once written, and only its
+> `Status` field may ever change. Read them as pointing at whatever now holds that content — this SAD
+> and the artifacts it references, per `documentation/technical/index.md` and
+> `fast-sdlc-project-setup.md` > Artifacts.
 
 | ID | Title | Status |
 |---|---|---|
@@ -166,3 +174,17 @@ documentation migration):
 - **`link_types` duplicate-value returns 400, not the story-specified 422.** Status-code-only
   divergence — the rejection behavior and message are correct; the check lives in the service
   (domain `ValidationError` → 400) rather than the schema.
+- **Three API surfaces are specified but were never built.** Found by qa-automation's Setup suite
+  (STORY-001/TASK-006) against the live `/v1/openapi.json`, confirmed against the routers at STORY-001
+  Reconcile, and now marked **NOT IMPLEMENTED** in the contract (v1.10) rather than deleted:
+  cross-project `GET /stories` (the `project_id` query param is required as built), the top-level
+  `GET /tasks` list (no such route — tasks are story-scoped only), and `GET /tasks/:id/dependencies`
+  (no handler, no MCP tool). Nothing in the product depends on them today: the Web UI is always
+  project-scoped, and `GET /projects/:id/work-state` (ADR-029) covers the project-wide breadth read.
+  Resolution is either to build them under a contract revision or to retire them from the contract —
+  a product decision, not a documentation one, which is why they are marked rather than removed.
+- **The `projects` collection is the one trailing-slash route.** Declared as `/v1/projects/` while every
+  other collection is declared without the slash, so `/v1/projects` answers with a `307` and a client
+  that does not re-send the body on redirect silently drops a `POST` payload. A one-line router fix
+  (declare `""` like every sibling domain) would remove the inconsistency; until then the contract
+  documents it explicitly.

@@ -65,6 +65,30 @@ The default templates ship here and were adopted **as-is** (no customization):
   deliberately excluded them from the business-facing Documentation (they must reflect measured
   values, not aspirational business targets).
 
+## Reconcile note — STORY-001 (TASK-011, this Reconcile)
+STORY-001 was a **process** story (every role's `fast-sdlc` Setup); no product code changed, so
+Solution Overview, NFR, the Deployment/Infrastructure View, and the C4 graph/diagram pairs needed **no
+correction** — they were already as-built and the system they describe is untouched. What did change:
+
+- **API Contract → v1.10, an as-built correction only.** Three documented reads were found never to have
+  been built (see Known open items below) and are now marked `NOT IMPLEMENTED` in place rather than
+  deleted; the `/v1` base path and the `projects` trailing-slash quirk are now stated explicitly.
+- **No new ADRs.** Every decision this story made was about *where documentation lives* — no ecosystem
+  choice, nothing hard to reverse in code, no data/security/performance impact. Deliberately dropped
+  per TECH DECISIONS POLICY; next id is still **ADR-032**.
+- **ADR bodies keep their stale legacy paths.** ADR-001, ADR-007, ADR-011, ADR-015 and ADR-026 cite
+  `docs/*` files that no longer exist. Immutability rule — bodies are never edited. A reading note in
+  the SAD's Architecture Decisions section tells readers how to resolve them instead.
+- **The legacy `docs/` tree is gone**, not archived (deleted in commit `7f52733`). Anything that says
+  "retained as historical record" about `docs/architecture.md` / `docs/api-contract.md` /
+  `docs/technical_roadmap.md` — including the disposition section above — is superseded: they survive
+  in git history only.
+- **A Logical Data Model now exists**, at `documentation/business/logical-data-model/`
+  (business-analyst's, produced during its own Setup). The Physical Data Model now names it as its
+  canonical business-meaning source and records the two deliberate physical deviations
+  (`comment.ancestors` vs. logical `parent_comment_id`; JSON-array realization of `Label`/`SettingValue`).
+  On any future data-model work, read the Logical model first — do not re-derive business meaning.
+
 ## Known open items carried from the legacy docs (not fixed here — need follow-up work)
 Recorded so they aren't lost; each is a real gap, not a documentation artifact of the migration:
 - **Clear-override has no end-to-end surface** — service method `clear_project_setting` exists but no
@@ -76,3 +100,12 @@ Recorded so they aren't lost; each is a real gap, not a documentation artifact o
   (ADR-018); the resolution path is to enable the PRAGMA and restore the downgraded cascade tests.
 - **`link_types` duplicate-value returns 400, not the story-specified 422** — status-code-only
   divergence; behavior/message correct.
+- **Three contract endpoints were never built** (found by qa-automation Setup, STORY-001/TASK-006;
+  confirmed against the routers at Reconcile): cross-project `GET /stories` (`project_id` is a required
+  query param as built), the top-level `GET /tasks` list (no such route — story-scoped only), and
+  `GET /tasks/:id/dependencies` (no handler, no MCP tool). Nothing in the product depends on them.
+  Marked `NOT IMPLEMENTED` in the contract; **needs a product decision — build or retire** — which is
+  why they weren't simply deleted.
+- **`projects` is the one trailing-slash collection route** (`/v1/projects/` vs. `/v1/stories`), so
+  `/v1/projects` answers `307` and a redirect-following client can silently drop a `POST` body. A
+  one-line router fix resolves it.
