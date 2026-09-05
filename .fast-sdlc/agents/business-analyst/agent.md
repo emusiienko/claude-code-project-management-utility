@@ -103,8 +103,11 @@ Non-functional characteristics (performance targets, accessibility, browser/devi
 initially migrated into a `non-functional.md` file, then removed by explicit user decision
 (2026-08-21): that content must reflect real values from real tests, not aspirational business
 targets, so it belongs to the technical roles that can measure it, not business-analyst — neither in
-Requirements nor in this Business Documentation part. `documentation/business/non-functional.md` is left in
-place only as a pointer explaining the removal.
+Requirements nor in this Business Documentation part. `documentation/business/non-functional.md` was
+originally left in place only as a pointer explaining the removal, alongside the emptied
+`data-model.md` stub — both have since been deleted from the IDE by the user (confirmed absent as of
+STORY-001 Reconcile, 2026-09-05); neither file is part of the confirmed Business Documentation format,
+so their removal is not a gap.
 
 Two known-but-not-yet-commissioned product limitations were found while migrating (settings-override
 clear not wired end-to-end; cross-project view still a Web UI placeholder) — by explicit user
