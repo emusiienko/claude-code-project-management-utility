@@ -38,23 +38,21 @@ there is no prod-target exception here the way `manual-qa` has one. Bring the de
   (`/v1/stories`, `/v1/milestones`, `/v1/sessions`, … all work with or without one). `createProject()`
   in `utils/helpers.ts` already posts to `/v1/projects/`.
 
-## Known Divergences From the LOCKED Contract (found during Setup, 2026-08-27)
+## Retired Contract Reads (historical — resolved at STORY-001 Reconcile)
 
-Three tests are marked `test.fixme()` — they encode contract-documented behavior that does not exist
-on the running backend, confirmed against its live OpenAPI schema (`/v1/openapi.json`), not just a
-suite bug:
+Three reads were found during Setup (2026-08-27) to be specified in the contract but never built,
+confirmed against the live OpenAPI schema (`/v1/openapi.json`): the cross-project `GET /stories`
+(omitting `project_id`), the top-level `GET /tasks` collection, and `GET /tasks/:id/dependencies`.
+They were originally covered here by three `test.fixme()` tests awaiting an architect decision.
 
-| Contract section | Documented behavior | As-built |
-|---|---|---|
-| Cross-project Queries — `GET /stories` | Omitting `project_id` returns stories across all projects | `422 VALIDATION_ERROR` — `project_id` is required |
-| Cross-project Queries — `GET /tasks` | Omitting `project_id` returns tasks across all projects | Route does not exist at all (`404`, absent from the OpenAPI schema) |
-| Tasks — `GET /tasks/:id/dependencies` | Returns `TaskDependencies` (raw inbound-depends-on data) | Route does not exist at all (`404`, absent from the OpenAPI schema) |
-
-These were flagged to the user in the Setup session report (`.fast-sdlc/sessions/SESSION-010-*.md`)
-rather than filed as formal Bugs — there is no story in scope to attach them to (Project Setup is not
-a story's Prepare/Execute cycle). The architect should either back-fill the missing routes or revise
-the contract to as-built; once resolved, un-`fixme` the corresponding tests in `tests/cross-project.spec.ts`
-and `tests/tasks.spec.ts`.
+At STORY-001 Reconcile the user decided to **retire these reads from the contract outright** (v1.10)
+rather than back-fill them — they were never wanted, so the contract no longer promises them. As a
+result the corresponding tests are gone, not skipped: the whole `Cross-project Queries` domain
+(`tests/cross-project.spec.ts`) was deleted, and the `GET /tasks/:id/dependencies` test was removed
+from `tests/tasks.spec.ts` (a short comment there points to the contract's v1.10 changelog entry for
+context). See `documentation/technical/api-contracts/coordination-service.md` § Versioning & status
+for the full as-built rationale — a project-wide breadth read is now served by
+`GET /projects/:id/work-state`, and task dependency information via `GET /tasks/:id/detail`'s `links`.
 
 ## Structure
 
@@ -74,7 +72,6 @@ automation/
     sessions.spec.ts
     settings.spec.ts
     milestones.spec.ts
-    cross-project.spec.ts
 ```
 
 One spec file per API contract domain — mirrors the contract's own `##` section headings, not the
