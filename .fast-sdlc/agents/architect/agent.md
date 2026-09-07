@@ -65,18 +65,32 @@ The default templates ship here and were adopted **as-is** (no customization):
   deliberately excluded them from the business-facing Documentation (they must reflect measured
   values, not aspirational business targets).
 
-## Reconcile note — STORY-001 (TASK-011, this Reconcile)
+## Reconcile note — STORY-002 (TASK-002)
+STORY-002 finished the v1.10 correction: prose *about* the deleted endpoints survived in several places
+after the entries themselves were gone. The Technical Documentation folder needed no change at this
+Reconcile — the contract, SAD, Physical Data Model, Solution Overview, NFR, Deployment view and ADR Log
+were already clean and internally consistent, and no ADR references the deleted surfaces. What changed
+was my own reference material: this file's STORY-001 note above, and the `### API Contract` chapter in
+`fast-sdlc-project-setup.md`, both of which named the endpoints and framed the deletion as a
+*retirement*.
+
+**Convention set by the user here, applies to every future as-built correction:** deleting
+documentation of something that never existed is a plain deletion, not a retirement. No version bump,
+no revision-history narrative, no ADR, and no residual prose naming what was removed — including in
+role config and reference files, not just the artifact itself. Where a real hazard needs guarding
+against, phrase the guard generically (a durable rule that outlives the specific item) rather than by
+enumerating what was deleted.
+
+## Reconcile note — STORY-001 (TASK-011)
 STORY-001 was a **process** story (every role's `fast-sdlc` Setup); no product code changed, so
 Solution Overview, NFR, the Deployment/Infrastructure View, and the C4 graph/diagram pairs needed **no
 correction** — they were already as-built and the system they describe is untouched. What did change:
 
-- **API Contract → v1.10, an as-built correction.** Three documented reads were found never to have been
-  built — cross-project `GET /stories`, top-level `GET /tasks`, `GET /tasks/:id/dependencies` — and are
-  **retired from the contract entirely** (the whole `Cross-project Queries` section with them), by
-  explicit user decision. I had first marked them `NOT IMPLEMENTED` in place, reasoning that build-vs-
-  retire was a product call; the user made that call — retire — so they are deleted rather than
-  annotated. The `/v1` base path and the `projects` trailing-slash quirk are now stated explicitly.
-  **Precedent for future Reconciles: on this project, a specified-but-unbuilt surface gets retired from
+- **API Contract → v1.10, an as-built correction.** Documentation of several reads that were never built
+  was deleted, by explicit user decision. I had first marked them `NOT IMPLEMENTED` in place, reasoning
+  that build-vs-delete was a product call; the user made that call — delete. The `/v1` base path and the
+  `projects` trailing-slash quirk are now stated explicitly.
+  **Precedent for future Reconciles: on this project, a specified-but-unbuilt surface is deleted from
   the contract, not carried as an annotated placeholder.** The contract describes what exists.
 - **No new ADRs.** Every decision this story made was about *where documentation lives* — no ecosystem
   choice, nothing hard to reverse in code, no data/security/performance impact. Deliberately dropped
@@ -105,11 +119,6 @@ Recorded so they aren't lost; each is a real gap, not a documentation artifact o
   (ADR-018); the resolution path is to enable the PRAGMA and restore the downgraded cascade tests.
 - **`link_types` duplicate-value returns 400, not the story-specified 422** — status-code-only
   divergence; behavior/message correct.
-- ~~**Three contract endpoints were never built**~~ — **closed at STORY-001 Reconcile.** Cross-project
-  `GET /stories`, top-level `GET /tasks` and `GET /tasks/:id/dependencies` were retired from the contract
-  by user decision (v1.10). Nothing in the product depended on them. Substitutes:
-  `GET /projects/:id/work-state` for project-wide breadth, `GET /tasks/:id/detail`'s `links` for
-  dependencies. Do not re-add them to the contract without a story that actually builds them.
 - **`projects` is the one trailing-slash collection route** (`/v1/projects/` vs. `/v1/stories`), so
   `/v1/projects` answers `307` and a redirect-following client can silently drop a `POST` body. A
   one-line router fix resolves it.

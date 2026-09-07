@@ -191,9 +191,9 @@ whole folder; its parts are not separately located:
 **location**: part of the Architecture folder above — `documentation/technical/api-contracts/`
 (one file per service). Format: `.fast-sdlc/agents/architect/api-contract-format.md`. The contract is
 **LOCKED**, as-built head **v1.10**; changes need an architect-approved revision. Every REST route is
-under the `/v1` base path. v1.10 **retired** three reads that were specified but never built
-(cross-project `GET /stories`, top-level `GET /tasks`, `GET /tasks/:id/dependencies`) — see the
-contract's own v1.10 note. Legacy `docs/api-contract.md` removed 2026-08-27 (STORY-001).
+under the `/v1` base path. The contract documents only endpoints that exist on the running backend —
+read it as the definitive list of the API surface, not as a superset. Legacy `docs/api-contract.md`
+removed 2026-08-27 (STORY-001).
 
 ### Architectural Design
 **location**: `.fast-sdlc/planning/{slug}/architecture-design/` — **one folder per scope** (a
