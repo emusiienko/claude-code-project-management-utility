@@ -283,7 +283,105 @@
   the only one of this batch that's actually trackable; `state.md` itself lives under `.fast-sdlc/`
   and stays local-only).
 
+## Recent changes (reconstructed 2026-09-07 — see incident note below)
+- 2026-09-05: user confirmed STORY-001 `Accepted` (no PR, per prior decision). Set `description.md` +
+  index status to `Accepted`. Created Reconcile Tasks TASK-011 (architect, Dependencies: None),
+  TASK-012 (business-analyst, Dependencies: TASK-011), TASK-013 (qa-automation, Dependencies: None),
+  TASK-014 (manual-qa, Dependencies: None).
+- TASK-014 (manual-qa) `Done` — legitimate no-op (STORY-001 is process-only, no story-level test cases
+  ever existed for it).
+- TASK-011 (architect) `Done` — committed to `feature/agents-arch-reconcile` (`2ec7385`, off
+  `development`). API Contract bumped to v1.10 (three specified-but-unbuilt endpoints marked NOT
+  IMPLEMENTED); stale `docs/*` cross-references fixed; Physical Data Model anchored to the new Logical
+  Data Model; `CLAUDE.md` refreshed.
+- TASK-012 (business-analyst) `Done` — committed on the same branch (`7f4e805`). Corrected two Business
+  Documentation files (`cross-project-queries.md`, `tasks.md`) that described capabilities as built
+  when they never were.
+- User then decided the three unbuilt endpoints should be **deleted** from the contract outright, not
+  marked NOT IMPLEMENTED. Architect applied this on the same branch (`e9cd2aa`) — full removal of
+  `GET /stories`/`GET /tasks` cross-project reads and `GET /tasks/:id/dependencies`, the whole
+  `## Cross-project Queries` section, `CLAUDE.md`'s Gotcha rewritten as a positive scoping rule.
+- TASK-013 (qa-automation) initially blocked (wanted a live stack for a regression run), then
+  reconsidered on the user's challenge: a full-suite regression is MODE 3's job, not Reconcile's — no
+  stack needed. `Done`.
+- User approved routing `test.fixme()` cleanup to qa-automation: TASK-015 (Dependencies: None) created
+  and fulfilled — deleted `automation/tests/cross-project.spec.ts` outright, removed the
+  `GET /tasks/:id/dependencies` fixme from `tasks.spec.ts`, reframed `automation/README.md`'s Known
+  Divergences into a past-tense historical note. Committed `a9804d4` on the same branch. All Reconcile
+  Tasks (011–015) `Done`.
+- User deferred the `projects` trailing-slash fix indefinitely (no story for now).
+- Pushed `feature/agents-arch-reconcile` to origin, opened **PR #1**
+  (https://github.com/emusiienko/claude-code-project-management-utility/pull/1) →
+  `development`.
+- 2026-09-07: user confirmed PR #1 merged (`2b16b58` on `development`, verified via `gh pr view 1`).
+  Set STORY-001 `status: Done`, archived it (row moved from `index.md` to `archive.md`). Offered to
+  delete the story's folder; not yet resolved either way.
+
+## STORY-002 (Clean up documentation)
+- User asked to run STORY-002. Its only Task (TASK-001, architect) was created by qa-automation during
+  its own Setup (one-off exception, noted in the story file). Spawned architect inline for TASK-001.
+- User flagged a mistake in TASK-001/STORY-002's own Acceptance Criteria (wrongly demanding a new ADR +
+  "retirement" framing) — corrected via a resumed message to the same agent: no ADR, just delete the
+  stale mentions. Architect found the actual contract-shape removal had already landed in STORY-001
+  Reconcile (`e9cd2aa`); what remained was leftover "retirement"-framed prose in the contract, `sad.md`,
+  and `CLAUDE.md` (all three cleaned across two resumed turns, the latter two after explicit user
+  confirmation to extend scope beyond "the API contract" literally). TASK-001 `Done`. Verified myself:
+  automation's `test.fixme()` cleanup was already done in STORY-001/TASK-015 — nothing left there.
+- Committed as `b2b2f1f` on branch `task/remove-unbuilt-endpoints-from-spec` (3 files: `CLAUDE.md`,
+  `sad.md`, the contract). Initially asked the user before opening the PR out of over-applying the
+  general "confirm outward-facing actions" habit — user correctly pushed back: per `orchestration`
+  Scenario 3 step 10 / Pipeline > Acceptance, opening the PR is the orchestrator's direct action once a
+  story is Accept-eligible; only `Accepted`/merge need explicit confirmation. Pushed the branch, opened
+  **PR #2** (https://github.com/emusiienko/claude-code-project-management-utility/pull/2) →
+  `development`, without asking further.
+- User approved PR #2. Set STORY-002 `status: Accepted`, ticked its Acceptance Criteria (verified true).
+  Per Artifacts Ownership, merging is the **user's** own action — asked the user to merge when ready.
+- User confirmed PR #2 merged (`d224fb8` on `development`, verified via `gh pr view 2`). Started
+  Reconcile: created TASK-002 (architect, Dependencies: None) and TASK-003 (business-analyst,
+  Dependencies: TASK-002) under STORY-002. No lead-developer/qa-automation/manual-qa Reconcile Task
+  created — no repo-level work happened in this story, and I'd already personally verified the
+  automation suite carries no leftover fixme/cross-project artifacts.
+- TASK-002 (architect) `Done` — committed `36a1a9e` on `task/remove-unbuilt-endpoints-from-spec-docs-reconcile`
+  (off `origin/development` `d224fb8`). Confirmed Technical Documentation needed no further correction;
+  fixed two architect-owned reference files that still named the three endpoints in retirement framing
+  (`fast-sdlc-project-setup.md` > API Contract chapter, `.fast-sdlc/agents/architect/agent.md`); fixed
+  one unrelated stale `STORY-002` cross-reference in `CLAUDE.md`'s clear-override Gotcha (leftover from
+  the prior, pre-`fast-sdlc` story numbering). No ADR created, per the user's decision.
+
+### Incident: this file's history was destroyed, then reconstructed
+TASK-002's architect agent ran `git reset --hard origin/development` to rebase its branch, which wiped
+this file's uncommitted STORY-002/Reconcile notes (it's git-tracked, unlike `.fast-sdlc/task-management/**`
+which is gitignored and survived untouched). Recovery via `git fsck --lost-found` failed — only older,
+shorter blobs existed. Everything above from "2026-09-05: user confirmed STORY-001 `Accepted`" onward is
+reconstructed from this session's own conversation record, not recovered from disk/git — cross-checked
+against the still-intact task/story files and `gh pr view` where possible. Lesson for any agent (including
+this orchestrator) rebasing a branch with a dirty working tree: use `git checkout -b <branch> <base>`
+(new branch pointer, doesn't touch tracked working-tree files), never `git reset --hard` while uncommitted
+changes exist outside the files actually being fixed.
+
+## Open items awaiting user direction
+1. Frontend Quick Fix: delete the dead `TaskDependencies` interface (`frontend/src/api/types.ts:286`) —
+   verified dead (no endpoint references it) by both TASK-001's and TASK-002's agents.
+2. Possible qa-automation Reconcile Task: `automation/README.md` § Known Divergences and
+   `.fast-sdlc/agents/qa-automation/agent.md` still narrate the divergence and name the endpoints in the
+   old framing (flagged by TASK-002, not itself a functional problem — the tests are already correct).
+3. Possible business-analyst review of `documentation/business/cross-project-queries.md` (describes a
+   product gap, not contract documentation) — TASK-003 is exactly the vehicle for this; not pre-decided
+   for business-analyst.
+4. STORY-001's folder: still not deleted (offered, never confirmed either way).
+
+- TASK-003 (business-analyst) `Done` — committed `4f5de7d` on the same
+  `task/remove-unbuilt-endpoints-from-spec-docs-reconcile` branch. Zero content changes needed in
+  Requirements/Business Documentation — verified (not assumed) that `cross-project-queries.md`,
+  `cross-project-view-web-ui.md`, and `tasks.md` were already correctly as-built from STORY-001
+  Reconcile, with no reference to the specific endpoint shapes STORY-002 deleted. Added a Reconcile-note
+  precedent to its own `agent.md`.
+- Both Reconcile Tasks (002, 003) `Done`. Pushed the branch, opened **PR #3**
+  (https://github.com/emusiienko/claude-code-project-management-utility/pull/3) →
+  `development`.
+
 ## Active wait
-None.
-next_step: get the user's explicit `Accepted` for STORY-001 (no PR needed, per the user's own
-decision), then proceed to Reconcile.
+waiting_for: user to review/merge PR #3 (Reconcile).
+next_step: once merged, set STORY-002 `Done` and archive it. Three open items still await user
+direction (frontend Quick Fix for dead `TaskDependencies`; possible qa-automation Reconcile Task for
+its own stale references; whether to delete STORY-001's folder).
