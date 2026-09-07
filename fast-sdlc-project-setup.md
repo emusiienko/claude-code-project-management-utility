@@ -9,21 +9,27 @@
 
 ### business-analyst
 **folder**: `.fast-sdlc/agents/business-analyst/`
+**working folder(s)**: `documentation/business/`, `.fast-sdlc/requirements/`
 
 ### architect
 **folder**: `.fast-sdlc/agents/architect/`
+**working folder(s)**: `.` (project root)
 
 ### lead-developer (backend)
 **folder**: `.fast-sdlc/agents/lead-developer/backend/`
+**working folder(s)**: `backend/` (this stack's Source Code location)
 
 ### lead-developer (frontend)
 **folder**: `.fast-sdlc/agents/lead-developer/frontend/`
+**working folder(s)**: `frontend/` (this stack's Source Code location)
 
 ### coder (backend)
 **folder**: `.fast-sdlc/agents/coder/backend/`
+**working folder(s)**: `backend/` (this stack's Source Code location)
 
 ### coder (frontend)
 **folder**: `.fast-sdlc/agents/coder/frontend/`
+**working folder(s)**: `frontend/` (this stack's Source Code location)
 
 Note (2026-08-27): this repo has two stacks (backend Python, frontend React —
 see `CLAUDE.md` > Repository Structure). Per `sdlc`, lead-developer and coder are repo-bound but
@@ -32,12 +38,15 @@ per stack, each running its own Setup and owning its own Coding Conventions.
 
 ### devops
 **folder**: `.fast-sdlc/agents/devops/`
+**working folder(s)**: `.` (project root — Infrastructure Code location)
 
 ### qa-automation
 **folder**: `.fast-sdlc/agents/qa-automation/`
+**working folder(s)**: `automation/` (Automated Test Suite location)
 
 ### manual-qa
 **folder**: `.fast-sdlc/agents/manual-qa/`
+**working folder(s)**: `qa/` (Test Case Registry location)
 
 ---
 
@@ -181,8 +190,10 @@ whole folder; its parts are not separately located:
 ### API Contract
 **location**: part of the Architecture folder above — `documentation/technical/api-contracts/`
 (one file per service). Format: `.fast-sdlc/agents/architect/api-contract-format.md`. The contract is
-**LOCKED**; changes need an architect-approved revision. Legacy `docs/api-contract.md` removed
-2026-08-27 (STORY-001).
+**LOCKED**, as-built head **v1.10**; changes need an architect-approved revision. Every REST route is
+under the `/v1` base path. v1.10 **retired** three reads that were specified but never built
+(cross-project `GET /stories`, top-level `GET /tasks`, `GET /tasks/:id/dependencies`) — see the
+contract's own v1.10 note. Legacy `docs/api-contract.md` removed 2026-08-27 (STORY-001).
 
 ### Architectural Design
 **location**: `.fast-sdlc/planning/{slug}/architecture-design/` — **one folder per scope** (a
@@ -240,6 +251,16 @@ inside their own stack folder at the repo root.
   Sequential from `ADR-001`, own series; **none yet**. **format**:
   `.fast-sdlc/agents/lead-developer/frontend/adr-format.md` (plugin default).
 
+### Source Code
+**owner**: coder (full, per repo/stack); lead-developer (full, same location, only when writing code
+directly — MODE 5).
+**location**:
+- **backend**: `backend/`
+- **frontend**: `frontend/`
+Confirmed with the user during this plugin-update refresh (net-new Artifact chapter as of the
+`fast-sdlc` plugin's "added agents working folders and source artifacts" update; the code itself
+predates this — this chapter just formally records where it already lives, per stack).
+
 ### QA Strategy
 **owner**: manual-qa.
 **location**: `.fast-sdlc/conventions/qa-strategy.md`. Relocated from legacy `docs/qa-strategy.md` via
@@ -275,6 +296,14 @@ exist under the prior process.
 **format**: `@playwright/test` (TypeScript), `request` fixture only (no browser); one spec file per
 API Contract domain under `automation/tests/`. See `automation/README.md` for run commands, and its
 § Known Quirks / Known Divergences for as-built backend behavior that differs from the contract.
+
+### Infrastructure Code
+**owner**: devops (full).
+**location**: `.` (repo root) — a single stack/environment (local Docker Compose, prod+dev
+concurrent stacks per STORY-024). Spans `docker-compose.yml`, `deploy.sh`, `backend/Dockerfile`
+(+ `docker-entrypoint.sh`), `frontend/Dockerfile` (+ `nginx.conf`), `.env.example`,
+`.env.dev.example` — no single dedicated IaC folder. Confirmed with the user during this
+plugin-update refresh (net-new Artifact chapter, same rationale as Source Code above).
 
 ### DevOps Strategy
 **owner**: devops.

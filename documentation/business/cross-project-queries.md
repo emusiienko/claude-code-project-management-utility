@@ -2,28 +2,34 @@
 
 ## Happy Path
 
-1. An agent (or any programmatic caller) requests stories — or, separately, tasks — across **every**
-   project in a single query, instead of one project at a time.
-2. Each result additionally carries which project (and, for tasks, which story) it belongs to.
-3. The same filters available on the project-scoped equivalents (status, type, assignee/creator
-   role, label key/value) apply here too, and the result is paginated.
+None — this capability was specified but never built, on any surface. There is no way, today, for
+anyone or anything (Web UI or AI agent) to request stories or tasks across every project in a
+single query.
 
 ## Other Scenarios
 
-None beyond the project-scoped Stories/Tasks scenarios (see `stories.md` / `tasks.md`) — this
-capability only removes the requirement to pick one project first.
+N/A — not built.
 
 ## Who Can Access It
 
-AI agents (and any other programmatic caller) via MCP/REST only.
+No one. Neither the Web UI nor AI agents (MCP/REST) can perform a cross-project query — the
+project-scoped equivalents (see `stories.md` / `tasks.md`) are the only way to read stories or tasks,
+one project at a time.
 
 ## Business Rules
 
-- A cross-project query still honors every filter its project-scoped equivalent supports.
-- Project-scoped listing remains the default everywhere else in the product — this capability is
-  additive, not a replacement.
+N/A — not built.
 
 ## Known Limitations
 
-- There is no Web UI for this — the human orchestrator has no screen to browse work across every
-  project at once; the underlying data access described here is already fully available to agents.
+- **The entire capability is missing, not just a Web UI screen.** Earlier records of this gap
+  described it as "the data access already works for agents, only the Web UI screen is a
+  placeholder" — that turned out to be incorrect. Reconciling STORY-001 against the as-built API
+  Contract (v1.10) confirmed neither read exists at all: a project-wide story list and a
+  project-wide task list were both specified but never implemented, on any surface.
+- **A related, narrower capability does exist today**: an AI agent can read one project's full
+  work-state (every story, each story's tasks, per-status task counts) in a single call — see
+  `ai-agent-access.md`. That is single-project, not cross-project, and does not substitute for
+  browsing or filtering work across every project at once.
+- Not tracked as a pending Requirement — by explicit user decision, nobody has yet decided to
+  commission this work (neither the agent-side read nor a Web UI screen for it).

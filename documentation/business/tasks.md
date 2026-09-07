@@ -18,8 +18,10 @@
 - **Edit a task**: inline, in place, on the Task Detail view.
 - **Delete a task**: removes it and everything nested in it (attachments, comments, any links
   touching it) after a confirmation.
-- **View a task's dependencies**: a read-only view of which tasks depend on it and their current
-  status — informational only.
+- **See what a task depends on**: there is no dedicated dependencies view — a "depends on"
+  relationship is just a regular link (see Work Item Linking) using whichever `link_types` value the
+  project has set up for that meaning. It's read the same way as any other link, from the task's own
+  Links section.
 
 ## Who Can Access It
 
@@ -34,11 +36,13 @@ project/story's task list is paginated.
 - An assignee or creator role, if set, must be a value currently in the project's
   `participant_roles`; either can always be cleared even if its current value is no longer in that
   dictionary.
-- The dependency view is purely informational — the utility stores facts about links between tasks
-  but never blocks any action based on them.
+- Links (including any that represent a dependency) are purely informational — the utility stores
+  facts about links between tasks but never blocks any action based on them.
 - Deleting a task is permanent and cascades to everything nested in it.
 
 ## Known Limitations
 
 None currently known beyond what's already noted for Work Item Linking and Attachments/Comments,
-which a task's own sections inherit.
+which a task's own sections inherit. (A prior version of this file described a dedicated, separately
+readable "dependencies view" as an existing feature — reconciling STORY-001 against the as-built API
+Contract confirmed no such dedicated read exists; corrected above.)

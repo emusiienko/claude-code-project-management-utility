@@ -54,26 +54,10 @@ test.describe("Tasks", () => {
     expect(detail.attachments).toEqual([]);
     expect(detail.comments).toEqual([]);
   });
-
-  // KNOWN DIVERGENCE (found during qa-automation Setup, 2026-08-27): the contract documents
-  // `GET /tasks/:id/dependencies`, but it is absent from the running backend's OpenAPI schema
-  // entirely (404) — never implemented. Flagged to the user in the Setup session report; not filed
-  // as a formal Bug since there is no story in scope to attach it to yet.
-  test("dependencies endpoint returns raw inbound-depends-on data, never enforcing anything", async ({
-    request,
-  }) => {
-    test.fixme(
-      true,
-      "GET /tasks/:id/dependencies does not exist as-built (404) despite being in the LOCKED contract. See comment above."
-    );
-    const project = await createProject(request);
-    const story = await createStory(request, project.id);
-    const task = await createTask(request, story.id);
-
-    const res = await request.get(`/v1/tasks/${task.id}/dependencies`);
-    expect(res.status()).toBe(200);
-    const body = (await res.json()).data;
-    expect(body.task_id).toBe(task.id);
-    expect(body.inbound_depends_on).toEqual([]);
-  });
 });
+
+// `GET /tasks/:id/dependencies` was retired from the contract at v1.10 (STORY-001 Reconcile) — it was
+// specified but never built, and the user decided to remove it from the contract rather than
+// back-fill it. Task dependency information is served via `GET /tasks/:id/detail`'s `links` instead.
+// No test remains for it: there is no longer any contract-documented behavior to encode. See
+// `documentation/technical/api-contracts/coordination-service.md` § Versioning & status, v1.10.

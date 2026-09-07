@@ -13,6 +13,26 @@ the migrations.
 Throughout: `id`, `created_at`, `updated_at`, and `file_path` are **technical** columns (surrogate
 identity, timestamps, server-internal storage path); all other columns are **business-derived**.
 
+**Canonical source for business meaning.** Every business-derived column traces to an entity/attribute
+in the **Logical Data Model**, `documentation/business/logical-data-model/` — owned by business-analyst,
+organized as a shared `catalog.yaml` plus one file per subject area (Project & Work Items, Work Item
+Linking, Collaboration, Sessions, Settings). Table and column names here are the physical realization
+of those logical names; where the physical shape deviates from the logical one, the logical model's own
+`assumptions` records it. Two deviations are known and deliberate, both physical-layer performance
+choices with no business-meaning change:
+
+- `comment.ancestors` (a denormalized, materialized root-first reply path — ADR-023) realizes the
+  logical model's `Comment.parent_comment_id` adjacency.
+- `system_settings` / `project_settings` (two tables, JSON-valued) realize the logical `Setting` entity,
+  which models system defaults and project overrides as one entity distinguished by a nullable
+  `project_id`; the logical `Label` and `SettingValue` entities (introduced there to resolve repeating
+  groups to 1NF) are realized physically as JSON arrays rather than child tables — see ADR-012 for the
+  dialect-aware filtering this requires and ADR-022 for the scalar-setting case.
+
+The Logical Data Model post-dates this document (produced during business-analyst's Setup, STORY-001)
+and was written from the same as-built system, so the two agree; a future story that changes either
+must keep them aligned.
+
 ---
 
 ## Tables

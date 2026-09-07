@@ -1,17 +1,17 @@
 <!--
-Documentation — business-facing behavior of the AI Agent Coordination Utility, as actually built.
-Owned by business-analyst (this file + the capability files below + conceptual-data-model/ +
+Business Documentation — business-facing behavior of the AI Agent Coordination Utility, as actually
+built. Owned by business-analyst (this file + the capability files below + conceptual-data-model/ +
 logical-data-model/). The technical/system-facing counterpart (architecture, API contract, ADRs, and
-non-functional data drawn from real measurements) lives in architect's own Documentation location —
-see fast-sdlc-project-setup.md > Artifacts > Documentation. Non-functional characteristics are
-deliberately not part of this business-facing part at all: they belong to the technical roles that
+non-functional data drawn from real measurements) lives in architect's own Technical Documentation
+location — see fast-sdlc-project-setup.md > Artifacts > Architecture. Non-functional characteristics
+are deliberately not part of this business-facing part at all: they belong to the technical roles that
 can measure them from real tests, not to business-analyst.
 
 As-built, never a to-do list — no priorities, no story/task references. Kept true after every
 Reconcile.
 -->
 
-# Documentation — Business-Facing Behavior — Index
+# Business Documentation — Business-Facing Behavior — Index
 
 | Capability | File | Summary | Access |
 |---------|------|-------------|--------|
@@ -26,7 +26,7 @@ Reconcile.
 | Sessions | `sessions.md` | Project-scoped record of an agent/human working session — start artifact, lifecycle status, optional links to a story/task, optional result artifact | Web UI + AI agents (MCP) |
 | Milestones | `milestones.md` | Named planning markers within a project; at most one active at a time; stories optionally assigned | Web UI + AI agents (MCP) |
 | AI Agent Access | `ai-agent-access.md` | Liveness check and a single-call breadth read of a project's full work state, purpose-built for agent session startup | AI agents (MCP + REST) |
-| Cross-project Queries (data access) | `cross-project-queries.md` | List stories/tasks across every project in one query, instead of per-project only | AI agents (MCP + REST) only — no Web UI |
+| Cross-project Queries (data access) | `cross-project-queries.md` | Listing stories/tasks across every project in one query, instead of per-project only — specified but not built on any surface | Not built — no one can access this today |
 
 Both access surfaces (Web UI, MCP) carry full read/write access to every capability above — the
 utility is deliberately participant-neutral (human and agents are structurally equal) and carries no

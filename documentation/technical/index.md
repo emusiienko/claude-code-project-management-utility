@@ -18,5 +18,13 @@ doc). Everything below is referenced from it.
 
 Migrated "from scratch" during architect Setup (STORY-001 / TASK-002, 2026-08-27) from the legacy
 single-file `docs/architecture.md` + `docs/api-contract.md` + `docs/tech_decisions/` +
-`docs/technical_roadmap.md`, which are retained only as historical record and are not written to going
-forward. Reads as current state — reconcile/provenance history lives in git and in the ADRs.
+`docs/technical_roadmap.md`. That whole `docs/` tree was **deleted** once the migration was verified
+(STORY-001, commit `7f52733`) — this folder is the only technical documentation there is; the legacy
+files survive in git history alone. Reads as current state — reconcile/provenance history lives in git
+and in the ADRs.
+
+**Related artifacts owned by other roles**, resolved from `fast-sdlc-project-setup.md` > Artifacts:
+business-analyst's business-facing counterpart, including the **Conceptual and Logical Data Models**
+(`documentation/business/`); devops' DevOps Strategy and lead-developer's per-stack Coding Conventions
+(`.fast-sdlc/conventions/`); qa-automation's Automated Test Suite (`automation/`) and manual-qa's Test
+Case Registry (`qa/`).
