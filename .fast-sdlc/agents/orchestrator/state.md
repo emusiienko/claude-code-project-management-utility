@@ -380,8 +380,14 @@ changes exist outside the files actually being fixed.
   (https://github.com/emusiienko/claude-code-project-management-utility/pull/3) →
   `development`.
 
+- 2026-09-07: user confirmed PR #3 (Reconcile) merged (verified via `gh pr view 3` — state MERGED,
+  `mergedAt` 2026-09-07T13:06:02Z). Set STORY-002 `status: Done`, moved its index row to `archive.md`.
+  STORY-002 is fully closed.
+
 ## Active wait
-waiting_for: user to review/merge PR #3 (Reconcile).
-next_step: once merged, set STORY-002 `Done` and archive it. Three open items still await user
-direction (frontend Quick Fix for dead `TaskDependencies`; possible qa-automation Reconcile Task for
-its own stale references; whether to delete STORY-001's folder).
+waiting_for: nothing.
+next_step: no story currently on the board. Three items remain flagged, awaiting user direction
+whenever they want to pick one up: (1) frontend Quick Fix to delete the dead `TaskDependencies`
+interface (`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own
+stale references (`automation/README.md`, `.fast-sdlc/agents/qa-automation/agent.md`); (3) whether to
+delete STORY-001's/STORY-002's folders (offered, never decided).
