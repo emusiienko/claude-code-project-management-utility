@@ -174,16 +174,6 @@ documentation migration):
 - **`link_types` duplicate-value returns 400, not the story-specified 422.** Status-code-only
   divergence — the rejection behavior and message are correct; the check lives in the service
   (domain `ValidationError` → 400) rather than the schema.
-- **RESOLVED (STORY-001 Reconcile) — three specified-but-unbuilt API surfaces, retired.** qa-automation's
-  Setup suite (STORY-001/TASK-006) found three reads the contract promised but the system never had:
-  cross-project `GET /stories` (the `project_id` query param is required as built), the top-level
-  `GET /tasks` list (no such route — tasks are story-scoped only), and `GET /tasks/:id/dependencies`
-  (no handler, no MCP tool). Confirmed against the routers at Reconcile, then **retired from the
-  contract by explicit user decision** (v1.10) — deleted outright, not marked, because they are not
-  wanted. No gap remains: nothing in the product depended on them, the Web UI is always project-scoped,
-  `GET /projects/:id/work-state` (ADR-029) covers project-wide breadth, and task dependency information
-  comes from `GET /tasks/:id/detail`'s `links`. Kept in this list as a record of the divergence and its
-  resolution; nothing here is outstanding.
 - **The `projects` collection is the one trailing-slash route.** Declared as `/v1/projects/` while every
   other collection is declared without the slash, so `/v1/projects` answers with a `307` and a client
   that does not re-send the body on redirect silently drops a `POST` payload. A one-line router fix
