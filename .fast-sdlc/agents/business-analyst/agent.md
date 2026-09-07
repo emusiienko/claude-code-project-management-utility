@@ -120,3 +120,16 @@ write it back into Requirements as a proper feature file at that time.
 Cross-checked against `docs/stories/archive.md` during the original migration — all 24
 pre-`fast-sdlc` stories are `Accepted`, confirming no other pending item was missed there; that file
 is a Task Management artifact (not Requirements) and was left untouched.
+
+## Reconcile note — STORY-002
+A documentation-only story (architect deleted three never-built endpoints' retirement narration from
+the API Contract and its own reference files) had no Story Implementation Deviation Report at all — no
+backend/frontend work touched any repo, so Reconcile's usual input (a report's Requirements section)
+never existed. Verified rather than assumed that no business-analyst-owned artifact needed correction:
+`documentation/business/cross-project-queries.md` and `documentation/business/tasks.md` — both flagged
+by architect as adjacent territory — already state the underlying business gap (no cross-project
+reads, no dedicated task-dependencies read) correctly and name no endpoint shape, since that was fixed
+during STORY-001 Reconcile. Conclusion: zero content changes needed. Precedent for a future
+documentation-only architect story with no Deviation Report: confirm its absence via the architect
+Task's own Implementation Report, then verify (don't assume) that no business-facing artifact still
+carries the framing being removed, before marking the Reconcile Task `Done`.
