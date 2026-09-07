@@ -30,18 +30,9 @@ Each endpoint group below names its MCP tools. REST and MCP are behavior-identic
 - **v1.7** — Work Item Comments built for story/task/milestone (`author_role` required + immutable; persisted materialized `ancestors` reply path; newest-first lists; lineage endpoint); Settings gains scalar `default_web_ui_role`.
 - **v1.8** — Sessions as built: project-scoped, required `goal`, fixed 3-value `status` enum, two independent optional links.
 - **v1.9** — Additive service `Status` read and project `work-state` breadth read, each mirrored 1-to-1 on REST + MCP.
-- **v1.10** — *As-built correction; no running behavior changed.* **Retires three reads that were
-  specified but never built**, removing them from the contract entirely: the cross-project story list
-  (`GET /stories` without `project_id` — the param is required as built), the top-level task list
-  (`GET /tasks` — no such route; tasks are listable story-scoped only, via `GET /stories/:storyId/tasks`),
-  and `GET /tasks/:id/dependencies` (no handler, no MCP tool). The whole `Cross-project Queries` section
-  is gone with them. The divergence was found by qa-automation's Setup suite (STORY-001/TASK-006) against
-  the live `/v1/openapi.json`, confirmed against the routers at STORY-001 Reconcile, and retired by
-  explicit user decision — these reads are not wanted, so the contract no longer promises them. A caller
-  needing project-wide breadth uses `GET /projects/:id/work-state` (v1.9), which returns every story in a
-  project and each story's tasks in one call; task dependency information comes from
-  `GET /tasks/:id/detail`'s `links`. This revision also records the `/v1` base path and the `projects`
-  trailing-slash quirk explicitly, neither of which the contract had stated.
+- **v1.10** — *As-built correction; no running behavior changed.* Deletes documentation of reads the
+  system never had, so the contract describes only what exists. Records the `/v1` base path and the
+  `projects` trailing-slash quirk explicitly, neither of which the contract had stated.
 
 ## Auth (applies to every endpoint)
 
@@ -308,7 +299,7 @@ MCP tools: `create_story`, `list_stories`, `get_story`, `update_story`, `delete_
 - **Example (422)**: `{ "error": "Status value 'foo' is not allowed. Allowed: planned, in-progress, pending-approval, accepted.", "code": "UNPROCESSABLE" }`
 
 ### GET /stories?project_id&page&limit&status&label_key&label_value&milestone_id
-`project_id` is a **required** query param (404 if the project does not exist; omitting it is a `422`). `milestone_id` (optional, v1.2) filters to stories assigned to that milestone; an unknown `milestone_id` yields an empty page. Every story read is single-project — there is no cross-project story list (retired in v1.10).
+`project_id` is a **required** query param (404 if the project does not exist; omitting it is a `422`). `milestone_id` (optional, v1.2) filters to stories assigned to that milestone; an unknown `milestone_id` yields an empty page. Every story read is single-project — there is no cross-project story list.
 - **Response**: `200 ListEnvelope<Story>`
 - **Errors**: `404`.
 
