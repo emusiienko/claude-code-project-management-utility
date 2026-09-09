@@ -25,6 +25,7 @@ build/
 !.env.example
 !.env.dev.example
 !frontend/.env.example
+frontend/coverage**
 
 # Local data (SQLite db files, attachment volume mounts)
 *.db
