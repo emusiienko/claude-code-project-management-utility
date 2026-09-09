@@ -458,16 +458,24 @@ changes exist outside the files actually being fixed.
      `test.fixme()` tests are still pending an architect decision — they were removed at STORY-001
      Reconcile, not left pending.
 
+- 2026-09-09: user decided: (a) fast-track both STORY-003 and STORY-004 straight to Acceptance, no
+  QA/Reconcile; (b) do not open follow-up Tasks now for any of the 7 gaps/debt items STORY-004
+  surfaced — leave them flagged; (c) decide `## Code Map` ownership later.
+- Split the two stories onto separate branches/PRs (the working tree had both batches' changes mixed
+  together on `development`): `chore/rebuild-claude-md` (STORY-003, `CLAUDE.md` only, commit `6a65626`)
+  → **PR #4** (https://github.com/emusiienko/claude-code-project-management-utility/pull/4);
+  `chore/clean-up-agent-md-files` (STORY-004, all 9 `agent.md` files + this state file, commit
+  `1ba1bac`) → **PR #5** (https://github.com/emusiienko/claude-code-project-management-utility/pull/5).
+  Both target `development`. Note: `gh` isn't on this shell's `PATH` — invoked via its full Homebrew
+  path (`/opt/homebrew/bin/gh`) instead.
+
 ## Active wait
-waiting_for: nothing.
-next_step: present STORY-003 (rebuilt `CLAUDE.md`) and STORY-004 (cleaned-up `agent.md` files) together
-to the user, plus everything both batches flagged along the way. Open decisions:
-(a) STORY-003: restore a `## Code Map` chapter and to whom?
-(b) STORY-003 & STORY-004 process path: fast-track these doc-only stories straight to Acceptance (as
-    STORY-002 did) or run the full QA/Reconcile pipeline since lead-developer/devops Tasks exist?
-(c) Which of the 7 gaps/debt items STORY-004 surfaced (listed above) to route as follow-up Tasks now,
-    and to whom, vs. leave flagged for later.
-Three older items also remain flagged, awaiting user direction whenever they want to pick one up: (1)
-frontend Quick Fix to delete the dead `TaskDependencies` interface (`frontend/src/api/types.ts:286`);
-(2) a possible qa-automation Reconcile Task for its own stale references (`automation/README.md`); (3)
-whether to delete STORY-001's/STORY-002's folders (offered, never decided).
+waiting_for: user to review and merge PR #4 and PR #5.
+next_step: once the user confirms each PR merged, set that story `status: Accepted` then `Done` (no
+Reconcile — user chose the fast-track path, and no Deviation Report input exists for either story
+anyway). `## Code Map` ownership decision and the 7 flagged gaps/debt items from STORY-004's
+Implementation Reports remain open, to revisit whenever the user wants. Three older items also remain
+flagged: (1) frontend Quick Fix to delete the dead `TaskDependencies` interface
+(`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own stale
+references (`automation/README.md`); (3) whether to delete STORY-001's/STORY-002's folders (offered,
+never decided).
