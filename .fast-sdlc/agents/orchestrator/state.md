@@ -469,13 +469,33 @@ changes exist outside the files actually being fixed.
   Both target `development`. Note: `gh` isn't on this shell's `PATH` — invoked via its full Homebrew
   path (`/opt/homebrew/bin/gh`) instead.
 
+- 2026-09-09: user confirmed both merged. Verified via `gh pr view 4`/`gh pr view 5` (state `MERGED` —
+  PR #4 `b046cc9`, PR #5 `9dec133`) before touching anything, not just taken on the user's word.
+  Fast-forwarded local `development` to `origin/development` (`632c6a1` → `b046cc9`, includes both
+  merge commits). Set STORY-003 and STORY-004 `status: Done` directly from `Pending Approval` — no
+  Reconcile, per the user's explicit fast-track decision, matching the STORY-002 precedent (chore
+  stories with no Deviation Report input). Both moved from `index.md` to `archive.md`; `index.md` is
+  now empty again (no story on the board).
+
 ## Active wait
-waiting_for: user to review and merge PR #4 and PR #5.
-next_step: once the user confirms each PR merged, set that story `status: Accepted` then `Done` (no
-Reconcile — user chose the fast-track path, and no Deviation Report input exists for either story
-anyway). `## Code Map` ownership decision and the 7 flagged gaps/debt items from STORY-004's
-Implementation Reports remain open, to revisit whenever the user wants. Three older items also remain
-flagged: (1) frontend Quick Fix to delete the dead `TaskDependencies` interface
-(`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own stale
-references (`automation/README.md`); (3) whether to delete STORY-001's/STORY-002's folders (offered,
-never decided).
+waiting_for: nothing.
+next_step: no story currently on the board. `## Code Map` ownership decision (STORY-003) and the 7
+flagged gaps/debt items from STORY-004's Implementation Reports remain open, to revisit whenever the
+user wants:
+1. architect: STORY-002's "plain deletion, not retirement" convention has no home
+   (`api-contract-format.md`).
+2. lead-developer (backend + frontend): Story Implementation Deviation Report has no settled
+   location/format for either stack.
+3. coder (backend) / devops: cross-repo-vs-repo-local escalation-trigger criteria missing from Coding
+   Conventions and DevOps Strategy (same gap, both sides).
+4. devops: `CLAUDE.md` § Gotchas' infra-flavored entries have no registered maintainer (flagged to
+   architect).
+5. coder (frontend): `coding-conventions-frontend.md` has no Local Dev Environment/test-runner section
+   and a stale "QA writes the tests" heading.
+6. devops (technical debt): `devops-strategy.md` § Ownership names retired roles + a deleted path.
+7. qa-automation (technical debt): its own `strategy.md` has one stale line about already-resolved
+   pending tests.
+Three older items also remain flagged: (1) frontend Quick Fix to delete the dead `TaskDependencies`
+interface (`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own
+stale references (`automation/README.md`); (3) whether to delete STORY-001's/STORY-002's folders
+(offered, never decided).
