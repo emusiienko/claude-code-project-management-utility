@@ -2,9 +2,13 @@
 
 > Owned by **lead-developer** (backend stack). Update only at the user's explicit request.
 > Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · fastmcp
-> Last updated: 2026-08-27 (rev 10 — new § Testing: the implementer owns this stack's unit and
+> Last updated: 2026-09-09 (rev 11 — new § Technical Decisions — Escalation vs. Repo-level ADR:
+> criteria for when a decision is architect's cross-repo territory versus a backend-local
+> repo-level ADR candidate. STORY-005/TASK-003)
+>
+> rev 10 (2026-08-27) — new § Testing: the implementer owns this stack's unit and
 > integration tests, unit tests are test-first via `Skill("superpowers:test-driven-development")`,
-> plus test kinds/locations and per-test rules. User-directed, no Task)
+> plus test kinds/locations and per-test rules. User-directed, no Task
 >
 > rev 9 (2026-08-27) — adopted into fast-sdlc: relocated from
 > `docs/backend-coding-conventions.md`; corrected `core/config.py`→`app/config.py`
@@ -593,3 +597,61 @@ Commands: see § Local Development Environment > Running Tests.
   external state as a side effect
 - **SOLID**: single responsibility, open/closed, Liskov substitution, interface segregation,
   dependency inversion — see Backend Developer role instructions for full detail
+
+---
+
+## Technical Decisions — Escalation vs. Repo-level ADR
+
+Applies to anyone writing backend code. Classify a decision's scope **before** implementing it.
+
+### Architect's territory — escalate, do not decide here
+
+A decision is architect's whenever something outside `backend/` depends on it:
+
+- **API Contract surface** — any change to an endpoint, its request/response shape, the standard
+  single/list envelopes, an HTTP status code, an `ErrorCode` value, or pagination behavior. The MCP
+  tool surface counts equally: MCP tools mirror the REST endpoints 1-to-1 and are part of the same
+  contract. `documentation/technical/api-contracts/coordination-service.md` is LOCKED and
+  architect-owned; the frontend stack and the `automation/` suite are built against it.
+- **Physical Data Model** — a new table, column, index, or constraint, and any change to an existing
+  one, including the migration that carries it.
+  `documentation/technical/data-models/physical-data-model.md` is architect's and traces to
+  business-analyst's Logical Data Model.
+- **Database technology or dialect support** — PostgreSQL default with SQLite opt-in (ADR-031).
+  Dropping a dialect, or adding a third, is not a backend-local call.
+- **Authentication or authorization** — there is none by design; localhost port binding is the
+  access boundary. Introducing any form of it is architect's.
+- **Process and deployment topology** — splitting the backend into more than one service or process,
+  changing where the MCP server is mounted or its version path, changing a container-internal port,
+  or adding an environment variable another component must also know about (devops is involved too).
+- **Anything that would supersede a project-level ADR** in `documentation/technical/adr-log/`.
+
+Two routes, by timing:
+- **The decision blocks the work** — raise an escalation per `fast-sdlc-project-setup.md` >
+  Escalation/Feedback, and stop on that point until it is answered.
+- **It only became visible once the code was written** — record it in the Implementation Report;
+  lead-developer (backend) routes it to architect at Reconcile via the Story Implementation
+  Deviation Report.
+
+### Backend-local — a Repo-level ADR candidate
+
+Backend-local means nothing outside `backend/` can observe it. Such a decision earns an entry in
+`backend/adr-log/` when at least one holds:
+
+- It picks a library or framework used only inside `backend/`, where a reasonable engineer might
+  pick differently.
+- It sets a rule that applies across domain packages — where a `core/` boundary sits, how the
+  `container/` composition root is split, how a transport-layer constraint is bridged (as
+  `container/mcp_dependencies.py` does for MCP DI).
+- Reversing it would mean rewriting more than one domain package.
+
+Implementers never create the ADR file: note the decision and its reasoning in the Implementation
+Report. lead-developer (backend) writes it at Reconcile, once implementation confirms it,
+cross-referenced from the Implementation Plan's "Planned ADRs".
+
+### Neither — implement it and move on
+
+- A dependency version bump that changes no interface of ours.
+- A choice already governed by this document (style, naming, layering, validation placement, test
+  placement).
+- A choice confined to a single module, with no reuse implication.

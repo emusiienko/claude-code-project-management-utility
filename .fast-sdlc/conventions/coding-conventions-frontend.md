@@ -1,7 +1,9 @@
 # Frontend Coding Conventions
 
-> Owned by **frontend-developer**. Update only at the user's explicit request.
-> Stack: React 19 · Vite · React Router · TanStack Query · Tailwind CSS · dnd-kit · react-markdown
+> Owned by **lead-developer (frontend)**; read by **coder (frontend)** before any code is written.
+> Update only at the user's explicit request.
+> Stack: React 19 · Vite · React Router · TanStack Query · Tailwind CSS · dnd-kit · react-markdown ·
+> Vitest · React Testing Library
 
 ---
 
@@ -247,9 +249,143 @@ Icon-only buttons carry no visible text label. Both of the following are require
 
 ---
 
-## Testing Guidance (for QA — do not write tests yourself)
+## Local Development Environment
 
-Each component must be trivially testable without reading internals:
+- **npm** is the package manager. `package-lock.json` is committed and authoritative: install with
+  `npm ci`; use `npm install <pkg>` only when adding or upgrading a dependency, and commit the updated
+  lockfile in the same commit.
+- **Node `^20.19` / `^22.13` / `>=24` is required** — the engine range `jsdom` 29 declares, pulled in by
+  the test runner. On anything below it (e.g. 20.10) the suite refuses to start with `ERR_REQUIRE_ESM`
+  from `html-encoding-sniffer`, not a version error. Neither `package.json` `engines` nor an `.nvmrc`
+  pins this, so check `node -v` and switch (e.g. `nvm use 22`) before running tests when the default
+  Node on `PATH` is older.
+- All commands run from `frontend/` — there is no workspace-root script that proxies them.
+- A package belongs in `dependencies` only if it ships in the browser bundle; everything test-only or
+  build-only goes in `devDependencies`.
+- The only environment variable is `VITE_API_BASE_URL`, read at **build** time (`import.meta.env`).
+  `.env.example` is the committed template; `.env.local` is git-ignored and is what the local dev
+  server reads. Its value must match the backend port of the stack being targeted (see
+  `CLAUDE.md` > Infrastructure).
+
+### Commands
+
+| Command | Purpose |
+|---|---|
+| `npm ci` | First-time setup and re-sync after `git pull` — lockfile-exact |
+| `npm install <pkg>` / `npm install --save-dev <pkg>` | Add a runtime / dev-only dependency |
+| `npm run dev` | Vite dev server on `:3000` |
+| `npm run typecheck` | `tsc --noEmit` alone |
+| `npm run build` | Typecheck, then production build — the build is the typecheck gate |
+| `npx vitest run` | Full test suite — there is **no** `test` script in `package.json` |
+| `npx vitest` | Watch mode |
+
+### Running Tests
+
+**Full suite:**
+```bash
+cd frontend
+npx vitest run
+```
+
+**Single test file (story-scoped):**
+```bash
+cd frontend
+npx vitest run src/features/board/BoardPage.test.tsx
+```
+
+**Single test by name:**
+```bash
+cd frontend
+npx vitest run -t "is disabled when projectId is empty"
+```
+
+`-t` is a **regex**, not a literal: a name containing regex metacharacters — `(`, `)`, `[`, `?`, `+`,
+`*` — matches nothing unless they are escaped. Filter by file path instead when the name carries them.
+
+**With coverage** (`@vitest/coverage-v8`):
+```bash
+cd frontend
+npx vitest run --coverage
+```
+
+- Runner config is `vitest.config.ts` — `jsdom` environment, `globals: true`, and setup file
+  `vitest.setup.ts` (which imports `@testing-library/jest-dom` and nothing else).
+- `vitest.config.ts` carries its own copy of the `@/` alias. It does not share resolution with
+  `vite.config.ts`: an alias added to one must be added to the other in the same commit.
+- No service needs to be running: nothing in the suite performs real HTTP (see § Testing > Mocking
+  boundary).
+
+---
+
+## Testing
+
+### Ownership
+
+- The implementer writes this stack's tests as part of the same Task, Quick Fix, or Bug Fix that
+  changes the code. Test-writing is not deferred to another role.
+- `qa-automation` tests the **running system black-box from the outside** (`automation/`, across
+  surfaces and repos); it does not add or edit files under `frontend/src/`.
+- A Task is not `Done` until the tests for its change exist and `npx vitest run` is green. A
+  pre-existing failure unrelated to the change goes in the Implementation Report; a test that passed in
+  the baseline and fails after is a regression and must be fixed before `Done`.
+
+### Two kinds, one location
+
+| Kind | Covers | File |
+|---|---|---|
+| Unit | One pure utility, or one hook in isolation via `renderHook` | `<module>.test.ts` beside the module |
+| Component | One component or page rendered with `@testing-library/react`, asserted through the DOM | `<Component>.test.tsx` beside the component |
+
+- Tests are **co-located** with the code they cover. There is no top-level `tests/` or `__tests__/`
+  folder and none is to be introduced.
+- One test file per module or component. A test file never imports from another test file: local
+  factories (`makeProject(overrides)`), `QueryClient` builders, and router harnesses are declared in the
+  file that needs them. `vitest.setup.ts` is the only shared test setup.
+- A page-level test covers the page's own rendering decisions (guards, layout, counts) and delegates
+  interaction logic to the hook's own test — never re-assert the same behaviour at both levels.
+
+### Mocking boundary
+
+- Mock with `vi.mock` at the **module boundary immediately below the unit under test**: a query-hook
+  test mocks `@/api/endpoints/<domain>`; a page test mocks the feature hooks it consumes. Never mock
+  React internals.
+- No real HTTP in tests: `src/core/client.ts` and global `fetch` are never exercised, and no mock
+  server (MSW or otherwise) is used or to be introduced.
+- `vi.clearAllMocks()` in `beforeEach`. Anything global a test patches (`localStorage`, document-level
+  listeners, timers) is restored in `afterEach`.
+
+### Mode: TDD for unit tests
+
+- Unit tests — pure utilities and hooks — are written **test-first**. Before writing the first unit test
+  of a Task, invoke `Skill("superpowers:test-driven-development")` and follow it. That skill is the
+  authority on the red-green-refactor mechanics — do not improvise them, and do not restate them here.
+- Component and page tests are not required to be test-first: write them once the unit-level behaviour
+  is green, before marking the Task `Done`.
+
+### Rules for every test, either kind
+
+- One behaviour per test. The `it(...)` name states the behaviour and its expected outcome.
+- Query the DOM the way a user would: `getByRole` with an accessible name first, then
+  `getByLabelText` / `getByText`. `data-testid` is a last resort, only for a node that carries no role
+  or stable text (e.g. an aggregate cell or an empty-state marker) — never as a shortcut past an
+  accessible name, and never in place of the `aria-label` § Accessibility already requires.
+- User interactions go through `@testing-library/user-event`. `fireEvent` is reserved for low-level
+  events `user-event` does not model — a `keyDown` dispatched on `document`, or a `change` on a native
+  `<select>`.
+- Async assertions use `waitFor` or `findBy*` — never a fixed sleep.
+- Assert on observable output only: rendered DOM, a hook's returned values, or the arguments a callback
+  or endpoint function was called with. Never assert on private state or on internal call order beyond
+  the call that defines the behaviour.
+- Query hooks are tested against a **per-test** `QueryClient` with `retry: false` on queries and
+  mutations, wrapped in `QueryClientProvider` — never the app's shared client from
+  `src/app/queryClient.ts`.
+- Anything under test that reads routing context is wrapped in `MemoryRouter` (with `Routes`/`Route`
+  when the assertion depends on the matched path).
+- Tests are deterministic: never assert against a value derived from `Date.now()` or
+  `crypto.randomUUID()` computed inside the code under test — pass it in, or stub the clock.
+- Test-only packages are added with `npm install --save-dev`, never to `dependencies`.
+
+### Write code that stays testable
 
 - Components accept all external state as props — no hidden context reads that are not documented
 - Hooks expose their return values as plain objects — no opaque closures

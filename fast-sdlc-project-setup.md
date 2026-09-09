@@ -239,6 +239,26 @@ config folder) so coder can read it directly.
   `.fast-sdlc/task-management/STORY-NNN-<slug>/implementation-plan-frontend.md`. **format**:
   `.fast-sdlc/agents/lead-developer/frontend/implementation-plan-format.md` (plugin default).
 
+### Story Implementation Deviation Report
+Produced at Reconcile, per story per stack; read by architect, business-analyst, qa-automation,
+manual-qa instead of the raw Implementation Reports.
+- **backend** (set 2026-09-09, STORY-005/TASK-001): inside the story's own folder —
+  `.fast-sdlc/task-management/STORY-NNN-<slug>/deviation-report-backend.md`, alongside
+  `implementation-plan-backend.md`. **format**:
+  `.fast-sdlc/agents/lead-developer/backend/story-implementation-deviation-report-format.md`
+  (plugin default, as-is) — four fixed sections (Architecture, Data Models, API Contracts,
+  Requirements), each either "No deviations" or a numbered `Planned … — Actual …` list.
+  **versioning**: git history.
+- **frontend** (set 2026-09-09, STORY-005/TASK-002): as backend, inside the story's own folder —
+  `.fast-sdlc/task-management/STORY-NNN-<slug>/deviation-report-frontend.md`, alongside
+  `implementation-plan-frontend.md`. **format**:
+  `.fast-sdlc/agents/lead-developer/frontend/story-implementation-deviation-report-format.md` —
+  the plugin default **trimmed to two sections** (Architecture, Requirements), user decision: this
+  stack has no physical data model and consumes the API contract without ever modifying it, so the
+  Data Models and API Contracts sections would carry nothing. A contract or data-shape mismatch the
+  frontend hits goes under Architecture instead, so architect still receives it.
+  **versioning**: git history.
+
 ### Repo-level ADRs
 Stack-scoped decisions only — distinct from architect's project-level ADR Log
 (`documentation/technical/adr-log/`), each with independent numbering. Both stacks keep their ADR log
