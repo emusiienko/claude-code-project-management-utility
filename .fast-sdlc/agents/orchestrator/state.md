@@ -528,24 +528,40 @@ changes exist outside the files actually being fixed.
   output from TASK-005's own verification run, not part of scope, to exclude from the commit.
   **HEAD is on `development` directly again** (same drift as before STORY-001's Reconcile incident) —
   need to branch off before committing, not commit to `development` directly.
+- User accepted the fast-track proposal (no QA/Reconcile, same as STORY-002/003/004). Verified local
+  `development` matched `origin/development` (`2eb4417`, both sides) before branching, per the lesson
+  from the STORY-001 incident. Branched `chore/story-005-address-story-004-gaps` off `development` via
+  `git checkout -b` (not `reset --hard`). Staged the 10 tracked files (8 modified + 2 new format
+  templates), deliberately excluding untracked `frontend/coverage/` (build output, out of scope).
+  Committed `a4cefb2`, pushed, opened **PR #6**
+  (https://github.com/emusiienko/claude-code-project-management-utility/pull/6) → `development`.
+- 2026-09-09: user confirmed PR #6 merged. Verified via `gh pr view 6` before touching anything (state
+  `MERGED`, mergeCommit `57c72b8`, mergedAt `2026-09-09T10:27:23Z`). Fast-forwarded local
+  `development` to `origin/development` (`2eb4417` → `57c72b8`) — had to stash this file's own
+  uncommitted addendum first (same file modified on both the feature branch and, after the ff, on
+  `development`), popped cleanly after switching. Set STORY-005 `status: Done` directly from
+  `Pending Approval` — no Reconcile, per the user's fast-track acceptance, same precedent as
+  STORY-002/003/004. Moved its index row to `archive.md`; `index.md` is empty again (no story on the
+  board). STORY-005 fully closed.
 
 ## Active wait
 waiting_for: nothing.
-next_step: no story currently on the board. `## Code Map` ownership decision (STORY-003) and the
-remaining flagged gaps/debt items from STORY-004's Implementation Reports remain open, to revisit
-whenever the user wants:
-1. lead-developer (backend + frontend): Story Implementation Deviation Report has no settled
-   location/format for either stack.
-2. coder (backend) / devops: cross-repo-vs-repo-local escalation-trigger criteria missing from Coding
-   Conventions and DevOps Strategy (same gap, both sides).
-3. coder (frontend): `coding-conventions-frontend.md` has no Local Dev Environment/test-runner section
-   and a stale "QA writes the tests" heading.
-4. devops (technical debt): `devops-strategy.md` § Ownership names retired roles + a deleted path.
-5. qa-automation (technical debt): its own `strategy.md` has one stale line about already-resolved
-   pending tests.
-(Dropped 2026-09-09: architect's "plain deletion, not retirement" convention gap, and devops's
-`CLAUDE.md` § Gotchas maintainer gap — user decided not to formalize either and not to keep them
-flagged.)
+next_step: no story currently on the board — all 5 items STORY-005 targeted are now resolved
+(2026-09-09). `## Code Map` ownership decision (STORY-003) remains open, plus new debt STORY-005 itself
+surfaced along the way (none actioned, all out of scope for the tasks that found them):
+1. frontend: test suite fails on this machine's default Node v20.10.0 (opaque `ERR_REQUIRE_ESM`,
+   passes 252/252 under Node 22) — `frontend/package.json` has no `engines` field/`.nvmrc` to make the
+   version mismatch self-explanatory.
+2. frontend: `.env.example`/`.env.local` both point `VITE_API_BASE_URL` at `:8000` (prod stack) instead
+   of `:8100` (dev stack) — devops territory.
+3. frontend: `package.json` has no `test` script (suite invoked via `npx vitest run` everywhere).
+4. frontend Coding Conventions have no counterpart to backend's new escalation-vs-repo-ADR section
+   (STORY-005 scoped that gap to backend + DevOps only) — a known, deliberate asymmetry, not yet
+   commissioned for frontend.
+5. devops-strategy.md § Ownership/§ Pre-commit Hooks still describe `.pre-commit-config.yaml` as
+   committed when no such file exists in the repo (same gap as STORY-003 debt item 4, still open).
+6. backend Coding Conventions § Engineering Principles still points at the retired "Backend Developer
+   role instructions" (same class of issue as the devops Ownership fix TASK-007 just did).
 Three older items also remain flagged: (1) frontend Quick Fix to delete the dead `TaskDependencies`
 interface (`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own
 stale references (`automation/README.md`); (3) whether to delete STORY-001's/STORY-002's folders
