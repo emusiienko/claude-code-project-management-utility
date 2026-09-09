@@ -384,10 +384,90 @@ changes exist outside the files actually being fixed.
   `mergedAt` 2026-09-07T13:06:02Z). Set STORY-002 `status: Done`, moved its index row to `archive.md`.
   STORY-002 is fully closed.
 
+## STORY-003 (Rebuild CLAUDE.md sections)
+- 2026-09-08: user emptied `CLAUDE.md` and asked every active role to add back its own section(s),
+  running all agents sequentially. Created STORY-003 (chore) with one Task per active role (TASK-001–009,
+  business-analyst → architect → lead-developer backend → lead-developer frontend → coder backend →
+  coder frontend → devops → qa-automation → manual-qa), chained sequentially so only one role edits the
+  file at a time. Fulfilled all nine inline.
+- Result: business-analyst, coder (both stacks), qa-automation, manual-qa each confirmed they own no
+  section of `CLAUDE.md` and left it untouched. architect wrote `## Key Docs` + `### Fast SDLC`.
+  lead-developer (backend/frontend, jointly) wrote the title/one-liner, `## Repository Structure`,
+  `## Commands`, `## Gotchas`. devops wrote `## Infrastructure`. All 9 Tasks `Done`. `CLAUDE.md` is now
+  152 lines, single commit-ready diff (only file touched — `.fast-sdlc/task-management/` is gitignored).
+  Set STORY-003 `status: Pending Approval` (all implementation-bearing Tasks — lead-developer, devops —
+  are `Done`).
+- Notable findings surfaced by the agents during this run, not yet actioned:
+  1. **`## Code Map` (the old file's largest section — per-file descriptions of every backend/frontend
+     module) has no current owner and was not rewritten.** lead-developer (backend) flagged this
+     explicitly as "retired, not forgotten" — under `fast-sdlc` no active role is chartered to write it.
+     The rebuilt file is structurally complete per current role ownership, but missing that content
+     entirely versus the pre-cleanup version.
+  2. lead-developer (frontend) flagged the file is already past whatever line budget the
+     `claude-md-format.md` templates assume for a two-stack repo (93 lines before devops's section;
+     152 now), pointing at architect's Key Docs chapter (42 lines) as the main compression target if a
+     cap is enforced.
+  3. lead-developer (frontend) flagged `.fast-sdlc/conventions/coding-conventions-frontend.md` as stale:
+     still framed for the retired "frontend-developer" role and states QA (not coder) writes frontend
+     tests, contradicted by ~30 existing `*.test.tsx` files.
+  4. devops flagged a real gap: the DevOps Strategy documents pre-commit hooks as a confirmed decision,
+     but no `.pre-commit-config.yaml` exists in the repo — recorded in the new `## Infrastructure` section
+     as "quality gates run manually" rather than silently claiming hooks are active.
+  5. devops flagged leftover legacy `docs/*` path references (removed at STORY-001) in the DevOps
+     Strategy doc and in header comments of `docker-compose.yml`/`.env.example`/`.env.dev.example`.
+
+## STORY-004 (Clean up agent.md files)
+- 2026-09-09: user asked every active role to review its own `agent.md` against the `sdlc` skill's
+  "agent.md is not memory" rule and clean it up, running all agents sequentially again. Created
+  STORY-004 (chore) with one Task per active role (TASK-001–009, same pipeline order as STORY-003:
+  business-analyst → architect → lead-developer backend → lead-developer frontend → coder backend →
+  coder frontend → devops → qa-automation → manual-qa). Fulfilled all nine inline.
+- Result: every one of the 9 `agent.md` files was found non-compliant and rewritten down to a 3–6 line
+  pointer (each role verified its removed content against a canonical home before deleting — nothing
+  dropped blind). Set STORY-004 `status: Pending Approval`. 9 more tracked files now dirty alongside
+  `CLAUDE.md` from STORY-003 — `git status` shows all 9 `agent.md` files + this state file modified,
+  nothing else; `.fast-sdlc/task-management/` stays gitignored as before.
+- Real gaps in canonical artifacts surfaced along the way (each role routed its own to the artifact's
+  owner instead of keeping it in its own `agent.md` or fixing it out-of-scope):
+  1. **architect**: the STORY-002-set convention ("delete text about something never built — plain
+     deletion, no version bump, no revision narrative, no ADR, no residual naming of what was removed")
+     has no home now. Its "contract describes only what exists" half is covered by `CLAUDE.md` > Key
+     Docs, but the versioning/no-retirement-framing half isn't in `api-contract-format.md` or
+     project-setup's API Contract chapter.
+  2. **lead-developer (backend + frontend, identical gap on both stacks)**: the **Story Implementation
+     Deviation Report** has no chapter in `fast-sdlc-project-setup.md` > Artifacts and no format
+     template on disk for either stack — location/format unsettled on both sides. Needs fixing before
+     either stack's first Reconcile that has to produce one.
+  3. **coder (backend)**: the cross-repo-vs-repo-local escalation-trigger rule ("architectural/DB/auth/
+     deploy-topology decisions go to architect; a reusable backend-local one is a repo-level ADR
+     candidate") has no home — routed to lead-developer (backend) as Coding Conventions owner.
+  4. **devops**: found the *same* gap as (3) on its own side (devops-local vs. cross-repo escalation
+     criteria absent from `devops-strategy.md`, project-setup's Escalation/Feedback chapter, and its own
+     role instructions) — confirms this is a project-wide gap, not stack-local. Also flagged that
+     `CLAUDE.md` § Gotchas' infra-flavored entries (DB-agnosticism, migration immutability, no-auth,
+     attachment storage) have no registered maintainer — routed to architect, `CLAUDE.md`'s owner.
+  5. **coder (frontend)**: `coding-conventions-frontend.md` has **no Local Development
+     Environment/test-runner section at all** (unlike backend's equivalent), and still carries a
+     "Testing Guidance (for QA — do not write tests yourself)" heading that contradicts the
+     SESSION-007-resolved decision that coder (frontend) writes its own tests test-first — a second,
+     independent confirmation of the same staleness lead-developer (frontend) flagged during STORY-003.
+  6. **devops** (separately, technical debt not a gap): `devops-strategy.md` § Ownership still names the
+     retired `backend-developer`/`frontend-developer` roles and points at the deleted
+     `docs/qa-automation-strategy.md` path.
+  7. **qa-automation** (technical debt): its own `strategy.md` has one stale line claiming 3
+     `test.fixme()` tests are still pending an architect decision — they were removed at STORY-001
+     Reconcile, not left pending.
+
 ## Active wait
 waiting_for: nothing.
-next_step: no story currently on the board. Three items remain flagged, awaiting user direction
-whenever they want to pick one up: (1) frontend Quick Fix to delete the dead `TaskDependencies`
-interface (`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own
-stale references (`automation/README.md`, `.fast-sdlc/agents/qa-automation/agent.md`); (3) whether to
-delete STORY-001's/STORY-002's folders (offered, never decided).
+next_step: present STORY-003 (rebuilt `CLAUDE.md`) and STORY-004 (cleaned-up `agent.md` files) together
+to the user, plus everything both batches flagged along the way. Open decisions:
+(a) STORY-003: restore a `## Code Map` chapter and to whom?
+(b) STORY-003 & STORY-004 process path: fast-track these doc-only stories straight to Acceptance (as
+    STORY-002 did) or run the full QA/Reconcile pipeline since lead-developer/devops Tasks exist?
+(c) Which of the 7 gaps/debt items STORY-004 surfaced (listed above) to route as follow-up Tasks now,
+    and to whom, vs. leave flagged for later.
+Three older items also remain flagged, awaiting user direction whenever they want to pick one up: (1)
+frontend Quick Fix to delete the dead `TaskDependencies` interface (`frontend/src/api/types.ts:286`);
+(2) a possible qa-automation Reconcile Task for its own stale references (`automation/README.md`); (3)
+whether to delete STORY-001's/STORY-002's folders (offered, never decided).
