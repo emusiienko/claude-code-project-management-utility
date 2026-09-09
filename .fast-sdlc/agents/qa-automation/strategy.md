@@ -146,7 +146,12 @@ system), this Setup wrote initial tests for **every contract domain** rather tha
 empty suite — pragmatic depth per domain (happy-path CRUD + the domain's key validation/error/edge
 cases from the contract text), not exhaustive per-endpoint coverage of every filter/boundary
 combination (that exhaustive depth already exists in `coder`'s own `backend/tests/`, which this suite
-deliberately does not duplicate). 56 tests across 12 spec files; 53 pass, 3 are `test.fixme()` pending
-an architect decision (see `automation/README.md` § Known Divergences). Story-scoped work going
+deliberately does not duplicate). 56 tests across 12 spec files at Setup time; 53 passed, 3 were
+`test.fixme()` awaiting an architect decision on three contract-specified-but-unbuilt reads. At
+STORY-001 Reconcile (TASK-015) the user retired those reads from the contract outright (v1.10) rather
+than back-fill them, so the corresponding tests were removed, not left pending: the whole
+`tests/cross-project.spec.ts` file was deleted, and the `GET /tasks/:id/dependencies` fixme was
+removed from `tests/tasks.spec.ts`. Nothing is currently pending an architect decision — see
+`automation/README.md` § Retired Contract Reads for the historical record. Story-scoped work going
 forward follows the normal Prepare/Execute modes — this initial pass is not a substitute for
 acceptance-criteria-driven coverage per story.

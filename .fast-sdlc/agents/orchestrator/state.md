@@ -477,24 +477,75 @@ changes exist outside the files actually being fixed.
   stories with no Deviation Report input). Both moved from `index.md` to `archive.md`; `index.md` is
   now empty again (no story on the board).
 
+## STORY-005 (Address gaps and technical debt flagged in STORY-004)
+- 2026-09-09: user asked to resolve the remaining 5 flagged gaps/debt items one by one. Created
+  STORY-005 (chore, `In Progress`) with TASK-001–007 (all `ToDo`, `Dependencies: None` each):
+  TASK-001/002 (lead-developer backend/frontend — Deviation Report format), TASK-003 (lead-developer
+  backend — escalation criteria in Coding Conventions), TASK-004 (devops — same, DevOps Strategy),
+  TASK-005 (lead-developer frontend — Local Dev Environment section + stale heading), TASK-006
+  (qa-automation — stale strategy.md line), TASK-007 (devops — stale Ownership section). Fulfilling
+  sequentially, one at a time, per user's request — each role's own tasks (lead-developer backend:
+  001+003; lead-developer frontend: 002+005; devops: 004+007) run in their own dependency order.
+- TASK-001 (backend Deviation Report) `Done` — user chose location A (inside story folder) + format 1
+  (plugin default as-is). New `### Story Implementation Deviation Report` chapter added to
+  `fast-sdlc-project-setup.md` > Artifacts (backend row).
+- TASK-002 (frontend Deviation Report) `Done` — user chose the same location/versioning as backend,
+  but a trimmed 2-section format (Architecture + Requirements only, dropping Data Models/API
+  Contracts) — frontend row added to the same chapter. Known, deliberate asymmetry between the two
+  stacks' report shapes.
+- TASK-003 (backend escalation criteria) `Done` — new § Technical Decisions — Escalation vs.
+  Repo-level ADR in `coding-conventions-backend.md` (rev 10 → 11): architect's-territory triggers,
+  backend-local ADR-candidate criteria, "neither" bucket. Flagged debt: § Engineering Principles still
+  names the retired "Backend Developer role" (same class as TASK-007's fix, not itself actioned).
+- TASK-004 (devops escalation criteria) — devops initially proposed a new devops-local ADR log (third
+  stack-equivalent series); **user rejected this** (local-only single-machine deployment doesn't
+  warrant a dedicated ADR series) and redirected devops-local decisions to a plain note inside the
+  DevOps Strategy itself. `Done` on that basis — new § Infrastructure Decisions — Escalation vs.
+  devops-local in `devops-strategy.md`. Deliberate asymmetry from backend: post-hoc deviations escalate
+  immediately rather than at Reconcile (devops has no lead-developer/deviation-report chain of its
+  own).
+- TASK-005 (frontend Local Dev Environment + stale heading) `Done` — new `## Local Development
+  Environment` + rewritten `## Testing` chapter in `coding-conventions-frontend.md`. Real finding: the
+  suite fails on this machine's default Node v20.10.0 (`ERR_REQUIRE_ESM` from jsdom's dependency,
+  opaque error) but passes 252/252 under Node 22; documented as a rule with the `nvm use 22`
+  workaround, but `frontend/package.json` has no `engines`/`.nvmrc` to make the failure self-explanatory
+  (flagged, not fixed — source change, out of scope). Also flagged: `frontend/.env*` point at port
+  :8000 (prod) instead of :8100 (dev) — devops territory, untouched.
+- TASK-006 (qa-automation stale strategy.md line) `Done` — verified against STORY-001/TASK-015's
+  report before editing; `strategy.md` § Initial Coverage now correctly frames the 3 `test.fixme()`
+  tests as removed at STORY-001 Reconcile, not pending.
+- TASK-007 (devops stale Ownership section) `Done` — retired role names → current ones
+  (`coder (backend)`/`coder (frontend)`), deleted `docs/qa-automation-strategy.md` path removed
+  (the `Test tooling` row dropped outright, user's call mid-task, since this doc doesn't track test
+  ownership). Scope widened (same file, same defect class, user's implicit go-ahead by not objecting
+  when flagged as a deviation): also fixed § Pre-commit Hooks' stale path and two dead `docs/`-era
+  paths (→ `sad.md`, → the API Contract file). Flagged, not fixed: § Ownership/§ Pre-commit Hooks still
+  describe `.pre-commit-config.yaml` as committed when it isn't (already known, see STORY-003 debt
+  item 4).
+- All 7 Tasks `Done`. Story set `Pending Approval`, Acceptance Criteria checked off (each verified
+  against its Implementation Report, not assumed). Working tree has 8 modified + 2 new tracked files
+  (`.fast-sdlc/task-management/**` stays gitignored) plus an untracked `frontend/coverage/` — build
+  output from TASK-005's own verification run, not part of scope, to exclude from the commit.
+  **HEAD is on `development` directly again** (same drift as before STORY-001's Reconcile incident) —
+  need to branch off before committing, not commit to `development` directly.
+
 ## Active wait
 waiting_for: nothing.
-next_step: no story currently on the board. `## Code Map` ownership decision (STORY-003) and the 7
-flagged gaps/debt items from STORY-004's Implementation Reports remain open, to revisit whenever the
-user wants:
-1. architect: STORY-002's "plain deletion, not retirement" convention has no home
-   (`api-contract-format.md`).
-2. lead-developer (backend + frontend): Story Implementation Deviation Report has no settled
+next_step: no story currently on the board. `## Code Map` ownership decision (STORY-003) and the
+remaining flagged gaps/debt items from STORY-004's Implementation Reports remain open, to revisit
+whenever the user wants:
+1. lead-developer (backend + frontend): Story Implementation Deviation Report has no settled
    location/format for either stack.
-3. coder (backend) / devops: cross-repo-vs-repo-local escalation-trigger criteria missing from Coding
+2. coder (backend) / devops: cross-repo-vs-repo-local escalation-trigger criteria missing from Coding
    Conventions and DevOps Strategy (same gap, both sides).
-4. devops: `CLAUDE.md` § Gotchas' infra-flavored entries have no registered maintainer (flagged to
-   architect).
-5. coder (frontend): `coding-conventions-frontend.md` has no Local Dev Environment/test-runner section
+3. coder (frontend): `coding-conventions-frontend.md` has no Local Dev Environment/test-runner section
    and a stale "QA writes the tests" heading.
-6. devops (technical debt): `devops-strategy.md` § Ownership names retired roles + a deleted path.
-7. qa-automation (technical debt): its own `strategy.md` has one stale line about already-resolved
+4. devops (technical debt): `devops-strategy.md` § Ownership names retired roles + a deleted path.
+5. qa-automation (technical debt): its own `strategy.md` has one stale line about already-resolved
    pending tests.
+(Dropped 2026-09-09: architect's "plain deletion, not retirement" convention gap, and devops's
+`CLAUDE.md` § Gotchas maintainer gap — user decided not to formalize either and not to keep them
+flagged.)
 Three older items also remain flagged: (1) frontend Quick Fix to delete the dead `TaskDependencies`
 interface (`frontend/src/api/types.ts:286`); (2) a possible qa-automation Reconcile Task for its own
 stale references (`automation/README.md`); (3) whether to delete STORY-001's/STORY-002's folders

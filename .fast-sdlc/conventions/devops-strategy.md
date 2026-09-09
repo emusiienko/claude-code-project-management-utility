@@ -1,7 +1,9 @@
 1# DevOps Strategy — AI Agent Coordination Utility
 
 > **Status:** Adopted — as-built (branch model updated 2026-08-27, STORY-001/TASK-005)
-> **Date:** 2026-06-29 · **Last updated:** 2026-08-27
+> **Date:** 2026-06-29 · **Last updated:** 2026-09-09 — new § Infrastructure Decisions —
+> Escalation vs. devops-local (STORY-005/TASK-004); § Ownership and stale doc paths refreshed to
+> current roles/locations (STORY-005/TASK-007)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -10,8 +12,8 @@
 
 This strategy is deliberately **right-sized** for what the architecture defines: a single-developer,
 single-machine, localhost-only utility with **no authentication**, run as a Docker Compose stack
-(see `docs/architecture.md` and ADR-002, ADR-003, ADR-004). There is **no cloud provider, no remote
-environments, no IAM, and no secrets to manage**. Sections of a generic cloud DevOps strategy that do
+(see `documentation/technical/sad.md` and ADR-002, ADR-003, ADR-004). There is **no cloud provider,
+no remote environments, no IAM, and no secrets to manage**. Sections of a generic cloud DevOps strategy that do
 not apply here are explicitly marked **Not applicable (V1)** rather than padded with ceremony.
 
 > **Assumptions made (no interactive approval was possible during setup).** Confirm or correct these
@@ -111,7 +113,7 @@ The whole system is one Docker Compose project. All ports are mapped to `127.0.0
 
 | Service | Image source | Port (localhost) | Notes |
 |---|---|---|---|
-| `backend` | Built from `backend/` | `8000` | Single FastAPI/Uvicorn process serving **both** the REST surface and the MCP server. MCP HTTP streamable transport is mounted on a path of the same app (e.g. `/mcp`), not a separate port — the `api-contract.md` defines no distinct MCP port (ADR-003). |
+| `backend` | Built from `backend/` | `8000` | Single FastAPI/Uvicorn process serving **both** the REST surface and the MCP server. MCP HTTP streamable transport is mounted on a path of the same app (e.g. `/mcp`), not a separate port — the API Contract (`documentation/technical/api-contracts/coordination-service.md`) defines no distinct MCP port (ADR-003). |
 | `web` | Built from `frontend/` (multi-stage: Vite build → nginx) | `3000` | Serves the static SPA; single web entry. |
 | `db` | `postgres:18` | `5432` | **Default** database (STORY-024). Started under the `postgres` Compose profile, which `deploy.sh` activates automatically because the shipped `.env` targets Postgres; absent when `DATABASE_URL` is switched to the SQLite opt-in (ADR-002). |
 
@@ -152,7 +154,8 @@ one build, one process, one port to reason about.
 ## Configuration & "Secrets"
 
 12-factor: all configuration is read from environment variables. There are **no application secrets**
-(no auth, local-only — `docs/architecture.md` § Authentication / Environment Configuration).
+(no auth, local-only — `documentation/technical/solution-overview/solution-overview.md`
+§ Authentication Flow).
 
 - **Two committed templates** (STORY-024): `.env.example` is the **prod** stack (canonical ports,
   PostgreSQL default); `.env.dev.example` is the **dev** stack (offset ports, SQLite). Both list every
@@ -176,9 +179,7 @@ one build, one process, one port to reason about.
 
 There is **no CI service**. For a solo, localhost-only project, quality gates run **locally as
 pre-commit hooks** — fast, zero external runners, and consistent with the "no `--no-verify`"
-convention. Hooks run automatically on `git commit` over staged files; they do **not** run tests
-(test execution and its tooling are owned by **qa-automation** — `docs/qa-automation-strategy.md`,
-not yet written).
+convention. Hooks run automatically on `git commit` over staged files; they do **not** run tests.
 
 Managed with the [`pre-commit`](https://pre-commit.com) framework via a committed
 `.pre-commit-config.yaml`. Install once per clone with `pre-commit install`.
@@ -395,15 +396,66 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
 
 ---
 
+## Infrastructure Decisions — Escalation vs. devops-local
+
+Classify scope **before** implementing. The line: does anything outside the infrastructure files
+depend on it — above all architect's
+`documentation/technical/deployment/deployment-infrastructure-view.md`, the system-level view of the
+same stack this document implements.
+
+**Architect's territory — escalate, do not decide here:**
+
+- **Service/process topology** — adding, removing, splitting, or merging a Compose service; more than
+  one backend process; moving the MCP server off the backend's own port (ADR-003, ADR-007); changing
+  a **container-internal** port (8000/3000/5432). Host-side port values are devops-local.
+- **The access boundary** — anything widening exposure beyond the `127.0.0.1` binding: `0.0.0.0`, a
+  network-published port, a reverse proxy or tunnel, TLS, an infra-level auth layer. There is no auth
+  by design and the binding **is** the boundary.
+- **Database technology or dialect support** — PostgreSQL default + SQLite opt-in (ADR-002, ADR-031);
+  dropping a dialect, adding a third, a PostgreSQL major-version bump, a hosted database.
+- **The environment model** — a remote deploy, cloud provider, container registry, or hosted CI
+  runner. Flips § Scope & Non-Goals "Not applicable (V1)" items into scope.
+- **Persisted state** — removing or repurposing `pg_data` / `sqlite_data` / `attachments`, or moving
+  where attachment bytes live (the Physical Data Model's `file_path` points at that volume).
+- **A new env var another component must also read** — one the backend consumes, or one the frontend
+  bakes in at build time (`VITE_API_BASE_URL`, `CORS_ALLOWED_ORIGINS`). That stack's lead-developer
+  responds alongside architect. Mirrors `coding-conventions-backend.md` § Technical Decisions.
+- **Anything superseding a project-level ADR** in `documentation/technical/adr-log/`.
+
+Two routes, by timing:
+- **Blocks the work** — raise an escalation per `fast-sdlc-project-setup.md` > Escalation/Feedback,
+  and stop on that point until answered.
+- **Only visible once the change was made** — note it in the Implementation Report under *Deviations
+  from plan* **and** escalate then, not at Reconcile: devops has no lead-developer above it and no
+  Story Implementation Deviation Report, so nothing else carries it to architect.
+
+**devops-local — decide it, record it in this document.** Nothing outside the infrastructure files
+can observe it; topology, exposure, dialect support, and the shared env-var surface stay as
+documented. Covers: how `deploy.sh` accomplishes a documented subcommand (profile activation,
+healthcheck wait, migrate/up ordering); Dockerfile and nginx internals (base image patch level, build
+stages, `uv sync --frozen`); host-side port defaults and `STACK_NAME` image tags; pre-commit hook
+wiring (the *tools* stay each stack's Coding Conventions' call — disagreements go to that stack's
+lead-developer, not architect); `.gitignore` and env-template layout. Write the decision into the
+section it belongs to and bump the header's `Last updated`. There is deliberately **no** devops ADR
+log — a localhost-only single-machine stack does not carry enough independent decisions for a
+numbered series, unlike the two application codebases (user decision, STORY-005/TASK-004). If one
+turns out to warrant a project-level ADR, that is architect's to write, reached by escalation.
+
+**Neither — implement it and move on:** a fix restoring documented behavior (broken healthcheck,
+wrong path in a script, missing `.gitignore` entry) — Quick Fix, no escalation; a change already
+governed by this document or the Deployment / Infrastructure View; correcting this document,
+`CLAUDE.md` § Infrastructure, or the README deployment section to match what is already built.
+
+---
+
 ## Ownership
 
 | Area | Owner |
 | --- | --- |
 | `docker-compose.yml`, `deploy.sh`, `.pre-commit-config.yaml`, `.gitignore`, `.env.example`, `.env.dev.example` | devops |
-| Backend Dockerfile (`backend/`) | devops (build), backend-developer (app contents) |
-| Frontend Dockerfile (`frontend/`) | devops (build), frontend-developer (app contents) |
-| Alembic migration **scripts** | backend-developer (authoring) — devops only runs them via `deploy.sh` |
-| Test tooling | qa-automation (`docs/qa-automation-strategy.md`) |
+| `backend/Dockerfile` + `backend/docker-entrypoint.sh` | devops (build), coder (backend) (app contents) |
+| `frontend/Dockerfile` + `frontend/nginx.conf` | devops (build + nginx config), coder (frontend) (app contents) |
+| Alembic migration **scripts** | coder (backend) (authoring) — devops only runs them via `deploy.sh` |
 | Running `deploy.sh` | user |
 | `CLAUDE.md` § Infrastructure | devops |
 
@@ -420,7 +472,7 @@ Matched to a single-machine tool — native primitives, one retained artifact, m
    the `.env.dev.example` dev-stack default. *(Supersedes the earlier SQLite-default framing from
    TASK-006, which described the backend code fallback — still SQLite — not the deployment default.)*
 4. **Single backend container** — confirmed: REST + MCP share one image and one process on port :8000
-   (MCP mounted on a path; no separate MCP port, per `api-contract.md`).
+   (MCP mounted on a path; no separate MCP port, per the API Contract).
 
 Once approved, the scaffold (`docker-compose.yml`, `deploy.sh`, `.pre-commit-config.yaml`,
 `.gitignore`, `.env.example`, Dockerfiles) is created under the next devops implementation task and
