@@ -1,13 +1,19 @@
 /**
- * ProjectSidebar — collapsible left sidebar for Task Manager mode.
+ * ProjectSidebar — collapsible, resizable left sidebar for Task Manager mode.
  *
  * Rendered inside AppShell for all /projects/:id/* routes. Contains:
  *   - A list of all projects with the active one visually highlighted
  *   - A collapse/expand toggle button (ChevronsLeft / ChevronsRight) vertically centered on the right edge
  *
- * Collapsed state is persisted in localStorage under "app:sidebar_collapsed".
- * Selecting a project navigates to /projects/:id/stories and records the
- * project as the last visited in localStorage.
+ * Collapsed/expanded state and its `app:sidebar_collapsed` localStorage
+ * persistence are owned by `AppShell` (STORY-006 TASK-010) — this component
+ * only renders according to the `collapsed` prop and calls `onToggleCollapse`
+ * when the toggle is clicked. Likewise, the sidebar's resized pixel width is
+ * owned by AppShell's `useResizablePanel` instance and passed down as
+ * `width`; this component neither reads nor writes any width state itself.
+ * While expanded, the sidebar renders `width` as an inline pixel value,
+ * falling back to the `w-60` class when `width` is `null`. The right-edge
+ * border is rendered by AppShell's `ResizeHandle` separator, not here.
  *
  * Project management (the "Manage Projects" journey) is reached via the
  * global Projects entry in the top bar (STORY-022), not from this sidebar.
@@ -19,9 +25,6 @@ import { useProjectList } from "@/shared/hooks/useProjectList";
 import { useLocalStorage } from "@/shared/hooks/useLocalStorage";
 import { LAST_PROJECT_KEY } from "@/app/RootRedirect";
 import type { Project } from "@/api/types";
-
-/** localStorage key for the sidebar collapsed state. */
-const SIDEBAR_COLLAPSED_KEY = "app:sidebar_collapsed";
 
 /**
  * Navigates to a project's stories page and records the project as last visited.
@@ -122,45 +125,61 @@ function CollapseToggle({ collapsed, onToggle }: CollapseToggleProps) {
 // Main component
 // ---------------------------------------------------------------------------
 
+export interface ProjectSidebarProps {
+  /** DOM id applied to the sidebar's root element — AppShell's separator targets it via aria-controls. */
+  id: string;
+  /** Pixel width to render while expanded, or `null` to fall back to the default `w-60`. */
+  width: number | null;
+  /** Whether the sidebar is currently collapsed — owned by AppShell. */
+  collapsed: boolean;
+  /** Toggles collapsed/expanded — owned by AppShell. */
+  onToggleCollapse: () => void;
+}
+
 /**
- * ProjectSidebar — collapsible left sidebar for Task Manager mode.
+ * ProjectSidebar — collapsible, resizable left sidebar for Task Manager mode.
  *
- * No props required — reads the active project ID from route params
- * and the full project list from the shared TanStack Query hook.
+ * Reads the active project ID from route params and the full project list
+ * from the shared TanStack Query hook; everything else (collapse state,
+ * resized width) arrives as props.
  */
-export function ProjectSidebar() {
+export function ProjectSidebar({
+  id,
+  width,
+  collapsed,
+  onToggleCollapse,
+}: ProjectSidebarProps) {
   const { projectId: activeProjectId } = useParams<{ projectId: string }>();
   const navigateToProject = useProjectNavigation();
 
-  const [collapsed, setCollapsed] = useLocalStorage<boolean>(
-    SIDEBAR_COLLAPSED_KEY,
-    false,
-  );
-
   const { data: projects = [] } = useProjectList();
-
-  function handleToggle() {
-    setCollapsed((prev) => !prev);
-  }
 
   // When collapsed, render only the toggle button so main content fills full width.
   if (collapsed) {
     return (
       <aside
+        id={id}
         className="relative flex-none"
         aria-label="Project sidebar (collapsed)"
       >
-        <CollapseToggle collapsed={collapsed} onToggle={handleToggle} />
+        <CollapseToggle collapsed={collapsed} onToggle={onToggleCollapse} />
       </aside>
     );
   }
 
   return (
     <aside
-      className="relative flex w-60 flex-none flex-col border-r border-border bg-surface"
+      id={id}
+      className={[
+        "relative flex flex-none flex-col bg-surface",
+        width === null ? "w-60" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={width !== null ? { width: `${width}px` } : undefined}
       aria-label="Project sidebar"
     >
-      <CollapseToggle collapsed={collapsed} onToggle={handleToggle} />
+      <CollapseToggle collapsed={collapsed} onToggle={onToggleCollapse} />
 
       <ProjectList
         projects={projects}
