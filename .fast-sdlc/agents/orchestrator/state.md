@@ -49,12 +49,17 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: TASK-016 (manual-qa, executing TC-198) — spawned inline, running in background.
-next_step: once TASK-016 completes, read its Implementation Report. If it's a full pass with no open
-Bugs, manual-qa should already have set STORY-006 `Approved` (Accept-eligible) — proceed to open the
-Acceptance Pull Request. If a new Bug was filed, route it through Bug Fix per the Stabilization loop.
+waiting_for: user to review PR #7 (https://github.com/emusiienko/claude-code-project-management-utility/pull/7)
+and, when satisfied, merge it and explicitly set STORY-006 `Accepted`.
+next_step: once merged + Accepted, run Reconcile for STORY-006 — one Reconcile Task per applicable role
+(lead-developer frontend, coder frontend, architect, business-analyst; qa-automation/manual-qa on the
+orchestrator's own judgment) per `sdlc` > Pipeline > Reconcile.
 
 ## Recent changes
+- 2026-09-12: TASK-016 (manual-qa, execute TC-198) passed — no open Bugs — manual-qa set STORY-006
+  `Approved`. Committed the outstanding Test Case Registry artifacts (TC-192–TC-198 + run results) that
+  had been sitting uncommitted, pushed `feat/resizable-panels`, and opened the Acceptance PR (#7,
+  target `development`).
 - 2026-09-12: TASK-015 confirmed BUG-001's final disposition `wont-fix` (no open Bugs) but found
   `browser_resize` still not actually available in that manual-qa session, so TC-198 stayed
   unexecuted. User confirmed the plugin reload has since taken effect (the tool now appears in this
