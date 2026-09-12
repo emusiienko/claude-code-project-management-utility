@@ -10,6 +10,9 @@
  *   - Main scrollable area: task kanban placeholder (STORY-005)
  *   - Collapsible right panel: description (Markdown), attachments placeholder,
  *     comments placeholder; open/closed state persisted per story in localStorage
+ *   - A draggable separator between the kanban and the right panel while it is
+ *     expanded (STORY-006 TASK-011) — its resized width is shared across every
+ *     story under one `useResizablePanel` storage key, not scoped per story
  *
  * Deep-link: visiting the URL directly renders the slide-over over the list.
  * Non-existent storyId: renders an inline "Not found" message.
@@ -37,12 +40,28 @@ import { useProjectMilestones } from "@/features/milestones/hooks/useMilestones"
 import { TaskKanban } from "@/features/tasks/components/TaskKanban";
 import { StoryRightPanel } from "./StoryRightPanel";
 import { StoryModal } from "./StoryModal";
+import { ResizeHandle } from "@/shared/components/ResizeHandle";
+import { useResizablePanel } from "@/shared/hooks/useResizablePanel";
 import type { Story } from "@/api/types";
 import type { StoryFormValues } from "./StoryForm";
 import { extractErrorMessage } from "../utils/errorMessages";
 
 /** localStorage key prefix for per-story right-panel state. */
 const PANEL_KEY_PREFIX = "story:panel:";
+
+/**
+ * Storage key the right panel's resized width is committed under (STORY-006
+ * TASK-011) — a single key for the whole surface, not one per story: the
+ * panel/kanban split's width belongs to the panel pair, unlike the panel's
+ * open/closed state which stays keyed per story above.
+ */
+const RIGHT_PANEL_WIDTH_STORAGE_KEY = "story-slide-over:right-panel-width";
+/** DOM id the separator's aria-controls targets. */
+const RIGHT_PANEL_ID = "story-slide-over-right-panel";
+const RIGHT_PANEL_DEFAULT_WIDTH = 320;
+const RIGHT_PANEL_MIN_WIDTH = 280;
+const RIGHT_PANEL_MAX_WIDTH = 560;
+const KANBAN_MIN_WIDTH = 400;
 
 interface EditModalState {
   open: boolean;
@@ -75,6 +94,23 @@ export function StorySlideOver() {
   useEffect(() => {
     if (scrollToCommentId && !isPanelOpen) setIsPanelOpen(true);
   }, [scrollToCommentId, isPanelOpen, setIsPanelOpen]);
+
+  // Draggable split between the kanban <main> and the right panel (STORY-006 TASK-011).
+  const {
+    containerRef,
+    width: rightPanelWidth,
+    maxWidth: rightPanelMaxWidth,
+    resizeToPointer,
+    resizeBy,
+    resizeTo,
+  } = useResizablePanel({
+    storageKey: RIGHT_PANEL_WIDTH_STORAGE_KEY,
+    defaultWidth: RIGHT_PANEL_DEFAULT_WIDTH,
+    minWidth: RIGHT_PANEL_MIN_WIDTH,
+    maxWidth: RIGHT_PANEL_MAX_WIDTH,
+    neighbourMinWidth: KANBAN_MIN_WIDTH,
+    side: "right",
+  });
 
   // Edit modal state
   const [editModal, setEditModal] = useState<EditModalState>({
@@ -229,7 +265,7 @@ export function StorySlideOver() {
         {/* ------------------------------------------------------------------ */}
         {/* Body                                                                  */}
         {/* ------------------------------------------------------------------ */}
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden">
           {/* Loading state */}
           {isLoading && (
             <div
@@ -276,8 +312,25 @@ export function StorySlideOver() {
                 />
               </main>
 
+              {/* Draggable split — only while the right panel is expanded */}
+              {isPanelOpen && (
+                <ResizeHandle
+                  ariaLabel="Resize story details panel"
+                  controlsId={RIGHT_PANEL_ID}
+                  width={rightPanelWidth ?? RIGHT_PANEL_DEFAULT_WIDTH}
+                  min={RIGHT_PANEL_MIN_WIDTH}
+                  max={rightPanelMaxWidth}
+                  side="right"
+                  onResizeToPointer={resizeToPointer}
+                  onResizeBy={resizeBy}
+                  onResizeTo={resizeTo}
+                />
+              )}
+
               {/* Collapsible right panel */}
               <StoryRightPanel
+                id={RIGHT_PANEL_ID}
+                width={rightPanelWidth}
                 story={story}
                 isOpen={isPanelOpen}
                 onToggle={() => setIsPanelOpen((prev) => !prev)}
