@@ -193,3 +193,10 @@
 | [TC-189](test-cases/TC-189-sessions-list-filters.md) | Sessions list — "incomplete only" and "linked to story" filters, independently combinable | @regression | STORY-009 | Active |
 | [TC-190](test-cases/TC-190-sessions-list-pagination.md) | Sessions list — pagination | @regression | STORY-009 | Active |
 | [TC-191](test-cases/TC-191-long-content-and-session-volume.md) | Long content and many sessions do not break list or detail layout | @regression | STORY-009 | Active |
+| [TC-192](test-cases/TC-192-resize-project-navigation-sidebar.md) | Resize the project navigation sidebar via drag | @smoke @regression | STORY-006 | Active |
+| [TC-193](test-cases/TC-193-resize-sessions-navigation-sidebar.md) | Resize the sessions navigation sidebar via drag | @smoke @regression | STORY-006 | Active |
+| [TC-194](test-cases/TC-194-resize-story-detail-split.md) | Resize the Story Detail task board / right-panel split via drag | @smoke @regression | STORY-006 | Active |
+| [TC-195](test-cases/TC-195-panel-pair-independence.md) | Panel pair independence — resizing one pair does not affect any other | @regression | STORY-006 | Active |
+| [TC-196](test-cases/TC-196-session-only-persistence.md) | Resized width holds for the browser session only — survives in-session navigation, resets on reload | @regression | STORY-006 | Active |
+| [TC-197](test-cases/TC-197-readability-floor-ceiling-clamping.md) | Readability floor/ceiling — dragging past the limits clamps instead of collapsing or overflowing | @regression | STORY-006 | Active |
+| [TC-198](test-cases/TC-198-responsive-window-resize-behavior.md) | Resizable panels adapt to viewport changes — kept width where there's room, responsive fallback, no affordance when narrow | @regression | STORY-006 | Active |

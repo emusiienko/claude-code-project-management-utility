@@ -49,12 +49,25 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: nothing.
-next_step: STORY-006 (Resizable panels) in progress — TASK-001 through TASK-005 Done. TASK-008 (coder
-frontend) ready to fulfill; TASK-006/007 (QA prep) held pending business-analyst's answer on the open
-escalation below. escalation to route to business-analyst next.
+waiting_for: TASK-016 (manual-qa, executing TC-198) — spawned inline, running in background.
+next_step: once TASK-016 completes, read its Implementation Report. If it's a full pass with no open
+Bugs, manual-qa should already have set STORY-006 `Approved` (Accept-eligible) — proceed to open the
+Acceptance Pull Request. If a new Bug was filed, route it through Bug Fix per the Stabilization loop.
 
 ## Recent changes
+- 2026-09-12: TASK-015 confirmed BUG-001's final disposition `wont-fix` (no open Bugs) but found
+  `browser_resize` still not actually available in that manual-qa session, so TC-198 stayed
+  unexecuted. User confirmed the plugin reload has since taken effect (the tool now appears in this
+  orchestrator session's own tool list) — created TASK-016 (manual-qa, execute TC-198 only) and
+  spawned it inline.
+- 2026-09-12: STORY-006 — TASK-006 through TASK-014 completed. TASK-013 (manual-qa execute) blocked on
+  a stale dev-stack image, filed BUG-001 (devops, critical). User rebuilt the dev stack
+  (`./deploy.sh rebuild`); TASK-014 (manual-qa re-execute) then confirmed the staleness symptom fixed
+  and TC-192–197 all pass, but found two new issues during verification (Docker healthcheck
+  IPv4/IPv6 mismatch; no-cache-control on `index.html` causing stale browser caching) — folded into
+  BUG-001 (downgraded critical→major, stays `open`/`devops`). TC-198 (responsive window-resize)
+  couldn't be executed — no viewport-resize tool in this session's Playwright MCP set. Story remains
+  `Pending Approval`. No PR opened yet for this story.
 - 2026-09-11: removed `.fast-sdlc/escalations/escalation-skill.md` (a local duplicate of the
   `file-based-escalation` plugin skill) at user request; `fast-sdlc-project-setup.md` > Escalation/
   Feedback now references the skill directly, matching how Task Management and Sessions are
