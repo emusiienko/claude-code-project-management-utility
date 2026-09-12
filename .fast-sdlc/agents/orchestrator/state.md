@@ -50,5 +50,12 @@
 
 ## Active wait
 waiting_for: nothing.
-next_step: none — no story on the board. Open debt items above await user direction on whether/how to
-action them.
+next_step: STORY-006 (Resizable panels) in progress — TASK-001 through TASK-005 Done. TASK-008 (coder
+frontend) ready to fulfill; TASK-006/007 (QA prep) held pending business-analyst's answer on the open
+escalation below. escalation to route to business-analyst next.
+
+## Recent changes
+- 2026-09-11: removed `.fast-sdlc/escalations/escalation-skill.md` (a local duplicate of the
+  `file-based-escalation` plugin skill) at user request; `fast-sdlc-project-setup.md` > Escalation/
+  Feedback now references the skill directly, matching how Task Management and Sessions are
+  documented.
