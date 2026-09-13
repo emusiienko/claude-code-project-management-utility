@@ -13,9 +13,11 @@ of here into Business Documentation.
 
 No pending scope as of this writing. Resizable Panel Layouts (STORY-006/TASK-001) shipped, was
 `Accepted`, and moved out of here into Business Documentation at Reconcile (STORY-006/TASK-022,
-2026-09-13) — see `documentation/business/resizable-panels.md`. Everything else already built lives
-in Business Documentation (see below); this folder only ever holds pending scope that has actually
-been commissioned.
+2026-09-13) — not as its own capability file, but folded as brief notes into the existing
+descriptions of the screens it affects (`documentation/business/stories.md`'s Story Detail split,
+`documentation/business/sessions.md`'s project-selector sidebar). Everything else already built
+lives in Business Documentation (see below); this folder only ever holds pending scope that has
+actually been commissioned.
 
 Two known product limitations were found while migrating the prior process's requirements documents
 (a Web UI control that doesn't work end-to-end; a Web UI screen that's still a placeholder) — by

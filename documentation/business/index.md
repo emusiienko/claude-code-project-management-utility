@@ -27,7 +27,6 @@ Reconcile.
 | Milestones | `milestones.md` | Named planning markers within a project; at most one active at a time; stories optionally assigned | Web UI + AI agents (MCP) |
 | AI Agent Access | `ai-agent-access.md` | Liveness check and a single-call breadth read of a project's full work state, purpose-built for agent session startup | AI agents (MCP + REST) |
 | Cross-project Queries (data access) | `cross-project-queries.md` | Listing stories/tasks across every project in one query, instead of per-project only — specified but not built on any surface | Not built — no one can access this today |
-| Resizable Panel Layouts | `resizable-panels.md` | Drag-to-resize (and keyboard-resize) the border between any two side-by-side panels in the Web UI — project navigation sidebar, sessions navigation sidebar, and the Story Detail task board/right-hand-panel split; no list is exposed by this feature, so pagination does not apply | Web UI only — no AI-agent/MCP equivalent |
 
 Both access surfaces (Web UI, MCP) carry full read/write access to every capability above — the
 utility is deliberately participant-neutral (human and agents are structurally equal) and carries no

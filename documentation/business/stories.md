@@ -9,7 +9,9 @@
    aggregate (e.g. "3/5 done").
 3. Clicking the story's title opens the **Story Detail** view — a two-column layout: the story's
    Task kanban on the left (see `tasks.md`), and a collapsible right panel on the right holding the
-   story's description, milestone assignment, links to other stories, attachments, and comments.
+   story's description, milestone assignment, links to other stories, attachments, and comments. The
+   border between the two panels is drag- and keyboard-resizable, holding the adjusted split for the
+   rest of the browser session (until the page is reloaded).
 
 ## Other Scenarios
 
