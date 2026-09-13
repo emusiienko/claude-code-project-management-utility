@@ -62,6 +62,9 @@ pointers below are entry points, not the full inventory.
   when one is needed, sits in that story's own folder under Task Management.
 - **Coding Conventions**: `.fast-sdlc/conventions/coding-conventions-backend.md` and
   `coding-conventions-frontend.md` — one per stack, each owned by that stack's lead-developer.
+- **Code Map**: `.fast-sdlc/code-maps/frontend.md` (frontend stack; backend stack's not yet
+  settled) — coder's own module/function-level account of where things live in the code, more
+  granular than this file's own Repository Structure table; kept current at Reconcile.
 - **DevOps Strategy**: `.fast-sdlc/conventions/devops-strategy.md`.
 - **QA**: strategy at `.fast-sdlc/conventions/qa-strategy.md`, manual test case registry at
   `qa/test-cases.md` + `qa/test-cases/`; automation strategy at
