@@ -49,14 +49,15 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: TASK-022 (business-analyst Reconcile, STORY-006) and STORY-007/TASK-001 (architect, fix
-v1.9→v1.10 reference) — both spawned inline, running in background.
-next_step: once TASK-022 is Done, create qa-automation/manual-qa Reconcile Tasks for STORY-006 if
-useful against the Deviation Report. Once every Reconcile Task for STORY-006 is Done, push/open the
-Reconcile PR(s) (note: TASK-019/020/021 already share branch `feat/resizable-panels-lead-dev-reconcile`,
-architect flagged the branch name as role-specific now that 3 roles share it) and, once merged, set
-STORY-006 `Done`. Separately, once STORY-007/TASK-001 is Done, present it for acceptance and drive it
-through its own PR to `Done`.
+waiting_for: user to review and merge Reconcile PR #8 (STORY-006,
+https://github.com/emusiienko/claude-code-project-management-utility/pull/8).
+next_step: once PR #8 is merged, set STORY-006 `Done`. Still undecided: whether qa-automation/manual-qa
+Reconcile Tasks are worth creating for STORY-006 (e.g. a manual-qa test case for keyboard operability,
+newly documented in the Deviation Report but not in TC-192–198) — orchestrator's own judgment, not yet
+exercised.
+
+STORY-007 is closed: PR #9 merged into `development`, story set `Done` directly (no Reconcile phase —
+no coder/devops Tasks existed for it).
 
 ## Security note
 - 2026-09-13: a completion notification for TASK-020 (coder frontend) arrived flagged by the harness
@@ -70,20 +71,17 @@ through its own PR to `Done`.
   same flag.
 
 ## Recent changes
-- 2026-09-13: user accepted TASK-019's Reconcile output (Deviation Report + ADR-001) as-is; declined
-  the proposed Coding Conventions addition. Marked TASK-019 `Done`. Created and spawned TASK-021
-  (architect Reconcile) inline.
-- 2026-09-13: TASK-020 (coder frontend) Done — produced the Code Map (first time for this stack).
-  Location settled at user's explicit choice: `.fast-sdlc/code-maps/frontend.md` (superseding the
-  agent's own proposal). Added `CLAUDE.md` Key Docs pointer and a `### Code Map` chapter in
-  `fast-sdlc-project-setup.md` > Artifacts (backend row flagged not-yet-settled).
-- 2026-09-13: TASK-019 (lead-developer frontend) produced `deviation-report-frontend.md` and repo-level
-  `ADR-001` (hand-rolled session-scoped panel resizing); flagged a Coding Conventions addition (user
-  declined) and left the Task `In Progress` pending user acceptance of the Reconcile output per its own
-  Acceptance Criteria. Branch `feat/resizable-panels-lead-dev-reconcile` (off the merged `d574c0f`),
-  commit `8b39892`, not yet pushed.
-
-## Recent changes
+- 2026-09-13: STORY-006 Reconcile complete — TASK-019 (lead-developer frontend: deviation report +
+  ADR-001, user-accepted), TASK-020 (coder frontend: Code Map, first for this stack, location
+  `.fast-sdlc/code-maps/frontend.md` per user's explicit choice), TASK-021 (architect: NFR
+  Accessibility note; flagged a pre-existing v1.9/v1.10 doc mismatch, out of scope), TASK-022
+  (business-analyst: new Business Documentation capability, Requirements' shipped row removed) all
+  `Done`, all committed on `feat/resizable-panels-lead-dev-reconcile`. Pushed and opened Reconcile
+  PR #8 → `development`.
+- 2026-09-13: user approved fixing the v1.9→v1.10 mismatch architect flagged — created standalone chore
+  STORY-007 (own branch off `development`, not tangled with STORY-006's reconcile branch since it's
+  unrelated). architect's TASK-001 fixed it in `solution-overview.md`; set STORY-007 `Pending Approval`,
+  opened PR #9 → `development`.
 - 2026-09-13: user approved PR #7 review, confirmed merge + Accept — merged PR #7 into `development`
   (commit `d574c0f`), set STORY-006 `Accepted`. Created Reconcile Tasks TASK-019 (lead-developer
   frontend), TASK-020 (coder frontend, Code Map), TASK-021 (architect, depends on TASK-019), TASK-022
