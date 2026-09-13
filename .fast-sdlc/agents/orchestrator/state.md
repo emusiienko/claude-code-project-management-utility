@@ -49,10 +49,32 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: user to review and merge Reconcile PR #8 (STORY-006,
+waiting_for: user to re-review and merge PR #8 (STORY-006 Reconcile,
 https://github.com/emusiienko/claude-code-project-management-utility/pull/8).
-next_step: once PR #8 is merged, set STORY-006 `Done`. User declined adding a manual-qa keyboard-
-operability test case — no qa-automation/manual-qa Reconcile Tasks for STORY-006, leave as-is.
+next_step: once merged, set STORY-006 `Done`. User declined adding a manual-qa keyboard-operability
+test case — no qa-automation/manual-qa Reconcile Tasks for STORY-006, leave as-is.
+
+## Security note (continued)
+- 2026-09-13: another unexplained, uncommitted working-tree change found — `.gitignore` had a line
+  added (`.fast-sdlc/orchestrator/state.md`, a path that doesn't even match this file's real location
+  `.fast-sdlc/agents/orchestrator/state.md`) — neither TASK-023 nor TASK-024's own reports mention
+  touching `.gitignore`. Reverted via `git checkout -- .gitignore`, told the user. Second such incident
+  after the `.claude/settings.json` one — worth staying alert to on every subagent completion from now
+  on, not just ones the harness happens to flag.
+
+## Recent changes
+- 2026-09-13: TASK-023 (coder frontend) and TASK-024 (lead-developer frontend) both Done. Code Map
+  reformatted to plain bullet lines per reviewer request (commit `7716070`). ADR-001 removed entirely —
+  lead-developer accepted the reviewer's read that this wasn't an architectural decision (commit
+  `516e5b2`); the Deviation Report's reference to it was redirected to the Implementation Plan. Both
+  replied on their respective PR #8 comments, signed. lead-developer asked the user whether ADR-001's
+  two surviving rules (no resize library; panel widths never persisted) should move into
+  `coding-conventions-frontend.md` — user said no, leave them in the Implementation Plan; posted that
+  answer as a reply on the PR thread and closed out TASK-024's Implementation Report.
+- 2026-09-13: user left 2 inline review comments on PR #8 — Code Map format (no ASCII tables/Notes,
+  just `Module/File: 1 sentence`) and a challenge to ADR-001's own existence (resizing called "just a
+  feature", not an architectural decision). Created TASK-023 (coder frontend) and TASK-024
+  (lead-developer frontend), spawned both inline per the `pr-review-response` skill.
 
 STORY-007 is closed: PR #9 merged into `development`, story set `Done` directly (no Reconcile phase —
 no coder/devops Tasks existed for it).
