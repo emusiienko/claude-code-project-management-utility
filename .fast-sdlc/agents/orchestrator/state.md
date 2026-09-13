@@ -49,13 +49,55 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: user to review PR #7 (https://github.com/emusiienko/claude-code-project-management-utility/pull/7)
-and, when satisfied, merge it and explicitly set STORY-006 `Accepted`.
-next_step: once merged + Accepted, run Reconcile for STORY-006 — one Reconcile Task per applicable role
-(lead-developer frontend, coder frontend, architect, business-analyst; qa-automation/manual-qa on the
-orchestrator's own judgment) per `sdlc` > Pipeline > Reconcile.
+waiting_for: TASK-022 (business-analyst Reconcile, STORY-006) and STORY-007/TASK-001 (architect, fix
+v1.9→v1.10 reference) — both spawned inline, running in background.
+next_step: once TASK-022 is Done, create qa-automation/manual-qa Reconcile Tasks for STORY-006 if
+useful against the Deviation Report. Once every Reconcile Task for STORY-006 is Done, push/open the
+Reconcile PR(s) (note: TASK-019/020/021 already share branch `feat/resizable-panels-lead-dev-reconcile`,
+architect flagged the branch name as role-specific now that 3 roles share it) and, once merged, set
+STORY-006 `Done`. Separately, once STORY-007/TASK-001 is Done, present it for acceptance and drive it
+through its own PR to `Done`.
+
+## Security note
+- 2026-09-13: a completion notification for TASK-020 (coder frontend) arrived flagged by the harness
+  as containing an instruction-shaped pattern ("settings-json"). Found `.claude/settings.json` modified
+  on disk (uncommitted) with an injected `permissions.allow` rule using an open-ended trailing wildcard
+  on a Bash command pattern — a permission-escalation attempt, likely triggered by content encountered
+  while generating the Code Map (reading many source docblocks). Reverted immediately via
+  `git checkout -- .claude/settings.json`; confirmed never committed. Told the user. Root cause (which
+  file/content triggered it) not chased further — would need the subagent's own transcript, which
+  isn't safe to read directly into this context. Worth keeping an eye on future agent output for the
+  same flag.
 
 ## Recent changes
+- 2026-09-13: user accepted TASK-019's Reconcile output (Deviation Report + ADR-001) as-is; declined
+  the proposed Coding Conventions addition. Marked TASK-019 `Done`. Created and spawned TASK-021
+  (architect Reconcile) inline.
+- 2026-09-13: TASK-020 (coder frontend) Done — produced the Code Map (first time for this stack).
+  Location settled at user's explicit choice: `.fast-sdlc/code-maps/frontend.md` (superseding the
+  agent's own proposal). Added `CLAUDE.md` Key Docs pointer and a `### Code Map` chapter in
+  `fast-sdlc-project-setup.md` > Artifacts (backend row flagged not-yet-settled).
+- 2026-09-13: TASK-019 (lead-developer frontend) produced `deviation-report-frontend.md` and repo-level
+  `ADR-001` (hand-rolled session-scoped panel resizing); flagged a Coding Conventions addition (user
+  declined) and left the Task `In Progress` pending user acceptance of the Reconcile output per its own
+  Acceptance Criteria. Branch `feat/resizable-panels-lead-dev-reconcile` (off the merged `d574c0f`),
+  commit `8b39892`, not yet pushed.
+
+## Recent changes
+- 2026-09-13: user approved PR #7 review, confirmed merge + Accept — merged PR #7 into `development`
+  (commit `d574c0f`), set STORY-006 `Accepted`. Created Reconcile Tasks TASK-019 (lead-developer
+  frontend), TASK-020 (coder frontend, Code Map), TASK-021 (architect, depends on TASK-019), TASK-022
+  (business-analyst, depends on TASK-021). Spawned TASK-019 and TASK-020 inline in parallel.
+- 2026-09-13: both PR #7 review-feedback Tasks done. TASK-018 (manual-qa): removed the two screenshots
+  from `qa/results/STORY-006-2026-09-12-screenshots/` and the dangling text reference, commit `b41706a`.
+  TASK-017 (coder frontend): dropped the stray title-line STORY/TASK parenthetical from
+  `SessionsSidebar.tsx`/`.test.tsx` to match `ProjectSidebar.tsx`'s convention, commit `b177121`. Both
+  pushed to `feat/resizable-panels`, both replied to their review comments signed. Coder flagged
+  `npx vitest run` still fails repo-wide with `ERR_REQUIRE_ESM` — same pre-existing Node-version debt
+  item already tracked in this file's Summary (#1), not new. PR #7 ready for re-review.
+- 2026-09-13: user left 3 inline review comments on PR #7 — 2 on frontend files (stale STORY/TASK
+  reference in comment headers), 1 on a qa/results run-log (remove screenshots). Created TASK-017
+  (coder frontend) and TASK-018 (manual-qa), spawned both inline per the `pr-review-response` skill.
 - 2026-09-12: TASK-016 (manual-qa, execute TC-198) passed — no open Bugs — manual-qa set STORY-006
   `Approved`. Committed the outstanding Test Case Registry artifacts (TC-192–TC-198 + run results) that
   had been sitting uncommitted, pushed `feat/resizable-panels`, and opened the Acceptance PR (#7,
