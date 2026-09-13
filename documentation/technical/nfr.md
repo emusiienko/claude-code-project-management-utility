@@ -67,7 +67,7 @@ business rationale lives there, not here.
 **Category**: other
 **Target**: WCAG 2.1 AA conformance across all views.
 **Source**: Requirements — non-functional accessibility target.
-**Notes**: Drag-and-drop (Kanban) uses an accessible library (dnd-kit); layered modals centralize focus-trap and Escape handling.
+**Notes**: Drag-and-drop (Kanban) uses an accessible library (dnd-kit); layered modals centralize focus-trap and Escape handling. The second drag surface — the resize separator between side-by-side panels — is not library-backed and carries its own keyboard equivalent: arrow keys step the separator, Home/End take the panel to its minimum/effective maximum.
 
 ### Supported platform
 
