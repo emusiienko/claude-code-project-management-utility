@@ -10,11 +10,12 @@ of here into Business Documentation.
 ## Feature List
 | Feature | File | Description | Priority | Access |
 |---------|------|-------------|----------|--------|
-| Resizable Panel Layouts | `resizable-panels.md` | Drag-to-resize the border between any two side-by-side panels in the Web UI (project navigation sidebar, and every list+detail split); no list is exposed by this feature, so pagination does not apply | P2 | Public (Web UI only — no AI-agent/MCP equivalent) |
 
-Added 2026-09-10 (STORY-006/TASK-001) — the only pending scope as of this writing. Everything else
-already built lives in Business Documentation (see below); this folder only ever holds pending scope
-that has actually been commissioned.
+No pending scope as of this writing. Resizable Panel Layouts (STORY-006/TASK-001) shipped, was
+`Accepted`, and moved out of here into Business Documentation at Reconcile (STORY-006/TASK-022,
+2026-09-13) — see `documentation/business/resizable-panels.md`. Everything else already built lives
+in Business Documentation (see below); this folder only ever holds pending scope that has actually
+been commissioned.
 
 Two known product limitations were found while migrating the prior process's requirements documents
 (a Web UI control that doesn't work end-to-end; a Web UI screen that's still a placeholder) — by
