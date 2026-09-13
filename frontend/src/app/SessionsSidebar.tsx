@@ -1,6 +1,5 @@
 /**
- * SessionsSidebar — collapsible, resizable left sidebar for Sessions mode
- * (STORY-009 TASK-006).
+ * SessionsSidebar — collapsible, resizable left sidebar for Sessions mode.
  *
  * Structurally mirrors Task Manager's ProjectSidebar, but is a distinct
  * project-selection surface: it chooses which project's *sessions* to view,

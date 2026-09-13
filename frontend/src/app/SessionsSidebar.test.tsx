@@ -1,5 +1,5 @@
 /**
- * SessionsSidebar — unit tests (STORY-006 TASK-010)
+ * SessionsSidebar — unit tests
  *
  * Net-new file — SessionsSidebar had no co-located test before this task.
  * Mirrors ProjectSidebar.test.tsx's structure, adjusted for Sessions-mode
