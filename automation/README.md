@@ -7,7 +7,7 @@ against the **running dev stack** — never the DB, never internals, never `back
 § Testing > Ownership).
 
 Full strategy (framework choice, scope, environments, bug policy, CI): see
-`.fast-sdlc/agents/qa-automation/strategy.md`.
+`.fast-sdlc/conventions/qa-automation-strategy.md`.
 
 ## Quick start
 

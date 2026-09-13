@@ -11,6 +11,19 @@
  * The panel is toggled by the parent; its open/closed state is persisted per
  * story in localStorage (managed by the parent via useLocalStorage).
  *
+ * The panel's width is owned by the parent's `useResizablePanel` instance
+ * (STORY-006 TASK-011) and passed down as `width`; this component neither
+ * reads nor writes any width state itself. While expanded, it renders `width`
+ * as an inline pixel value, falling back to the `w-80` class when `width` is
+ * `null`, and drops its own left border since the separator rendered by the
+ * parent supplies that divider. Its collapsed `w-10` form keeps its own
+ * border and the `transition-all duration-300` collapse animation — that
+ * transition is deliberately not present on the expanded branch, so an
+ * active drag updates the inline width immediately instead of easing behind
+ * the pointer.
+ *
+ * @param id                       - DOM id applied to the panel's root element — the parent's separator targets it via aria-controls.
+ * @param width                    - Pixel width to render while expanded, or `null` to fall back to the default `w-80`.
  * @param story                    - The story whose description is rendered.
  * @param isOpen                   - Whether the panel is currently expanded.
  * @param onToggle                 - Callback to toggle open/closed state.
@@ -29,6 +42,10 @@ import { AttachmentsSection } from "@/features/attachments/components/Attachment
 import { CommentsSection } from "@/features/comments/components/CommentsSection";
 
 interface StoryRightPanelProps {
+  /** DOM id applied to the panel's root element — the parent's separator targets it via aria-controls. */
+  id: string;
+  /** Pixel width to render while expanded, or `null` to fall back to the default `w-80`. */
+  width: number | null;
   /** Story data to display. */
   story: Story;
   /** Whether the right panel is visible. */
@@ -50,6 +67,8 @@ interface StoryRightPanelProps {
  * story links (STORY-006), attachments (STORY-007), and comments (STORY-008).
  */
 export function StoryRightPanel({
+  id,
+  width,
   story,
   isOpen,
   onToggle,
@@ -60,10 +79,19 @@ export function StoryRightPanel({
 }: StoryRightPanelProps) {
   return (
     <aside
+      id={id}
       aria-label="Story details panel"
-      className={`relative flex shrink-0 flex-col border-l border-border bg-surface transition-all duration-300 ${
-        isOpen ? "w-80" : "w-10"
-      }`}
+      className={[
+        "relative flex shrink-0 flex-col bg-surface",
+        isOpen
+          ? width === null
+            ? "w-80"
+            : ""
+          : "w-10 border-l border-border transition-all duration-300",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={isOpen && width !== null ? { width: `${width}px` } : undefined}
     >
       {/* Toggle button — always visible on the panel's left edge */}
       <button

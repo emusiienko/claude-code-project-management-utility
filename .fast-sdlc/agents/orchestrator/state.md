@@ -49,6 +49,31 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: nothing.
-next_step: none — no story on the board. Open debt items above await user direction on whether/how to
-action them.
+waiting_for: user to review PR #7 (https://github.com/emusiienko/claude-code-project-management-utility/pull/7)
+and, when satisfied, merge it and explicitly set STORY-006 `Accepted`.
+next_step: once merged + Accepted, run Reconcile for STORY-006 — one Reconcile Task per applicable role
+(lead-developer frontend, coder frontend, architect, business-analyst; qa-automation/manual-qa on the
+orchestrator's own judgment) per `sdlc` > Pipeline > Reconcile.
+
+## Recent changes
+- 2026-09-12: TASK-016 (manual-qa, execute TC-198) passed — no open Bugs — manual-qa set STORY-006
+  `Approved`. Committed the outstanding Test Case Registry artifacts (TC-192–TC-198 + run results) that
+  had been sitting uncommitted, pushed `feat/resizable-panels`, and opened the Acceptance PR (#7,
+  target `development`).
+- 2026-09-12: TASK-015 confirmed BUG-001's final disposition `wont-fix` (no open Bugs) but found
+  `browser_resize` still not actually available in that manual-qa session, so TC-198 stayed
+  unexecuted. User confirmed the plugin reload has since taken effect (the tool now appears in this
+  orchestrator session's own tool list) — created TASK-016 (manual-qa, execute TC-198 only) and
+  spawned it inline.
+- 2026-09-12: STORY-006 — TASK-006 through TASK-014 completed. TASK-013 (manual-qa execute) blocked on
+  a stale dev-stack image, filed BUG-001 (devops, critical). User rebuilt the dev stack
+  (`./deploy.sh rebuild`); TASK-014 (manual-qa re-execute) then confirmed the staleness symptom fixed
+  and TC-192–197 all pass, but found two new issues during verification (Docker healthcheck
+  IPv4/IPv6 mismatch; no-cache-control on `index.html` causing stale browser caching) — folded into
+  BUG-001 (downgraded critical→major, stays `open`/`devops`). TC-198 (responsive window-resize)
+  couldn't be executed — no viewport-resize tool in this session's Playwright MCP set. Story remains
+  `Pending Approval`. No PR opened yet for this story.
+- 2026-09-11: removed `.fast-sdlc/escalations/escalation-skill.md` (a local duplicate of the
+  `file-based-escalation` plugin skill) at user request; `fast-sdlc-project-setup.md` > Escalation/
+  Feedback now references the skill directly, matching how Task Management and Sessions are
+  documented.

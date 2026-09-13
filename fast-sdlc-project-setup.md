@@ -89,15 +89,14 @@ off `main` during TASK-005 (local; pushing it to `origin` is a user step).
 
 ## Escalation/Feedback
 
-**mechanism**: file-based escalation folder — see `.fast-sdlc/escalations/escalation-skill.md`
+**mechanism**: `file-based-escalation` (skill)
 **location**: `.fast-sdlc/escalations/`
 
-Any role escalating to, or responding to, another role must load
-`.fast-sdlc/escalations/escalation-skill.md` first. Each escalation lives in its own file
-(`escalation-<topic>-<requester>-<responders>.md`) allowing a back-and-forth conversation until the
-requester marks it closed; `.fast-sdlc/escalations/index.md` tracks open/closed status across all
-of them. The orchestrator checks for new or updated escalations after each agent's task run and
-routes a response by spawning the responder role.
+Any role escalating to, or responding to, another role must load the `file-based-escalation` skill
+first. Each escalation lives in its own file (`escalation-<topic>-<requester>-<responders>.md`)
+allowing a back-and-forth conversation until the requester marks it closed; `.fast-sdlc/escalations/index.md`
+tracks open/closed status across all of them. The orchestrator checks for new or updated escalations
+after each agent's task run and routes a response by spawning the responder role.
 
 ---
 
@@ -296,14 +295,15 @@ predates this — this chapter just formally records where it already lives, per
 
 ### QA Automation Strategy
 **owner**: qa-automation.
-**location**: `.fast-sdlc/agents/qa-automation/strategy.md` (this role's own config folder — small
-enough, and specific enough to this role, that it doesn't need the shared `.fast-sdlc/conventions/`
-folder the way coding-conventions/devops-strategy/qa-strategy do). Set STORY-001/TASK-006,
-SESSION-010 (2026-08-27). Supersedes (does not adopt) the legacy `docs/qa-automation-strategy.md`,
-which claimed ownership of the `backend/tests/` integration suite — that ownership had already moved
-to `coder` (backend) via `.fast-sdlc/conventions/coding-conventions-backend.md` § Testing by the time
-this Setup ran. The legacy file was removed 2026-08-27 (STORY-001) once no longer needed for
-reference.
+**location**: `.fast-sdlc/conventions/qa-automation-strategy.md` — the shared conventions folder,
+alongside coding-conventions-backend.md/coding-conventions-frontend.md/devops-strategy.md/
+qa-strategy.md. Relocated 2026-09-12 (user-directed) via `git mv` from its original
+`.fast-sdlc/agents/qa-automation/strategy.md` (this role's own config folder), set
+STORY-001/TASK-006, SESSION-010 (2026-08-27). Supersedes (does not adopt) the legacy
+`docs/qa-automation-strategy.md`, which claimed ownership of the `backend/tests/` integration suite —
+that ownership had already moved to `coder` (backend) via
+`.fast-sdlc/conventions/coding-conventions-backend.md` § Testing by the time this Setup ran. The
+legacy file was removed 2026-08-27 (STORY-001) once no longer needed for reference.
 **format**: own structure — see the strategy doc itself for its chapters.
 
 ### Automation Test Suite

@@ -65,7 +65,7 @@ pointers below are entry points, not the full inventory.
 - **DevOps Strategy**: `.fast-sdlc/conventions/devops-strategy.md`.
 - **QA**: strategy at `.fast-sdlc/conventions/qa-strategy.md`, manual test case registry at
   `qa/test-cases.md` + `qa/test-cases/`; automation strategy at
-  `.fast-sdlc/agents/qa-automation/strategy.md`, black-box suite at `automation/`.
+  `.fast-sdlc/conventions/qa-automation-strategy.md`, black-box suite at `automation/`.
 - **Stories, Tasks, Milestones**: `.fast-sdlc/task-management/index.md`.
 - **Team / active roles**: `fast-sdlc-project-setup.md` > Team.
 

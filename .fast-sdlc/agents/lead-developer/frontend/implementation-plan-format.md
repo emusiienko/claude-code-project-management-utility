@@ -1,25 +1,28 @@
-<!-- Default format for the Implementation Plan artifact — accept as-is or customize with lead-developer during Step 0 (Confirm Artifact Formats). One per story, created in Plan Implementation mode. -->
+<!-- Default format for the Implementation Plan artifact — accept as-is or customize with lead-developer during Step 0 (Confirm Artifact Formats). One per story, created in Plan Implementation mode. No tables — bullets and prose only. State every choice as a direct claim with its reason — never build up to a decision narratively, never use a framing device to introduce a set of points. -->
 
 # Implementation Plan: STORY-NNN — <Story Title>
 
-## Context
-Why this story exists and how it fits into this repo. Reference the Technical Implementation Plan for the broader scope this belongs to.
+## Scope
 
-## Technical Approach
-How the feature will be implemented in this repo — key design decisions, patterns used, modules affected, data flow. No code samples, no exact file paths, no class names — that's the implementor's call, guided by Coding Conventions.
+- <what this story touches> — <one-line reason>.
+- <what this story touches> — <one-line reason>.
+  e.g. "the resizable border between the Sessions list and Session detail panels — the only two panels sharing an edge in the default shell."
+...
+
+## Decisions
+- <Decision> — because <reason>.
+- Not <alternative> — because <reason>. (include only when an alternative was genuinely weighed)
 
 ## Ordered Tasks
-Sequential, dependency-ordered list matching the task files:
+Sequential, dependency-ordered list matching the task files. Each entry: a descriptive title, and what's to be done, tied to the project's actual module/package structure — concrete, not abstract, without rationale or detail.
 
-1. TASK-001: <title> — <one-line description at module level>
-2. TASK-002: <title> (depends on TASK-001) — <description>
+1. TASK-001: <title> — <module/package> — <what changes>
+2. TASK-002: <title> (depends on TASK-001) — <module/package> — <what changes>
 
 ## Planned ADRs
 Decisions likely to need an ADR once implementation confirms them. Architect creates the actual ADR file at Reconcile — this is only the trigger condition, for architect's awareness.
 
-| Decision Area | Trigger Condition |
-|---|---|
-| Evaluate background job library | If async processing is required |
+- <decision area> — trigger: <condition, e.g. "if async processing is required">
 
 ## Constraints & Gotchas
-Non-obvious constraints, edge cases, or pitfalls the implementor must know.
+Cross-cutting only — a constraint or pitfall that spans more than one task (e.g. "the whole feature must stay keyboard accessible"). A single task's own pitfall belongs in that task's file.

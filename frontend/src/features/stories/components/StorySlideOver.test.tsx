@@ -8,12 +8,25 @@
  * - Back-to-Stories breadcrumb calls navigate.
  * - "Not found" inline message when the story cannot be fetched.
  * - Right-panel persistence key is set per-story.
+ * - Resizable kanban/details split (STORY-006 TASK-011): the separator renders
+ *   only while the details panel is expanded, a keyboard nudge changes the
+ *   panel's rendered width, and a resized width survives closing and
+ *   reopening the slide-over within the same session.
+ *
+ * jsdom implements no `ResizeObserver`, no `setPointerCapture` /
+ * `releasePointerCapture`, and performs no layout (`clientWidth` and
+ * `getBoundingClientRect()` both read as 0) — stubbed globally on
+ * `HTMLElement.prototype` for the resize tests only and restored in
+ * `afterEach`, per the jsdom-stub precedent set in TASK-008/TASK-009/
+ * TASK-010's own tests.
  */
 
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { StorySlideOver } from "./StorySlideOver";
+import { __resetPanelWidths } from "@/shared/hooks/useResizablePanel";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -130,6 +143,62 @@ const STORY = {
 };
 
 // ---------------------------------------------------------------------------
+// jsdom layout/ResizeObserver/pointer-capture stubs
+// ---------------------------------------------------------------------------
+
+/** Large enough that the panel's max (560) and the kanban's min (400) both fit. */
+const CONTAINER_WIDTH = 1400;
+
+class FakeResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+function stubLayout() {
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+    configurable: true,
+    value: CONTAINER_WIDTH,
+  });
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    return {
+      left: 0,
+      right: CONTAINER_WIDTH,
+      top: 0,
+      bottom: 0,
+      width: CONTAINER_WIDTH,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    } as DOMRect;
+  };
+  vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+  HTMLElement.prototype.setPointerCapture = vi.fn();
+  HTMLElement.prototype.releasePointerCapture = vi.fn();
+}
+
+function restoreLayout() {
+  // @ts-expect-error — restore jsdom's real (0-valued) getter
+  delete HTMLElement.prototype.clientWidth;
+  // @ts-expect-error — restore jsdom's real (all-zero) implementation
+  delete HTMLElement.prototype.getBoundingClientRect;
+  vi.unstubAllGlobals();
+  // @ts-expect-error — jsdom implements neither method at all
+  delete HTMLElement.prototype.setPointerCapture;
+  // @ts-expect-error — jsdom implements neither method at all
+  delete HTMLElement.prototype.releasePointerCapture;
+  document.body.style.userSelect = "";
+  document.body.style.cursor = "";
+}
+
+const SEPARATOR_NAME = "Resize story details panel";
+
+function getRightPanel() {
+  return screen.getByRole("complementary", { name: "Story details panel" });
+}
+
+// ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
 
@@ -166,6 +235,8 @@ function renderSlideOver(
 
 beforeEach(() => {
   localStorage.clear();
+  __resetPanelWidths();
+  stubLayout();
   mockUseStory.mockReturnValue({
     data: STORY as never,
     isLoading: false,
@@ -221,6 +292,13 @@ beforeEach(() => {
   mockUseCreateComment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseUpdateComment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   mockUseDeleteComment.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+});
+
+afterEach(() => {
+  localStorage.clear();
+  __resetPanelWidths();
+  vi.clearAllMocks();
+  restoreLayout();
 });
 
 // ---------------------------------------------------------------------------
@@ -320,5 +398,59 @@ describe("StorySlideOver", () => {
     expect(backdrop).not.toBeNull();
     fireEvent.click(backdrop!);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  // -------------------------------------------------------------------------
+  // Resizable kanban/details split (STORY-006 TASK-011)
+  // -------------------------------------------------------------------------
+
+  it("renders a separator between the kanban and the details panel while it is expanded", () => {
+    renderSlideOver();
+    expect(
+      screen.getByRole("separator", { name: SEPARATOR_NAME }),
+    ).toBeInTheDocument();
+    expect(getRightPanel()).toBeInTheDocument();
+  });
+
+  it("renders no separator while the details panel is collapsed", () => {
+    renderSlideOver();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse details panel" }),
+    );
+
+    expect(
+      screen.queryByRole("separator", { name: SEPARATOR_NAME }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Expand details panel" }),
+    ).toBeInTheDocument();
+  });
+
+  it("a keyboard nudge changes the details panel's rendered width", async () => {
+    const user = userEvent.setup();
+    renderSlideOver();
+    const separator = screen.getByRole("separator", { name: SEPARATOR_NAME });
+    separator.focus();
+
+    // side="right": ArrowLeft grows the controlled panel.
+    await user.keyboard("{ArrowLeft}");
+
+    expect(getRightPanel()).toHaveStyle({ width: "336px" }); // 320 + NUDGE_STEP_PX(16)
+  });
+
+  it("the resized width survives closing and reopening the slide-over within the same session", async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderSlideOver();
+    const separator = screen.getByRole("separator", { name: SEPARATOR_NAME });
+    separator.focus();
+    await user.keyboard("{ArrowLeft}"); // -> 336px
+    expect(getRightPanel()).toHaveStyle({ width: "336px" });
+
+    // Close the slide-over (unmount) and reopen it (fresh mount) — the
+    // module-level width map outlives the component, so it isn't a page reload.
+    unmount();
+    renderSlideOver();
+
+    expect(getRightPanel()).toHaveStyle({ width: "336px" });
   });
 });
