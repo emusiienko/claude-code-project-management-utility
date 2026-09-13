@@ -3,7 +3,8 @@
 ## Happy Path
 
 1. The orchestrator switches to the **Sessions** app mode (a top-level mode alongside Task Manager,
-   with its own project-selector sidebar) and picks a project.
+   with its own project-selector sidebar) and picks a project. That sidebar's width is drag- and
+   keyboard-resizable, holding the adjusted width until the page is next reloaded.
 2. They click **Create session**, filling in a topic and a goal (both required), an optional
    context, and a required participant role (chosen from the project's configured roles). Two
    independent optional links — to a story and/or a task in the same project — may also be set.

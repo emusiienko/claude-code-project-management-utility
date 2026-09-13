@@ -267,7 +267,8 @@ inside their own stack folder at the repo root.
   **none yet**. **format**: `.fast-sdlc/agents/lead-developer/backend/adr-format.md` (plugin default,
   as-is). ADR immutability rule applies (edit `Status` only).
 - **frontend** (set STORY-001/TASK-009, SESSION-005): `frontend/adr-log/` — inside the stack folder.
-  Sequential from `ADR-001`, own series; **none yet**. **format**:
+  Sequential from `ADR-001`, own series; see `frontend/adr-log/index.md` for the current list and next
+  id. **format**:
   `.fast-sdlc/agents/lead-developer/frontend/adr-format.md` (plugin default).
 
 ### Source Code
@@ -324,6 +325,16 @@ concurrent stacks per STORY-024). Spans `docker-compose.yml`, `deploy.sh`, `back
 (+ `docker-entrypoint.sh`), `frontend/Dockerfile` (+ `nginx.conf`), `.env.example`,
 `.env.dev.example` — no single dedicated IaC folder. Confirmed with the user during this
 plugin-update refresh (net-new Artifact chapter, same rationale as Source Code above).
+
+### Code Map
+**owner**: coder (full, per repo/stack).
+- **frontend** (set 2026-09-12, STORY-006/TASK-020): `.fast-sdlc/code-maps/frontend.md`.
+  **format**: flat markdown doc organized by the repo's existing top-level source folders
+  (`app/`, `features/<domain>/`, `shared/`), each with a table: `Module/File | Purpose | Key
+  exports/functions | Notes`. Module/function-level detail, more granular than the folder-level
+  Repository Structure already in root `CLAUDE.md`.
+  **versioning**: document state + git history (no separate changelog).
+- **backend**: not yet settled — confirm with the user before this stack's coder produces one.
 
 ### DevOps Strategy
 **owner**: devops.

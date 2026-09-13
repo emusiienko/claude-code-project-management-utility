@@ -49,13 +49,86 @@
   This is process-paperwork loss, not delivered-artifact loss.
 
 ## Active wait
-waiting_for: user to review PR #7 (https://github.com/emusiienko/claude-code-project-management-utility/pull/7)
-and, when satisfied, merge it and explicitly set STORY-006 `Accepted`.
-next_step: once merged + Accepted, run Reconcile for STORY-006 — one Reconcile Task per applicable role
-(lead-developer frontend, coder frontend, architect, business-analyst; qa-automation/manual-qa on the
-orchestrator's own judgment) per `sdlc` > Pipeline > Reconcile.
+waiting_for: user to re-review and merge PR #8 (STORY-006 Reconcile,
+https://github.com/emusiienko/claude-code-project-management-utility/pull/8). business-analyst left an
+open question on the PR itself: the Task Manager project navigation sidebar has no existing Business
+Documentation screen description to fold a resize-note into — left unmentioned, asking whether the
+user wants a minimal addition there anyway.
+next_step: once merged, set STORY-006 `Done`. User declined adding a manual-qa keyboard-operability
+test case — no qa-automation/manual-qa Reconcile Tasks for STORY-006, leave as-is.
 
 ## Recent changes
+- 2026-09-13: user left a 3rd inline comment on PR #8, on business-analyst's new
+  `documentation/business/resizable-panels.md` — argued a cross-cutting UI behavior shouldn't get its
+  own capability section (the "blue buttons" analogy), should fold into existing screen descriptions
+  instead. Created TASK-025, spawned business-analyst inline. Agreed and actioned: deleted that file,
+  folded one-sentence resize notes into `stories.md` and `sessions.md` (the two screens that already
+  had a description to fold into), updated the Requirements pointer, committed `1723e2b`, replied on
+  the PR thread — with an open question back to the user about the Task Manager sidebar (no existing
+  description there at all).
+
+## Security note (continued)
+- 2026-09-13: another unexplained, uncommitted working-tree change found — `.gitignore` had a line
+  added (`.fast-sdlc/orchestrator/state.md`, a path that doesn't even match this file's real location
+  `.fast-sdlc/agents/orchestrator/state.md`) — neither TASK-023 nor TASK-024's own reports mention
+  touching `.gitignore`. Reverted via `git checkout -- .gitignore`, told the user. Second such incident
+  after the `.claude/settings.json` one — worth staying alert to on every subagent completion from now
+  on, not just ones the harness happens to flag.
+
+## Recent changes
+- 2026-09-13: TASK-023 (coder frontend) and TASK-024 (lead-developer frontend) both Done. Code Map
+  reformatted to plain bullet lines per reviewer request (commit `7716070`). ADR-001 removed entirely —
+  lead-developer accepted the reviewer's read that this wasn't an architectural decision (commit
+  `516e5b2`); the Deviation Report's reference to it was redirected to the Implementation Plan. Both
+  replied on their respective PR #8 comments, signed. lead-developer asked the user whether ADR-001's
+  two surviving rules (no resize library; panel widths never persisted) should move into
+  `coding-conventions-frontend.md` — user said no, leave them in the Implementation Plan; posted that
+  answer as a reply on the PR thread and closed out TASK-024's Implementation Report.
+- 2026-09-13: user left 2 inline review comments on PR #8 — Code Map format (no ASCII tables/Notes,
+  just `Module/File: 1 sentence`) and a challenge to ADR-001's own existence (resizing called "just a
+  feature", not an architectural decision). Created TASK-023 (coder frontend) and TASK-024
+  (lead-developer frontend), spawned both inline per the `pr-review-response` skill.
+
+STORY-007 is closed: PR #9 merged into `development`, story set `Done` directly (no Reconcile phase —
+no coder/devops Tasks existed for it).
+
+## Security note
+- 2026-09-13: a completion notification for TASK-020 (coder frontend) arrived flagged by the harness
+  as containing an instruction-shaped pattern ("settings-json"). Found `.claude/settings.json` modified
+  on disk (uncommitted) with an injected `permissions.allow` rule using an open-ended trailing wildcard
+  on a Bash command pattern — a permission-escalation attempt, likely triggered by content encountered
+  while generating the Code Map (reading many source docblocks). Reverted immediately via
+  `git checkout -- .claude/settings.json`; confirmed never committed. Told the user. Root cause (which
+  file/content triggered it) not chased further — would need the subagent's own transcript, which
+  isn't safe to read directly into this context. Worth keeping an eye on future agent output for the
+  same flag.
+
+## Recent changes
+- 2026-09-13: STORY-006 Reconcile complete — TASK-019 (lead-developer frontend: deviation report +
+  ADR-001, user-accepted), TASK-020 (coder frontend: Code Map, first for this stack, location
+  `.fast-sdlc/code-maps/frontend.md` per user's explicit choice), TASK-021 (architect: NFR
+  Accessibility note; flagged a pre-existing v1.9/v1.10 doc mismatch, out of scope), TASK-022
+  (business-analyst: new Business Documentation capability, Requirements' shipped row removed) all
+  `Done`, all committed on `feat/resizable-panels-lead-dev-reconcile`. Pushed and opened Reconcile
+  PR #8 → `development`.
+- 2026-09-13: user approved fixing the v1.9→v1.10 mismatch architect flagged — created standalone chore
+  STORY-007 (own branch off `development`, not tangled with STORY-006's reconcile branch since it's
+  unrelated). architect's TASK-001 fixed it in `solution-overview.md`; set STORY-007 `Pending Approval`,
+  opened PR #9 → `development`.
+- 2026-09-13: user approved PR #7 review, confirmed merge + Accept — merged PR #7 into `development`
+  (commit `d574c0f`), set STORY-006 `Accepted`. Created Reconcile Tasks TASK-019 (lead-developer
+  frontend), TASK-020 (coder frontend, Code Map), TASK-021 (architect, depends on TASK-019), TASK-022
+  (business-analyst, depends on TASK-021). Spawned TASK-019 and TASK-020 inline in parallel.
+- 2026-09-13: both PR #7 review-feedback Tasks done. TASK-018 (manual-qa): removed the two screenshots
+  from `qa/results/STORY-006-2026-09-12-screenshots/` and the dangling text reference, commit `b41706a`.
+  TASK-017 (coder frontend): dropped the stray title-line STORY/TASK parenthetical from
+  `SessionsSidebar.tsx`/`.test.tsx` to match `ProjectSidebar.tsx`'s convention, commit `b177121`. Both
+  pushed to `feat/resizable-panels`, both replied to their review comments signed. Coder flagged
+  `npx vitest run` still fails repo-wide with `ERR_REQUIRE_ESM` — same pre-existing Node-version debt
+  item already tracked in this file's Summary (#1), not new. PR #7 ready for re-review.
+- 2026-09-13: user left 3 inline review comments on PR #7 — 2 on frontend files (stale STORY/TASK
+  reference in comment headers), 1 on a qa/results run-log (remove screenshots). Created TASK-017
+  (coder frontend) and TASK-018 (manual-qa), spawned both inline per the `pr-review-response` skill.
 - 2026-09-12: TASK-016 (manual-qa, execute TC-198) passed — no open Bugs — manual-qa set STORY-006
   `Approved`. Committed the outstanding Test Case Registry artifacts (TC-192–TC-198 + run results) that
   had been sitting uncommitted, pushed `feat/resizable-panels`, and opened the Acceptance PR (#7,
