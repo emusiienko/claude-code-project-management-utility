@@ -44,7 +44,7 @@ and the participants decide what to do with it.
   - Localhost-only: Docker port mapping to `127.0.0.1` is the sole access boundary — no auth by design.
   - DB-agnostic: identical schema and migrations must run on both PostgreSQL (default) and SQLite
     (opt-in, WAL); dialect-specific logic stays inside the data layer.
-  - The API contract is LOCKED at v1.0 (revised incrementally through v1.9); shapes do not change
+  - The API contract is LOCKED at v1.0 (revised incrementally through v1.10); shapes do not change
     without an architect-approved revision.
   - REST and MCP must remain behavior-identical — business logic lives only in the service layer.
   - Non-functional targets: single-resource CRUD p95 < 200 ms; list (≤1,000) p95 < 500 ms; story
