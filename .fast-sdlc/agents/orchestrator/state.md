@@ -50,9 +50,22 @@
 
 ## Active wait
 waiting_for: user to re-review and merge PR #8 (STORY-006 Reconcile,
-https://github.com/emusiienko/claude-code-project-management-utility/pull/8).
+https://github.com/emusiienko/claude-code-project-management-utility/pull/8). business-analyst left an
+open question on the PR itself: the Task Manager project navigation sidebar has no existing Business
+Documentation screen description to fold a resize-note into — left unmentioned, asking whether the
+user wants a minimal addition there anyway.
 next_step: once merged, set STORY-006 `Done`. User declined adding a manual-qa keyboard-operability
 test case — no qa-automation/manual-qa Reconcile Tasks for STORY-006, leave as-is.
+
+## Recent changes
+- 2026-09-13: user left a 3rd inline comment on PR #8, on business-analyst's new
+  `documentation/business/resizable-panels.md` — argued a cross-cutting UI behavior shouldn't get its
+  own capability section (the "blue buttons" analogy), should fold into existing screen descriptions
+  instead. Created TASK-025, spawned business-analyst inline. Agreed and actioned: deleted that file,
+  folded one-sentence resize notes into `stories.md` and `sessions.md` (the two screens that already
+  had a description to fold into), updated the Requirements pointer, committed `1723e2b`, replied on
+  the PR thread — with an open question back to the user about the Task Manager sidebar (no existing
+  description there at all).
 
 ## Security note (continued)
 - 2026-09-13: another unexplained, uncommitted working-tree change found — `.gitignore` had a line
