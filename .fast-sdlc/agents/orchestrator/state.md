@@ -51,10 +51,8 @@
 ## Active wait
 waiting_for: user to review and merge Reconcile PR #8 (STORY-006,
 https://github.com/emusiienko/claude-code-project-management-utility/pull/8).
-next_step: once PR #8 is merged, set STORY-006 `Done`. Still undecided: whether qa-automation/manual-qa
-Reconcile Tasks are worth creating for STORY-006 (e.g. a manual-qa test case for keyboard operability,
-newly documented in the Deviation Report but not in TC-192–198) — orchestrator's own judgment, not yet
-exercised.
+next_step: once PR #8 is merged, set STORY-006 `Done`. User declined adding a manual-qa keyboard-
+operability test case — no qa-automation/manual-qa Reconcile Tasks for STORY-006, leave as-is.
 
 STORY-007 is closed: PR #9 merged into `development`, story set `Done` directly (no Reconcile phase —
 no coder/devops Tasks existed for it).
