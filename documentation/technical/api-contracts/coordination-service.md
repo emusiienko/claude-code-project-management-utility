@@ -33,6 +33,11 @@ Each endpoint group below names its MCP tools. REST and MCP are behavior-identic
 - **v1.10** — *As-built correction; no running behavior changed.* Deletes documentation of reads the
   system never had, so the contract describes only what exists. Records the `/v1` base path and the
   `projects` trailing-slash quirk explicitly, neither of which the contract had stated.
+- **v1.11 — PLANNED (STORY-008), not yet on the running backend.** Approved revision adding permanent
+  session deletion on both surfaces, following the existing single-resource delete pattern. Every
+  element it introduces carries a **PLANNED (v1.11)** marker inline; the markers and this note are
+  removed at STORY-008's Reconcile, when v1.11 becomes the as-built head. Until then, the as-built
+  surface is still v1.10 — read anything marked PLANNED as a build target, not as an existing endpoint.
 
 ## Auth (applies to every endpoint)
 
@@ -488,7 +493,7 @@ Hard delete (no archive/tombstone). Deleting a story/task/milestone cascades to 
 
 ## Sessions
 
-Every session **belongs to exactly one project** (`project_id`, required on create and on every list). There is no cross-project session listing and no cross-project incomplete query. A session is **incomplete** when its `status` is `pending` or `in-progress` and **complete** when `finished` — `status` is set explicitly and is never inferred from `result_decisions` / `result_summary`. MCP tools: `create_session`, `list_sessions`, `get_session`, `update_session`, `archive_session`. `list_sessions(project_id, incomplete=true)` is the orchestrator's cross-restart continuity query.
+Every session **belongs to exactly one project** (`project_id`, required on create and on every list). There is no cross-project session listing and no cross-project incomplete query. A session is **incomplete** when its `status` is `pending` or `in-progress` and **complete** when `finished` — `status` is set explicitly and is never inferred from `result_decisions` / `result_summary`. MCP tools: `create_session`, `list_sessions`, `get_session`, `update_session`, `archive_session`, `delete_session` *(PLANNED (v1.11))*. `list_sessions(project_id, incomplete=true)` is the orchestrator's cross-restart continuity query.
 
 ### POST /sessions
 - **Request**: `CreateSession { project_id: string; topic: string; goal: string; context?: string; participant_role: string; linked_story_id?: string; linked_task_id?: string; }` — `topic`/`goal` 1–500 required; `participant_role` required, validated vs the project's effective `participant_roles`; each linked id optional and independent, validated to exist and belong to the same project. `status` is NOT a create input — every session is created at `"pending"`; a `status` in the payload is accepted-and-ignored, not rejected.
@@ -523,6 +528,11 @@ interface UpdateSession {
 ### POST /sessions/:id/archive
 - **Response**: `200 Envelope<Session>` (`archived_at` set)
 - **Errors**: `400` ("Session is already archived." — an archived session stays fully updatable); `404`.
+
+### DELETE /sessions/:id — PLANNED (v1.11)
+Permanent removal of the session record; no soft-delete and no recovery. Accepted for **any** session regardless of `archived_at` or `status` — there is no archived-only restriction on this surface. `archive` and `delete` stay independent operations: archiving is the reversible visibility flag, deleting is terminal. A session is a leaf record — deleting one removes nothing else, and a session carrying `linked_story_id` and/or `linked_task_id` is deleted with no effect on the linked story or task.
+- **Response**: `204`
+- **Errors**: `404`.
 
 ---
 
