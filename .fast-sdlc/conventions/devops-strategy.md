@@ -328,6 +328,19 @@ directory. Keeping this explicit prevents an agent from reasoning about, or tryi
 canonical `8000`/`3000`/`5432` ports when they belong to a separate instance the user may be running
 live. (`deploy.sh` also remains user-run, never agent-run — see § Deployment / Run.)
 
+**Addresses differ when the agent runs inside the devcontainer.** The `localhost:8100`/`:3100`
+addresses above are reachable only from the host. The devcontainer's `dev` service instead joins the
+dev stack's `agent-access` Docker network (see `docker-compose.dev.yml` and
+`.devcontainer/docker-compose.yml`) and reaches the same services by container DNS name on their
+container-internal ports — not the host-mapped ones:
+
+- `http://backend:8000` (not `localhost:8100`)
+- `http://web:3000` (not `localhost:3100`)
+
+This network is created by the dev stack itself (`./deploy.sh up`, a user step, run with
+`STACK_NAME=dev`) — it must already exist before the devcontainer starts or rebuilds, or the
+devcontainer's own `docker compose up` fails with a "network not found" error.
+
 ### PostgreSQL: separate container per stack (decision)
 
 The story left open whether two concurrent stacks that both use PostgreSQL should share one server

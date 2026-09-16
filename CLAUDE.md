@@ -101,6 +101,15 @@ container inspection, `curl` against a running service) targets the dev ports. A
 stack: the user picks it out of band by copying an env template to `.env`, and `deploy.sh` takes no
 environment argument.
 
+**Inside the devcontainer the addresses differ.** The `localhost:*` addresses above work from the
+host only. The devcontainer's `dev` service joins the dev stack's `agent-access` Docker network
+(`aiacu-agent-access-dev`, added by `docker-compose.dev.yml`, which `deploy.sh` layers in only when
+`STACK_NAME=dev`) and reaches the same services by container DNS name on their **container-internal**
+ports: `http://backend:8000` and `http://web:3000` — never `localhost:8100`/`:3100`. `db` is
+deliberately off that network. The prod stack never loads the override, so it has no such network.
+The dev stack creates it, so `./deploy.sh up` must run before the devcontainer starts or rebuilds —
+otherwise the devcontainer's own `docker compose up` fails with "network not found".
+
 **Run** — single entry point, **always user-run, never agent-run**:
 
 | Command | Description |
@@ -126,7 +135,7 @@ secrets; the only credential is the local Postgres password, used between contai
 **Volumes** (survive `down`; wiped only by an explicit `docker compose down -v`, never scripted):
 `pg_data`, `sqlite_data`, `attachments`.
 
-**Infrastructure files**: `docker-compose.yml`, `deploy.sh`, `backend/Dockerfile` +
+**Infrastructure files**: `docker-compose.yml`, `docker-compose.dev.yml`, `deploy.sh`, `backend/Dockerfile` +
 `backend/docker-entrypoint.sh`, `frontend/Dockerfile` + `frontend/nginx.conf`, `.env.example`,
 `.env.dev.example`, `.gitignore`. Backend image dependencies install with **uv**
 (`uv sync --frozen` against the committed `backend/uv.lock`) — never reintroduce `pip install` there.
