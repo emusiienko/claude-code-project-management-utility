@@ -8,6 +8,7 @@ from app.sessions.model import Session
 from app.sessions.repository import SessionRepository
 from app.sessions.schema import SESSION_STATUS_PENDING, CreateSession, UpdateSession
 from app.settings.schema import DICT_KEY_PARTICIPANT_ROLES
+
 # Import only the Protocol, never the concrete SettingsService.
 from app.settings.service import EffectiveDictionary
 
@@ -222,6 +223,14 @@ class SessionService:
         session.archived_at = now
         session.updated_at = now
         return self._repo.save(session)
+
+    # ------------------------------------------------------------------
+    # Delete
+    # ------------------------------------------------------------------
+
+    def delete(self, session_id: str) -> None:
+        session = self.get_by_id(session_id)
+        self._repo.delete(session)
 
     # ------------------------------------------------------------------
     # SessionReferenceCleanerProtocol — consumed by story/task services

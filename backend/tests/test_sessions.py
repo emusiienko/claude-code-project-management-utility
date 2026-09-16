@@ -26,6 +26,12 @@ Coverage zones (per TASK-007, revised by TASK-010 for the status-enum rework):
                                 "Value '{v}' is not allowed. Allowed: ..." message
 - POST /v1/sessions/:id/archive  archives; second archive -> 400; archived session still
                                 updatable
+- DELETE /v1/sessions/:id        permanent delete on both surfaces, unrestricted by
+                                archived_at/status (STORY-008 TASK-009); a non-archived
+                                session, an archived one, each status value, a session
+                                carrying linked_story_id/linked_task_id (linked story and
+                                task survive), a repeat delete and an unknown/malformed id
+                                all return not-found
 - Behaviors                     status is only ever set explicitly, never inferred from
                                 result content: a session can reach "finished" with both
                                 result fields still null, and can remain "pending"/
@@ -1177,6 +1183,236 @@ class TestArchiveSession:
             )
         finally:
             await _delete_project(client, proj["id"])
+
+
+# ===========================================================================
+# DELETE /v1/sessions/:id + delete_session MCP tool
+# ===========================================================================
+
+
+class TestDeleteSession:
+    async def test_delete_non_archived_session_succeeds_both_surfaces(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Delete Session Non Archived Project")
+        try:
+            rest_session = await _create_session(
+                client, proj["id"], topic="REST Delete Target"
+            )
+            mcp_session = await _create_session(
+                client, proj["id"], topic="MCP Delete Target"
+            )
+
+            rest_resp = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
+            assert rest_resp.status_code == 204, (
+                f"Expected 204, got {rest_resp.status_code} — {rest_resp.text}"
+            )
+            assert rest_resp.text == "", "204 response should carry no body"
+
+            mcp_result = await _mcp_call("delete_session", {"id": mcp_session["id"]})
+            assert mcp_result.data == {"success": True}, (
+                f"Expected {{'success': True}}, got {mcp_result.data}"
+            )
+
+            rest_read = await client.get(f"{SESSIONS_URL}/{rest_session['id']}")
+            assert rest_read.status_code == 404, (
+                f"Session deleted via REST should be unreadable, "
+                f"got {rest_read.status_code}"
+            )
+            mcp_read = await client.get(f"{SESSIONS_URL}/{mcp_session['id']}")
+            assert mcp_read.status_code == 404, (
+                f"Session deleted via MCP should be unreadable, "
+                f"got {mcp_read.status_code}"
+            )
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_delete_archived_session_succeeds_both_surfaces(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Delete Session Archived Project")
+        try:
+            rest_session = await _create_session(
+                client, proj["id"], topic="REST Archived Delete Target"
+            )
+            await client.post(f"{SESSIONS_URL}/{rest_session['id']}/archive")
+            mcp_session = await _create_session(
+                client, proj["id"], topic="MCP Archived Delete Target"
+            )
+            await client.post(f"{SESSIONS_URL}/{mcp_session['id']}/archive")
+
+            rest_resp = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
+            assert rest_resp.status_code == 204, (
+                f"Deleting an archived session via REST should return 204, "
+                f"got {rest_resp.status_code}"
+            )
+
+            mcp_result = await _mcp_call("delete_session", {"id": mcp_session["id"]})
+            assert mcp_result.data == {"success": True}, (
+                f"Deleting an archived session via MCP should return "
+                f"{{'success': True}}, got {mcp_result.data}"
+            )
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_delete_succeeds_at_each_status_value_both_surfaces(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Delete Session Each Status Project")
+        try:
+            for target_status in ("pending", "in-progress", "finished"):
+                rest_session = await _create_session(
+                    client, proj["id"], topic=f"REST {target_status}"
+                )
+                await client.put(
+                    f"{SESSIONS_URL}/{rest_session['id']}",
+                    json={"status": target_status},
+                )
+                mcp_session = await _create_session(
+                    client, proj["id"], topic=f"MCP {target_status}"
+                )
+                await client.put(
+                    f"{SESSIONS_URL}/{mcp_session['id']}",
+                    json={"status": target_status},
+                )
+
+                rest_resp = await client.delete(
+                    f"{SESSIONS_URL}/{rest_session['id']}"
+                )
+                assert rest_resp.status_code == 204, (
+                    f"Deleting a session at status {target_status!r} via REST "
+                    f"should return 204, got {rest_resp.status_code}"
+                )
+
+                mcp_result = await _mcp_call(
+                    "delete_session", {"id": mcp_session["id"]}
+                )
+                assert mcp_result.data == {"success": True}, (
+                    f"Deleting a session at status {target_status!r} via MCP "
+                    f"should return {{'success': True}}, got {mcp_result.data}"
+                )
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_delete_session_with_links_leaves_story_and_task_intact(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Delete Session With Links Project")
+        story = None
+        task = None
+        try:
+            story = await _create_story(client, proj["id"])
+            task = await _create_task(client, story["id"])
+            rest_session = await _create_session(
+                client,
+                proj["id"],
+                topic="REST Linked Delete Target",
+                linked_story_id=story["id"],
+                linked_task_id=task["id"],
+            )
+            mcp_session = await _create_session(
+                client,
+                proj["id"],
+                topic="MCP Linked Delete Target",
+                linked_story_id=story["id"],
+                linked_task_id=task["id"],
+            )
+
+            rest_resp = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
+            assert rest_resp.status_code == 204, (
+                f"Expected 204, got {rest_resp.status_code} — {rest_resp.text}"
+            )
+            mcp_result = await _mcp_call("delete_session", {"id": mcp_session["id"]})
+            assert mcp_result.data == {"success": True}, (
+                f"Expected {{'success': True}}, got {mcp_result.data}"
+            )
+
+            story_resp = await client.get(f"{STORIES_URL}/{story['id']}")
+            assert story_resp.status_code == 200, (
+                f"Linked story should survive session deletion, "
+                f"got {story_resp.status_code}"
+            )
+            task_resp = await client.get(f"{TASKS_URL}/{task['id']}")
+            assert task_resp.status_code == 200, (
+                f"Linked task should survive session deletion, "
+                f"got {task_resp.status_code}"
+            )
+        finally:
+            if task is not None:
+                await _delete_task(client, task["id"])
+            if story is not None:
+                await _delete_story(client, story["id"])
+            await _delete_project(client, proj["id"])
+
+    async def test_repeat_delete_returns_not_found_both_surfaces(
+        self, client: AsyncClient
+    ) -> None:
+        proj = await _create_project(client, "Delete Session Repeat Delete Project")
+        try:
+            rest_session = await _create_session(
+                client, proj["id"], topic="REST Repeat Delete Target"
+            )
+            mcp_session = await _create_session(
+                client, proj["id"], topic="MCP Repeat Delete Target"
+            )
+
+            first_rest = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
+            assert first_rest.status_code == 204, (
+                f"First REST delete should return 204, got {first_rest.status_code}"
+            )
+            second_rest = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
+            assert second_rest.status_code == 404, (
+                f"Second REST delete of the same id should return 404, "
+                f"got {second_rest.status_code}"
+            )
+
+            first_mcp = await _mcp_call("delete_session", {"id": mcp_session["id"]})
+            assert first_mcp.data == {"success": True}, (
+                f"First MCP delete should return {{'success': True}}, "
+                f"got {first_mcp.data}"
+            )
+            with pytest.raises(Exception) as exc_info:
+                await _mcp_call("delete_session", {"id": mcp_session["id"]})
+            assert "not found" in str(exc_info.value).lower(), (
+                f"Second MCP delete of the same id should mirror REST's 404 "
+                f"semantics, got: {exc_info.value}"
+            )
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_delete_unknown_id_returns_not_found_both_surfaces(
+        self, client: AsyncClient
+    ) -> None:
+        fake_id = str(uuid.uuid4())
+
+        rest_resp = await client.delete(f"{SESSIONS_URL}/{fake_id}")
+        assert rest_resp.status_code == 404, (
+            f"Deleting an unknown id via REST should return 404, "
+            f"got {rest_resp.status_code}"
+        )
+
+        with pytest.raises(Exception) as exc_info:
+            await _mcp_call("delete_session", {"id": fake_id})
+        assert "not found" in str(exc_info.value).lower(), (
+            f"Deleting an unknown id via MCP should mirror REST's 404 "
+            f"semantics, got: {exc_info.value}"
+        )
+
+    async def test_delete_malformed_id_returns_not_found_both_surfaces(
+        self, client: AsyncClient
+    ) -> None:
+        rest_resp = await client.delete(f"{SESSIONS_URL}/not-a-uuid")
+        assert rest_resp.status_code == 404, (
+            f"Deleting a malformed id via REST should return 404, "
+            f"got {rest_resp.status_code}"
+        )
+
+        with pytest.raises(Exception) as exc_info:
+            await _mcp_call("delete_session", {"id": "not-a-uuid"})
+        assert "not found" in str(exc_info.value).lower(), (
+            f"Deleting a malformed id via MCP should mirror REST's 404 "
+            f"semantics, got: {exc_info.value}"
+        )
 
 
 # ===========================================================================

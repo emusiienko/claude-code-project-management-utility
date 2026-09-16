@@ -109,3 +109,18 @@ async def archive_session(
     except Exception as exc:
         logger.error("Unexpected error in archive_session: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc
+
+
+@mcp_server_v1.tool()
+async def delete_session(
+    id: str,
+    service: SessionService = Depends(provide_session_service),
+) -> dict:
+    try:
+        service.delete(id)
+        return {"success": True}
+    except DomainError as exc:
+        raise exc.to_tool_error() from exc
+    except Exception as exc:
+        logger.error("Unexpected error in delete_session: %s", exc, exc_info=exc)
+        raise ToolError("Internal server error.") from exc
