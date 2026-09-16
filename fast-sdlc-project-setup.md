@@ -334,7 +334,13 @@ plugin-update refresh (net-new Artifact chapter, same rationale as Source Code a
   exports/functions | Notes`. Module/function-level detail, more granular than the folder-level
   Repository Structure already in root `CLAUDE.md`.
   **versioning**: document state + git history (no separate changelog).
-- **backend**: not yet settled — confirm with the user before this stack's coder produces one.
+- **backend** (set 2026-09-16, STORY-008/TASK-014): `.fast-sdlc/code-maps/backend.md`.
+  **format**: same as frontend's — flat markdown doc organized by the repo's existing top-level
+  source folders under `app/` (`core/`, `container/`, `mcp/`, `api/`, root-level, one section per
+  domain package), each with a table: `Module/File | Purpose | Key exports/functions | Notes`.
+  Module/function-level detail, more granular than the folder-level Repository Structure already
+  in root `CLAUDE.md`.
+  **versioning**: document state + git history (no separate changelog).
 
 ### DevOps Strategy
 **owner**: devops.
