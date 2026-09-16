@@ -20,6 +20,10 @@ echo 'alias claude="claude --dangerously-skip-permissions"' >> ~/.bashrc
 # Applies to every way of launching claude in this container — terminal alias
 # above AND the VS Code extension's own chat panel — since this is read by the
 # claude binary itself, not by the shell.
+# `~/.claude` is the `claude_config` named volume — Docker creates a fresh empty
+# volume's mount point as root:root regardless of which user runs later, so `mkdir`
+# below would otherwise fail under `set -e` and silently skip everything after it.
+sudo chown vscode:vscode ~/.claude
 mkdir -p ~/.claude
 cat > ~/.claude/settings.json <<'EOF'
 {
