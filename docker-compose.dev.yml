@@ -1,0 +1,21 @@
+# Dev-stack-only override — layered on top of docker-compose.yml by deploy.sh
+# whenever STACK_NAME=dev. The prod stack never loads this file, so it never gets
+# the `agent-access` network at all (not even an unused copy of it).
+#
+# Adds the narrow bridge the devcontainer's `dev` service joins (as `external: true`,
+# see .devcontainer/docker-compose.yml) to reach `backend`/`web` over HTTP only — `db`
+# is deliberately left off this network, so it stays unreachable from the devcontainer.
+services:
+  backend:
+    networks:
+      - default
+      - agent-access
+
+  web:
+    networks:
+      - default
+      - agent-access
+
+networks:
+  agent-access:
+    name: aiacu-agent-access-dev

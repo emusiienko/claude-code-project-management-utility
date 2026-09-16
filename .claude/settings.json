@@ -1,3 +1,21 @@
 {
-  "enabledPlugins": {}
+  "enabledPlugins": {},
+  "permissions": {
+    "deny": [
+      "Read(.devcontainer/gh_token.txt)",
+      "Read(**/gh_token.txt)",
+      "Read(.devcontainer/.env)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Grep(.devcontainer/gh_token.txt)",
+      "Grep(**/gh_token.txt)",
+      "Grep(.devcontainer/.env)",
+      "Grep(.env)",
+      "Grep(.env.*)",
+      "Grep(**/.env)",
+      "Grep(**/.env.*)"
+    ]
+  }
 }

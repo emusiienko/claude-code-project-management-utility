@@ -1,0 +1,49 @@
+services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu
+    depends_on:
+      - db
+    volumes:
+      - ..:/workspaces/claude-code-project-management:cached
+      # fast-sdlc plugin source, read-only — sibling repo on the host, not part of this project.
+      # Set FAST_SDLC_PLUGIN_PATH in .devcontainer/.env (see .env.example).
+      - ${FAST_SDLC_PLUGIN_PATH}:/opt/fast-sdlc-plugin:ro
+    secrets:
+      # File, not an env var — compose secrets mount as a file at /run/secrets/gh_token
+      # and never show up in `docker inspect`, unlike `environment:`.
+      # Create .devcontainer/gh_token.txt yourself (git-ignored) with a fine-grained,
+      # repo-scoped PAT, no expiration. post-create.sh consumes it once via
+      # `gh auth login --with-token`; from then on it's masked from Claude Code itself
+      # via sandbox.credentials in ~/.claude/settings.json.
+      - gh_token
+    command: sleep infinity
+    networks:
+      - default        # own private network, shared with this file's own `db`
+      - agent-access    # narrow bridge to the app stack's `backend`/`web` only
+
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: devcontainer
+      POSTGRES_PASSWORD: devcontainer
+      POSTGRES_DB: app
+    volumes:
+      - pg_devcontainer_data:/var/lib/postgresql
+    # No `networks:` override — stays on `default` only, unreachable from `agent-access`.
+
+volumes:
+  pg_devcontainer_data:
+
+networks:
+  default: {}
+  # Created by the app stack's own docker-compose.yml (run `./deploy.sh up` before
+  # starting/rebuilding this container) — external here since this file doesn't own it.
+  # Fixed `-dev` suffix, not a variable: the devcontainer only ever pairs with the dev
+  # checkout (STACK_NAME=dev there), never with a separate prod checkout.
+  agent-access:
+    external: true
+    name: aiacu-agent-access-dev
+
+secrets:
+  gh_token:
+    file: ${GH_TOKEN_FILE:-./gh_token.txt}

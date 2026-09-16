@@ -20,6 +20,7 @@ build/
 # Env & secrets
 .env
 .env.*
+gh_token.txt
 # ...but the committed templates must stay tracked.
 !uv.lock
 !.env.example

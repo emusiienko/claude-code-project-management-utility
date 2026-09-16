@@ -1,0 +1,15 @@
+{
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspaces/claude-code-project-management",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "containerEnv": {
+    "DATABASE_URL": "postgresql+psycopg://devcontainer:devcontainer@db:5432/app",
+    "OLLAMA_BASE_URL": "http://host.docker.internal:11434"
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

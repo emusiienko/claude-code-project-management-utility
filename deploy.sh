@@ -61,7 +61,16 @@ fi
 DATABASE_URL="$(grep -E '^DATABASE_URL=' "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)"
 DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://app:app@db:5432/app}"
 
+STACK_NAME="$(grep -E '^STACK_NAME=' "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)"
+STACK_NAME="${STACK_NAME:-prod}"
+
 COMPOSE=(docker compose)
+if [[ "$STACK_NAME" == "dev" ]]; then
+  # Layers in the `agent-access` network (see docker-compose.dev.yml) that lets the
+  # devcontainer's `dev` service reach `backend`/`web` over HTTP. Prod never loads
+  # this file, so it never gets the network at all — not even an unused copy.
+  COMPOSE+=(-f docker-compose.yml -f docker-compose.dev.yml)
+fi
 if [[ "$DATABASE_URL" == postgres* ]]; then
   echo "[deploy] DATABASE_URL targets PostgreSQL (default) — activating the 'postgres' profile."
   COMPOSE+=(--profile postgres)
