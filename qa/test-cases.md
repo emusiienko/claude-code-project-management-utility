@@ -200,3 +200,8 @@
 | [TC-196](test-cases/TC-196-session-only-persistence.md) | Resized width holds for the browser session only — survives in-session navigation, resets on reload | @regression | STORY-006 | Active |
 | [TC-197](test-cases/TC-197-readability-floor-ceiling-clamping.md) | Readability floor/ceiling — dragging past the limits clamps instead of collapsing or overflowing | @regression | STORY-006 | Active |
 | [TC-198](test-cases/TC-198-responsive-window-resize-behavior.md) | Resizable panels adapt to viewport changes — kept width where there's room, responsive fallback, no affordance when narrow | @regression | STORY-006 | Active |
+| [TC-199](test-cases/TC-199-delete-action-only-on-archived-sessions.md) | Delete action is available only on archived sessions — list row and Session Detail | @smoke @regression | STORY-008 | Active |
+| [TC-200](test-cases/TC-200-delete-session-confirmed.md) | Delete an archived session — confirmation dialog, confirmed delete is permanent | @smoke @regression | STORY-008 | Active |
+| [TC-201](test-cases/TC-201-delete-session-cancelled.md) | Delete an archived session — cancel from the confirmation dialog leaves it intact | @regression | STORY-008 | Active |
+| [TC-202](test-cases/TC-202-delete-session-with-linked-story-task.md) | Deleting a session with a linked story and/or task leaves the linked story/task unaffected | @regression | STORY-008 | Active |
+| [TC-203](test-cases/TC-203-delete-session-already-deleted.md) | Deleting a session that was already deleted elsewhere (stale list) is reported, not silently accepted | @regression | STORY-008 | Active |
