@@ -10,8 +10,10 @@ of here into Business Documentation.
 ## Feature List
 | Feature | File | Description | Priority | Access |
 |---------|------|-------------|----------|--------|
+| Session Deletion | `session-deletion.md` | Permanently delete a session — via REST/MCP unrestricted by the `archived` flag or `status`; via Web UI, the delete action is exposed only for already-archived sessions (see file for the per-surface split) | P2 | Web UI + AI agents (MCP + REST) — asymmetric between surfaces, see file |
 
-No pending scope as of this writing. Resizable Panel Layouts (STORY-006/TASK-001) shipped, was
+STORY-008 (Delete sessions) is the only pending scope as of this writing. Resizable Panel Layouts
+(STORY-006/TASK-001) shipped, was
 `Accepted`, and moved out of here into Business Documentation at Reconcile (STORY-006/TASK-022,
 2026-09-13) — not as its own capability file, but folded as brief notes into the existing
 descriptions of the screens it affects (`documentation/business/stories.md`'s Story Detail split,
