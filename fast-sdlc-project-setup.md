@@ -328,19 +328,11 @@ plugin-update refresh (net-new Artifact chapter, same rationale as Source Code a
 
 ### Code Map
 **owner**: coder (full, per repo/stack).
+**format**: `.fast-sdlc/conventions/code-map-format.md` (plugin default, as-is) — accepted once,
+2026-09-16 (STORY-008), as the default for every stack. Each stack's coder copies it directly for
+its own first Code Map; no per-stack confirmation needed going forward.
 - **frontend** (set 2026-09-12, STORY-006/TASK-020): `.fast-sdlc/code-maps/frontend.md`.
-  **format**: flat markdown doc organized by the repo's existing top-level source folders
-  (`app/`, `features/<domain>/`, `shared/`), each with a table: `Module/File | Purpose | Key
-  exports/functions | Notes`. Module/function-level detail, more granular than the folder-level
-  Repository Structure already in root `CLAUDE.md`.
-  **versioning**: document state + git history (no separate changelog).
 - **backend** (set 2026-09-16, STORY-008/TASK-014): `.fast-sdlc/code-maps/backend.md`.
-  **format**: same as frontend's — flat markdown doc organized by the repo's existing top-level
-  source folders under `app/` (`core/`, `container/`, `mcp/`, `api/`, root-level, one section per
-  domain package), each with a table: `Module/File | Purpose | Key exports/functions | Notes`.
-  Module/function-level detail, more granular than the folder-level Repository Structure already
-  in root `CLAUDE.md`.
-  **versioning**: document state + git history (no separate changelog).
 
 ### DevOps Strategy
 **owner**: devops.
