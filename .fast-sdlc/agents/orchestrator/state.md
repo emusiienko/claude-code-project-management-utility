@@ -85,20 +85,39 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: user review + merge of PR #10 (STORY-008, `feat/delete-archived-sessions` →
-`development`) and an explicit `Accepted`. QA is complete — story is `Approved` as of 2026-09-19.
-next_step: route any PR feedback via pr-review-response; once approved, user merges + sets Accepted,
-then orchestrator runs Reconcile (lead-developer x2 stacks, architect, business-analyst; qa-automation/
-manual-qa Reconcile Tasks by own judgment).
+waiting_for: user review + merge of PR #11 (STORY-008 Reconcile,
+`feat/delete-archived-sessions-docs-reconcile` -> `development`).
+next_step: on merge, set STORY-008 `Done` and archive it. Also pending: the user's decision on the
+two stale `v1.10` references (see Open decision below).
 
-STORY-008 (delete sessions) — story is `Pending Approval`. 18 of 19 Tasks `Done` (TASK-001 through
-TASK-018): planning, implementation, both stacks' Reconcile + Code Maps, the dialog-testing
-convention, and qa-automation's Prepare + Execute (black-box coverage for `DELETE /sessions/:id`,
-commit `9749f00`). No bugs open. PR #10 opened 2026-09-16, bundling: 3 coder commits (backend delete
-on REST+MCP; frontend list-row action; frontend detail-page action) plus 3 docs/QA commits the
-orchestrator made on responsible roles' behalf (business-analyst's Requirements, architect's API
-Contract v1.11-PLANNED revision, manual-qa's TC-199–203) since those agents left their work
-uncommitted for the orchestrator to bundle.
+STORY-008 (Delete sessions) — `Accepted` 2026-09-19. Implementation PR #10 merged (`236594e`), then
+merged again into `development` as `dca6d3b` alongside the user's own devops commit `8573ebb`
+("fixed web for agents") that added the `web-agent` service and the CORS allowlist. All 21 Tasks
+`Done`. Reconcile PR #11 opened 2026-09-19 with architect's `3d6bdb7` (API Contract promoted to
+as-built v1.11, `PLANNED` markers cleared, Solution Overview + `CLAUDE.md` updated; no ADR, next id
+still ADR-032) and business-analyst's `a89c6ac` (Session Deletion moved out of Requirements into
+Business Documentation, folded into the existing Sessions capability).
+
+No QA Reconcile Tasks were created, by orchestrator judgment: TC-199-203 were already in the master
+registry with files on disk, both Deviation Reports report "No deviations" in every section, and
+qa-automation's suite was written after those reports existed and passes.
+
+## Open decision (user, unanswered)
+Two stale `v1.10` references, both confirmed on disk, neither touched:
+1. `fast-sdlc-project-setup.md` line ~192 — architect's own Artifacts chapter, but editing that file
+   needs explicit Task authorization, so architect flagged instead of fixing. Architect's suggestion,
+   which the orchestrator agrees with: drop the version figure from that chapter entirely — it is a
+   location/format chapter and the number will go stale at every contract revision.
+2. `.fast-sdlc/code-maps/frontend.md` line 15 — coder (frontend)'s artifact, its Reconcile Task
+   already run.
+Options put to the user: (1) drop the figure + update the code map, via one Task each; (2) just bump
+both to v1.11; (3) defer to debt. Unanswered as of this writing.
+
+## Process friction worth fixing
+Three subagents in a row (manual-qa TASK-019, architect TASK-020, business-analyst TASK-021) set
+their own Task file's `status: Done` but left the row in `tasks/index.md` stale. The orchestrator
+synced all three by hand. If this keeps recurring it belongs in the Task Management skill or the
+agents' own lifecycle steps, not in repeated orchestrator cleanup.
 
 **TASK-019 (manual-qa execute) — `Done` 2026-09-19, seventh attempt, clean pass.** TC-199 through
 TC-203 all PASS against `http://web-agent:3000`; no bugs found, none were open; manual-qa set
