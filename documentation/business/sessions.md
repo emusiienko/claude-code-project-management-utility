@@ -22,6 +22,9 @@
   the session's status.
 - **Archive a session**: from the list or the detail view; an archived session stays fully visible
   and editable — archiving only affects whether it shows by default in the list.
+- **Delete a session**: permanently removes it — no soft-delete, undo, or recovery. Via REST/MCP, any
+  session can be deleted regardless of its `archived` flag or status; in the Web UI, the delete action
+  is available only for already-archived sessions.
 - **Follow a link**: clicking a session's linked story or task navigates to that item's own detail
   view in Task Manager mode.
 
@@ -40,6 +43,10 @@ session belongs to exactly one project; there is no cross-project Sessions view.
 - If a linked story or task is later deleted, only that specific link is cleared — the session and
   its other link (if any) are unaffected.
 - Deleting a session's project deletes the session itself, not merely unlinking it.
+- Deleting a session that has a `linked_story_id` and/or `linked_task_id` set removes only the
+  session record — the linked story or task is unaffected.
+- Session deletion is permanent on every surface; the Web UI's archived-only restriction limits when
+  the action is exposed, not what it does once invoked.
 
 ## Known Limitations
 

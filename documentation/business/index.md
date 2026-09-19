@@ -23,7 +23,7 @@ Reconcile.
 | Work Item Linking | `work-item-linking.md` | Typed, directed links between tasks, and between stories, within the same project | Web UI + AI agents (MCP) |
 | Attachments | `attachments.md` | Documents, images, curated binary files, and external references attached to a story, task, or milestone; immutable once created | Web UI + AI agents (MCP) |
 | Comments | `comments.md` | Threaded discussion notes on a story, task, or milestone, with replies, `@role` mentions, and permalinks | Web UI + AI agents (MCP) |
-| Sessions | `sessions.md` | Project-scoped record of an agent/human working session — start artifact, lifecycle status, optional links to a story/task, optional result artifact | Web UI + AI agents (MCP) |
+| Sessions | `sessions.md` | Project-scoped record of an agent/human working session — start artifact, lifecycle status, optional links to a story/task, optional result artifact; permanently deletable (Web UI: archived-only) | Web UI + AI agents (MCP) |
 | Milestones | `milestones.md` | Named planning markers within a project; at most one active at a time; stories optionally assigned | Web UI + AI agents (MCP) |
 | AI Agent Access | `ai-agent-access.md` | Liveness check and a single-call breadth read of a project's full work state, purpose-built for agent session startup | AI agents (MCP + REST) |
 | Cross-project Queries (data access) | `cross-project-queries.md` | Listing stories/tasks across every project in one query, instead of per-project only — specified but not built on any surface | Not built — no one can access this today |
