@@ -354,6 +354,25 @@ npx vitest run --coverage
 - `vi.clearAllMocks()` in `beforeEach`. Anything global a test patches (`localStorage`, document-level
   listeners, timers) is restored in `afterEach`.
 
+### Stubbing `<dialog>` in tests
+
+`jsdom` implements neither `HTMLDialogElement.prototype.showModal` nor `.close`. A `<dialog>`-based
+component calls `showModal` from its own mount effect, so rendering one under test throws before any
+assertion runs. Every test file that renders such a component — directly, or through a page that
+renders it — must stub both methods.
+
+- Copy the stub from `src/features/sessions/components/DeleteSessionDialog.test.tsx`; it is the
+  reference instance. Do not re-derive it per file.
+- Each replacement sets the element's `open` property — `showModal` to `true`, `close` to `false`.
+  This is load-bearing, not cosmetic: `getByRole("dialog")` resolves only while `open` is set, and a
+  dialog component's own effect cleanup guards on `dialog.open` before calling `close`. A stub that
+  omits it produces passing-but-meaningless renders and unclosed dialogs.
+- Capture the original two methods and restore them, in `beforeAll` / `afterAll`. This is the
+  deliberate exception to § Mocking boundary's `afterEach` restore rule — the patch is on a shared
+  prototype, is identical for every test in the file, and no test mutates it.
+- The stub is declared per test file. `vitest.setup.ts` remains limited to its `jest-dom` import, so
+  repeating this block across dialog test files is intended, not duplication to consolidate.
+
 ### Mode: TDD for unit tests
 
 - Unit tests — pure utilities and hooks — are written **test-first**. Before writing the first unit test

@@ -73,11 +73,53 @@ Root cause (which file/content triggered either) not chased — would require re
 transcript directly, which risks context overflow. Worth double-checking `git status` for unexplained
 changes after every subagent completion going forward, not just ones a harness flag happens to catch.
 
+**False alarm, not a third instance (STORY-008/TASK-016, 2026-09-16)**: found
+`.fast-sdlc/conventions/devops-strategy.md` modified (a devcontainer-networking section) alongside
+TASK-016's actual scope (`coding-conventions-frontend.md`), unmentioned in that agent's report, and
+reverted it on the assumption it was another unattributed agent edit like the two real STORY-006
+incidents above. It was not — it was the **user's own uncommitted local edit**, made directly,
+unrelated to any agent in this session. Restored immediately from the diff captured before reverting,
+confirmed byte-identical to the original. Lesson: an uncommitted change outside a Task's stated scope
+is not on its own evidence of an agent injection — check whether it could be the user's own
+in-progress work (e.g. ask, or check mtime/authorship) before reverting anything. The two STORY-006
+incidents remain real; this one wasn't.
+
 ## Active wait
-None. STORY-006 and STORY-007 are both `Done`, archived, PRs merged into `development`. `index.md` is
-empty — no story currently on the board.
+waiting_for: user review of PR #10 (STORY-008, `feat/delete-archived-sessions` → `development`)
+next_step: route any PR feedback via pr-review-response; once approved, user merges + sets Accepted,
+then orchestrator runs Reconcile (lead-developer x2 stacks, architect, business-analyst; qa-automation/
+manual-qa Reconcile Tasks by own judgment).
+
+STORY-008 (delete sessions) — all planning and implementation Tasks Done (TASK-001 through TASK-011).
+Story is `Pending Approval`. PR #10 opened 2026-09-16, bundling: 3 coder commits (backend delete on
+REST+MCP; frontend list-row action; frontend detail-page action) plus 3 docs/QA commits the
+orchestrator made on responsible roles' behalf (business-analyst's Requirements, architect's API
+Contract v1.11-PLANNED revision, manual-qa's TC-199–203) since those agents left their work
+uncommitted for the orchestrator to bundle. manual-qa's TC-199–203 are written but not yet executed
+(QA phase runs after PR review, per this project's Execute Story ordering). qa-automation's Prepare
+work (writing black-box tests) was never spawned — no Task exists for it since that mode isn't
+task-driven; still need to trigger it before/alongside the QA phase.
+
+**GitHub PAT note**: the user's fine-grained PAT initially had no repo access, then lacked Pull
+Requests: write — both fixed live during this session by walking through token settings. If `gh`
+commands fail again with a 404 or "Resource not accessible", check token permissions first before
+assuming a sandbox/network issue.
+
+Note: qa-automation's "write automation tests" step for this story is deliberately **not** a Task —
+its own Check Story — Prepare mode is explicitly "not assigned by a task" (derives tests directly from
+API Contracts + acceptance criteria on its own initiative). No Task was created for it; spawn
+qa-automation directly for Prepare work once the story's contract/AC are stable, instead of looking
+for a Task to close.
 
 ## Recent changes
+- 2026-09-16: STORY-008 created ("Delete sessions") — user wants to delete session records, not just
+  archive them. Scope confirmed with user: REST/MCP delete is unrestricted by `archived`/`status`; Web
+  UI only exposes delete for already-archived sessions; deletion is permanent. business-analyst wrote
+  Requirements (`.fast-sdlc/requirements/specs/session-deletion.md`); architect found no Architectural
+  Design changes needed (pattern-instance of existing delete operations) but revised the LOCKED API
+  Contract to v1.11 (marked `PLANNED`, cleared at Reconcile — user confirmed keeping the markers rather
+  than moving the as-built head now) and wrote a Story Implementation Plan (backend then frontend,
+  frontend depends on backend; frontend alone holds the archived-only UI restriction).
 - 2026-09-13: STORY-006 closed. PR #8 (Reconcile) drew 3 rounds of review feedback after opening: Code
   Map reformatted from tables to plain `Module/File: 1-sentence` bullet lines (coder); ADR-001 removed
   entirely — user agreed a hand-rolled hook/component with no new dependency isn't an architectural

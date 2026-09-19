@@ -15,6 +15,7 @@ import { DATA_FRESHNESS, PAGINATION } from "@/config/apiConfig";
 import {
   archiveSession,
   createSession,
+  deleteSession,
   getSession,
   listSessions,
   updateSession,
@@ -137,6 +138,32 @@ export function useArchiveSession(projectId: string) {
       });
       void queryClient.invalidateQueries({
         queryKey: CACHE_KEYS.sessions.detail(updated.id),
+      });
+    },
+  });
+}
+
+/**
+ * Mutation: permanently delete a session. The Web UI only exposes this
+ * action for already-archived sessions, though the service itself accepts
+ * the delete regardless of `archived_at` or `status`.
+ *
+ * Invalidates the project's session list and removes (not invalidates) the
+ * deleted session's detail cache entry — invalidating a detail key whose
+ * record is gone would refetch it straight into a 404.
+ *
+ * @param projectId - Owning project ID — required to scope cache invalidation.
+ */
+export function useDeleteSession(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => deleteSession(sessionId),
+    onSuccess: (_data, sessionId) => {
+      void queryClient.invalidateQueries({
+        queryKey: CACHE_KEYS.sessions.list(projectId),
+      });
+      queryClient.removeQueries({
+        queryKey: CACHE_KEYS.sessions.detail(sessionId),
       });
     },
   });

@@ -112,3 +112,16 @@ async def archive_session(
 ) -> dict:
     session = service.archive(session_id)
     return {"data": Session.model_validate(session).model_dump()}
+
+
+@router.delete(
+    "/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@inject
+async def delete_session(
+    session_id: str,
+    _db: DbSession = Depends(Closing[Provide[AppContainer.db_session]]),
+    service: SessionService = Depends(Provide[AppContainer.session_service]),
+) -> None:
+    service.delete(session_id)

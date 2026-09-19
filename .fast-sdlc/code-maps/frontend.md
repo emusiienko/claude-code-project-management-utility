@@ -18,7 +18,7 @@ depends on. Feature hooks (`features/*/hooks/`) are the only consumers of `api/e
 - `api/endpoints/stories.ts`: Stories endpoint functions (`listStories`, `createStory`, `getStory`, `updateStory`, `deleteStory`); the story aggregate endpoint lives in `tasks.ts` instead as a Tasks-domain operation.
 - `api/endpoints/tasks.ts`: Tasks endpoint functions plus `getStoryAggregate`.
 - `api/endpoints/milestones.ts`: Milestones endpoint functions, including `activateMilestone`/`finishMilestone` and `listMilestoneStories`.
-- `api/endpoints/sessions.ts`: Sessions endpoint functions per STORY-009's contract, superseding the stale v1.0 forward-spec.
+- `api/endpoints/sessions.ts`: Sessions endpoint functions per STORY-009's contract, superseding the stale v1.0 forward-spec; includes `deleteSession` (STORY-008, `DELETE /v1/sessions/:id`, unrestricted by `archived_at`/`status` — the archived-only restriction is Web-UI-only, applied by its callers).
 - `api/endpoints/comments.ts`: Comment endpoint functions, including `getCommentAncestors`.
 - `api/endpoints/attachments.ts`: Attachment endpoint functions — create/list/get/delete only (attachments are immutable, no update/archive); base64 MCP create/read tools have no REST equivalent.
 - `api/endpoints/storyLinks.ts`: Story links endpoint functions.
@@ -144,9 +144,9 @@ depends on. Feature hooks (`features/*/hooks/`) are the only consumers of `api/e
 
 ## features/sessions/ — Sessions mode (STORY-009)
 
-- `SessionListPage.tsx`: Sessions list at `/sessions/:projectId`, project-scoped only, with combinable "incomplete only" + "linked to story" filters and an "include archived" toggle.
-- `SessionDetailPage.tsx`: Full record at `/sessions/:projectId/:sessionId`, editing every updatable field with a three-way status control and archive action.
-- `components/SessionList.tsx`: Session list rows with topic link, `participant_role`, independent linked-story/linked-task indicators, and status chip.
+- `SessionListPage.tsx`: Sessions list at `/sessions/:projectId`, project-scoped only, with combinable "incomplete only" + "linked to story" filters, an "include archived" toggle, and a per-row delete action (STORY-008 — rendered only for already-archived sessions, wired through `DeleteSessionDialog`/`useDeleteSession`; see `SessionList`).
+- `SessionDetailPage.tsx`: Full record at `/sessions/:projectId/:sessionId`, editing every updatable field with a three-way status control, archive action, and — once archived — a Delete action opening `DeleteSessionDialog` (STORY-008); an archived session stays fully editable.
+- `components/SessionList.tsx`: Session list rows with topic link, `participant_role`, independent linked-story/linked-task indicators, status chip, and (STORY-008) a Delete row action rendered only when `archived_at` is set — no control at all for a non-archived row.
 - `components/SessionForm.tsx`: Create form requiring `topic`/`goal`/`participant_role`, with independent optional story/task links, always starting `pending`.
 - `components/SessionEditForm.tsx`: Full-record edit form excluding `status` (owned by `SessionStatusControl`), whose `topic`/`goal`/`participant_role` cannot be cleared.
 - `components/SessionModal.tsx`: Modal wrapper for `SessionForm`, native `<dialog>`, focus-trapped.
@@ -156,7 +156,8 @@ depends on. Feature hooks (`features/*/hooks/`) are the only consumers of `api/e
 - `components/TaskLinkField.tsx`: Optional two-step (story then task) task-link picker, reading/writing `linked_task_id` only.
 - `components/LinkedItemDisplay.tsx`: Read-only linked-story/linked-task indicators, each resolved and navigated independently to Task Manager's own detail view.
 - `components/ArchiveSessionDialog.tsx`: Archive confirmation, styled non-destructively since archiving is reversible.
-- `hooks/useSessions.ts`: TanStack Query hooks for Sessions, always project-scoped.
+- `components/DeleteSessionDialog.tsx`: Delete confirmation dialog (STORY-008), modelled on `DeleteStoryDialog` — destructive-red confirm plus a cannot-be-undone warning, since deletion (unlike archiving) is permanent; shared by `SessionListPage` and `SessionDetailPage`.
+- `hooks/useSessions.ts`: TanStack Query hooks for Sessions, always project-scoped; `useDeleteSession` (STORY-008) invalidates the project's session list and removes (not invalidates) the deleted session's detail cache entry, to avoid refetching a now-404 record.
 - `utils/validateSessionFields.ts`: Shared required-field validation for create/edit forms, ensuring identical inline error copy across both.
 - `utils/errorMessages.ts`: Error message extraction.
 

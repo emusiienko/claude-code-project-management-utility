@@ -7,17 +7,21 @@
  * linked story, linked task, result_decisions, result_summary), change
  * `status` independently via a three-way control (settable to any of
  * `pending` / `in-progress` / `finished`, at any time, in any direction),
- * and archive the session. An archived session still shows its full record
- * and stays fully editable — archiving does not restrict this view.
+ * archive the session, and — once archived — permanently delete it. An
+ * archived session still shows its full record and stays fully editable —
+ * archiving does not restrict this view. Deleting navigates back to the
+ * project's session list, since this page's own route no longer resolves
+ * once the record is gone.
  */
 
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Archive, Pencil } from "lucide-react";
-import { useSession, useUpdateSession, useArchiveSession } from "./hooks/useSessions";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Archive, Pencil, Trash2 } from "lucide-react";
+import { useSession, useUpdateSession, useArchiveSession, useDeleteSession } from "./hooks/useSessions";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
 import { SessionEditForm, type SessionEditPayload } from "./components/SessionEditForm";
 import { ArchiveSessionDialog } from "./components/ArchiveSessionDialog";
+import { DeleteSessionDialog } from "./components/DeleteSessionDialog";
 import { LinkedStoryIndicator, LinkedTaskIndicator } from "./components/LinkedItemDisplay";
 import { SessionStatusBadge } from "./components/SessionStatusBadge";
 import { SessionStatusControl } from "./components/SessionStatusControl";
@@ -43,9 +47,11 @@ export default function SessionDetailPage() {
   const { projectId, sessionId } = useParams<{ projectId: string; sessionId: string }>();
   const safeProjectId = projectId ?? "";
   const safeSessionId = sessionId ?? "";
+  const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [mutationError, setMutationError] = useState<string | undefined>();
 
   const { data: session, isLoading, isError, error } = useSession(safeSessionId);
@@ -54,6 +60,7 @@ export default function SessionDetailPage() {
 
   const updateMutation = useUpdateSession(safeProjectId);
   const archiveMutation = useArchiveSession(safeProjectId);
+  const deleteMutation = useDeleteSession(safeProjectId);
 
   function handleEditSubmit(values: SessionEditPayload) {
     setMutationError(undefined);
@@ -78,6 +85,14 @@ export default function SessionDetailPage() {
     setMutationError(undefined);
     archiveMutation.mutate(safeSessionId, {
       onSuccess: () => setIsArchiveDialogOpen(false),
+      onError: (err) => setMutationError(extractErrorMessage(err)),
+    });
+  }
+
+  function handleDeleteConfirm() {
+    setMutationError(undefined);
+    deleteMutation.mutate(safeSessionId, {
+      onSuccess: () => navigate(`/sessions/${safeProjectId}`),
       onError: (err) => setMutationError(extractErrorMessage(err)),
     });
   }
@@ -153,6 +168,16 @@ export default function SessionDetailPage() {
           <Archive size={14} aria-hidden="true" />
           {session.archived_at ? "Archived" : "Archive"}
         </button>
+        {session.archived_at && (
+          <button
+            type="button"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-status-error/40 px-3 py-1.5 text-sm text-status-error hover:bg-status-error/10"
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            Delete
+          </button>
+        )}
       </div>
 
       {isEditing ? (
@@ -203,6 +228,16 @@ export default function SessionDetailPage() {
           onConfirm={handleArchiveConfirm}
           onClose={() => setIsArchiveDialogOpen(false)}
           isArchiving={archiveMutation.isPending}
+          errorMessage={mutationError}
+        />
+      )}
+
+      {isDeleteDialogOpen && (
+        <DeleteSessionDialog
+          session={session}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          isDeleting={deleteMutation.isPending}
           errorMessage={mutationError}
         />
       )}

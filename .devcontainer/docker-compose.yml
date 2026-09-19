@@ -8,6 +8,10 @@ services:
       # fast-sdlc plugin source, read-only — sibling repo on the host, not part of this project.
       # Set FAST_SDLC_PLUGIN_PATH in .devcontainer/.env (see .env.example).
       - ${FAST_SDLC_PLUGIN_PATH}:/opt/fast-sdlc-plugin:ro
+      # Named volume (not a host bind mount) so `claude /login` here survives a
+      # container rebuild — a separate OAuth session from the host's own, on a
+      # Docker-managed volume that never touches the host filesystem or git.
+      - claude_config:/home/vscode/.claude
     secrets:
       # File, not an env var — compose secrets mount as a file at /run/secrets/gh_token
       # and never show up in `docker inspect`, unlike `environment:`.
@@ -33,6 +37,7 @@ services:
 
 volumes:
   pg_devcontainer_data:
+  claude_config:
 
 networks:
   default: {}

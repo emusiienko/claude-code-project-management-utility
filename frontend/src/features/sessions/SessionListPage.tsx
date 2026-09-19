@@ -7,7 +7,8 @@
  * "incomplete only" and "linked to story" filters, an "include archived"
  * toggle (so an archived session stays reachable from the list — the
  * archive edge case only makes sense if the record is still discoverable),
- * pagination, session creation, and the archive row action.
+ * pagination, session creation, the archive row action, and the delete row
+ * action (rendered only for already-archived sessions — see SessionList).
  */
 
 import { useState } from "react";
@@ -16,10 +17,12 @@ import { useParams } from "react-router-dom";
 import { SessionList } from "./components/SessionList";
 import { SessionModal } from "./components/SessionModal";
 import { ArchiveSessionDialog } from "./components/ArchiveSessionDialog";
+import { DeleteSessionDialog } from "./components/DeleteSessionDialog";
 import {
   useSessionList,
   useCreateSession,
   useArchiveSession,
+  useDeleteSession,
   type SessionFilters,
 } from "./hooks/useSessions";
 import { useProjectSettingsEffective } from "@/features/settings/hooks/useProjectSettings";
@@ -32,7 +35,8 @@ import type { SessionCreatePayload } from "./components/SessionForm";
 type ModalState =
   | { type: "none" }
   | { type: "create" }
-  | { type: "archive"; session: Session };
+  | { type: "archive"; session: Session }
+  | { type: "delete"; session: Session };
 
 export default function SessionListPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -62,6 +66,7 @@ export default function SessionListPage() {
 
   const createMutation = useCreateSession(safeProjectId);
   const archiveMutation = useArchiveSession(safeProjectId);
+  const deleteMutation = useDeleteSession(safeProjectId);
 
   function openCreate() {
     setMutationError(undefined);
@@ -71,6 +76,11 @@ export default function SessionListPage() {
   function openArchive(session: Session) {
     setMutationError(undefined);
     setModal({ type: "archive", session });
+  }
+
+  function openDelete(session: Session) {
+    setMutationError(undefined);
+    setModal({ type: "delete", session });
   }
 
   function closeModal() {
@@ -98,6 +108,15 @@ export default function SessionListPage() {
     if (modal.type !== "archive") return;
     setMutationError(undefined);
     archiveMutation.mutate(modal.session.id, {
+      onSuccess: () => closeModal(),
+      onError: (err) => setMutationError(extractErrorMessage(err)),
+    });
+  }
+
+  function handleDeleteConfirm() {
+    if (modal.type !== "delete") return;
+    setMutationError(undefined);
+    deleteMutation.mutate(modal.session.id, {
       onSuccess: () => closeModal(),
       onError: (err) => setMutationError(extractErrorMessage(err)),
     });
@@ -176,6 +195,7 @@ export default function SessionListPage() {
         isError={isError}
         error={error}
         onArchive={openArchive}
+        onDelete={openDelete}
         onCreateFirst={openCreate}
       />
 
@@ -228,6 +248,16 @@ export default function SessionListPage() {
           onConfirm={handleArchiveConfirm}
           onClose={closeModal}
           isArchiving={archiveMutation.isPending}
+          errorMessage={mutationError}
+        />
+      )}
+
+      {modal.type === "delete" && (
+        <DeleteSessionDialog
+          session={modal.session}
+          onConfirm={handleDeleteConfirm}
+          onClose={closeModal}
+          isDeleting={deleteMutation.isPending}
           errorMessage={mutationError}
         />
       )}

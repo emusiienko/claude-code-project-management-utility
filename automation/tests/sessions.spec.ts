@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 import {
   createProject,
   createSession,
+  createStory,
+  createTask,
   getEffectiveParticipantRole,
   NON_EXISTENT_UUID,
 } from "../utils/helpers";
@@ -95,5 +97,87 @@ test.describe("Sessions", () => {
       },
     });
     expect(res.status()).toBe(404);
+  });
+
+  // DELETE /sessions/:id — STORY-008 (v1.11)
+  test("delete succeeds on a non-archived session regardless of status", async ({ request }) => {
+    const project = await createProject(request);
+    const session = await createSession(request, project.id);
+    expect(session.archived_at).toBeNull();
+
+    const putRes = await request.put(`/v1/sessions/${session.id}`, {
+      data: { status: "in-progress" },
+    });
+    expect(putRes.status()).toBe(200);
+
+    const delRes = await request.delete(`/v1/sessions/${session.id}`);
+    expect(delRes.status()).toBe(204);
+
+    const getRes = await request.get(`/v1/sessions/${session.id}`);
+    expect(getRes.status()).toBe(404);
+  });
+
+  test("delete succeeds on an archived session — archive and delete stay independent", async ({
+    request,
+  }) => {
+    const project = await createProject(request);
+    const session = await createSession(request, project.id);
+
+    const archiveRes = await request.post(`/v1/sessions/${session.id}/archive`);
+    expect(archiveRes.status()).toBe(200);
+
+    const delRes = await request.delete(`/v1/sessions/${session.id}`);
+    expect(delRes.status()).toBe(204);
+
+    const getRes = await request.get(`/v1/sessions/${session.id}`);
+    expect(getRes.status()).toBe(404);
+  });
+
+  test("delete is permanent — deleting the same session again returns 404", async ({ request }) => {
+    const project = await createProject(request);
+    const session = await createSession(request, project.id);
+
+    const firstDelete = await request.delete(`/v1/sessions/${session.id}`);
+    expect(firstDelete.status()).toBe(204);
+
+    const secondDelete = await request.delete(`/v1/sessions/${session.id}`);
+    expect(secondDelete.status()).toBe(404);
+    expect((await secondDelete.json()).code).toBe("NOT_FOUND");
+  });
+
+  test("delete of an unknown id returns 404", async ({ request }) => {
+    const res = await request.delete(`/v1/sessions/${NON_EXISTENT_UUID}`);
+    expect(res.status()).toBe(404);
+    expect((await res.json()).code).toBe("NOT_FOUND");
+  });
+
+  test("delete of a malformed id returns 404 (not a 422/500)", async ({ request }) => {
+    const res = await request.delete("/v1/sessions/not-a-valid-uuid");
+    expect(res.status()).toBe(404);
+    expect((await res.json()).code).toBe("NOT_FOUND");
+  });
+
+  test("deleting a session with linked story/task removes only the session", async ({
+    request,
+  }) => {
+    const project = await createProject(request);
+    const story = await createStory(request, project.id);
+    const task = await createTask(request, story.id);
+    const role = await getEffectiveParticipantRole(request, project.id);
+
+    const session = await createSession(request, project.id, {
+      participant_role: role,
+      linked_story_id: story.id,
+      linked_task_id: task.id,
+    });
+
+    const delRes = await request.delete(`/v1/sessions/${session.id}`);
+    expect(delRes.status()).toBe(204);
+
+    const storyAfter = await request.get(`/v1/stories/${story.id}`);
+    expect(storyAfter.status()).toBe(200);
+
+    const taskAfter = await request.get(`/v1/tasks/${task.id}`);
+    expect(taskAfter.status()).toBe(200);
   });
 });

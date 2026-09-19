@@ -7,11 +7,12 @@
  *
  * Endpoints covered (STORY-009 — supersedes the stale v1.0 forward-spec in
  * docs/api-contract.md, reconciled at story Reconcile):
- *   POST /v1/sessions
- *   GET  /v1/sessions?project_id&page&limit&incomplete&linked_story_id&include_archived
- *   GET  /v1/sessions/:id
- *   PUT  /v1/sessions/:id
- *   POST /v1/sessions/:id/archive
+ *   POST   /v1/sessions
+ *   GET    /v1/sessions?project_id&page&limit&incomplete&linked_story_id&include_archived
+ *   GET    /v1/sessions/:id
+ *   PUT    /v1/sessions/:id
+ *   POST   /v1/sessions/:id/archive
+ *   DELETE /v1/sessions/:id
  */
 
 import { apiClient } from "@/core/client";
@@ -112,4 +113,16 @@ export async function archiveSession(sessionId: string): Promise<Session> {
     API_PATHS.SESSION_ARCHIVE(sessionId),
   );
   return envelope.data;
+}
+
+/**
+ * DELETE /v1/sessions/:id — permanently deletes the session.
+ *
+ * The service accepts this for any session regardless of `archived_at` or
+ * `status` — the Web UI is what restricts the action to archived sessions.
+ *
+ * @param sessionId - Session ID.
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  await apiClient.delete(API_PATHS.SESSION(sessionId));
 }

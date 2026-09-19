@@ -6,10 +6,12 @@
  * indicator and linked-task indicator (each clickable, shown separately —
  * both appear together when both are set), created_at, and a single status
  * chip driven directly by `status`. Delegates the archive action to the
- * parent via a callback.
+ * parent via a callback, and the delete action likewise — the delete action
+ * renders only on rows with `archived_at` set (no control at all for a
+ * non-archived session).
  */
 
-import { Archive } from "lucide-react";
+import { Archive, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Session } from "@/api/types";
 import { IconButton } from "@/shared/components/IconButton";
@@ -25,13 +27,14 @@ interface SessionListProps {
   isError: boolean;
   error: unknown;
   onArchive: (session: Session) => void;
+  onDelete: (session: Session) => void;
   pendingArchiveIds?: Set<string>;
   onCreateFirst?: () => void;
 }
 
 /**
- * Session table with an archive action per row.
- * Shows accessible loading, error, and empty states.
+ * Session table with an archive action per row, plus a delete action on
+ * archived rows only. Shows accessible loading, error, and empty states.
  */
 export function SessionList({
   projectId,
@@ -40,6 +43,7 @@ export function SessionList({
   isError,
   error,
   onArchive,
+  onDelete,
   pendingArchiveIds,
   onCreateFirst,
 }: SessionListProps) {
@@ -147,6 +151,14 @@ export function SessionList({
                     disabled={pendingArchiveIds?.has(session.id)}
                     onClick={() => onArchive(session)}
                   />
+                  {session.archived_at !== null && (
+                    <IconButton
+                      Icon={Trash2}
+                      label={`Delete ${session.topic}`}
+                      intent="destructive"
+                      onClick={() => onDelete(session)}
+                    />
+                  )}
                 </div>
               </td>
             </tr>
