@@ -328,14 +328,16 @@ directory. Keeping this explicit prevents an agent from reasoning about, or tryi
 canonical `8000`/`3000`/`5432` ports when they belong to a separate instance the user may be running
 live. (`deploy.sh` also remains user-run, never agent-run — see § Deployment / Run.)
 
-**Addresses differ when the agent runs inside the devcontainer.** The `localhost:8100`/`:3100`
-addresses above are reachable only from the host. The devcontainer's `dev` service instead joins the
+**Addresses when the agent runs inside the devcontainer.** The devcontainer's `dev` service joins the
 dev stack's `agent-access` Docker network (see `docker-compose.dev.yml` and
-`.devcontainer/docker-compose.yml`) and reaches the same services by container DNS name on their
-container-internal ports — not the host-mapped ones:
+`.devcontainer/docker-compose.yml`) and reaches these container-DNS, container-internal addresses:
 
-- `http://backend:8000` (not `localhost:8100`)
-- `http://web:3000` (not `localhost:3100`)
+- `http://backend:8000` — direct API/MCP calls (qa-automation, curl, etc.)
+- `http://web-agent:3000` — for a **browser** running inside the devcontainer (manual-qa's
+  Playwright) to load the frontend. This is a separate service, `web-agent` in
+  `docker-compose.dev.yml` — same source and Dockerfile as `web`, but built with
+  `VITE_API_BASE_URL=http://backend:8000` baked in, so the bundle's own JS calls (no server-side
+  proxying — see `frontend/nginx.conf`) resolve correctly from inside the devcontainer.
 
 This network is created by the dev stack itself (`./deploy.sh up`, a user step, run with
 `STACK_NAME=dev`) — it must already exist before the devcontainer starts or rebuilds, or the

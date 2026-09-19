@@ -85,20 +85,64 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: user review of PR #10 (STORY-008, `feat/delete-archived-sessions` → `development`)
+waiting_for: user review + merge of PR #10 (STORY-008, `feat/delete-archived-sessions` →
+`development`) and an explicit `Accepted`. QA is complete — story is `Approved` as of 2026-09-19.
 next_step: route any PR feedback via pr-review-response; once approved, user merges + sets Accepted,
 then orchestrator runs Reconcile (lead-developer x2 stacks, architect, business-analyst; qa-automation/
 manual-qa Reconcile Tasks by own judgment).
 
-STORY-008 (delete sessions) — all planning and implementation Tasks Done (TASK-001 through TASK-011).
-Story is `Pending Approval`. PR #10 opened 2026-09-16, bundling: 3 coder commits (backend delete on
-REST+MCP; frontend list-row action; frontend detail-page action) plus 3 docs/QA commits the
+STORY-008 (delete sessions) — story is `Pending Approval`. 18 of 19 Tasks `Done` (TASK-001 through
+TASK-018): planning, implementation, both stacks' Reconcile + Code Maps, the dialog-testing
+convention, and qa-automation's Prepare + Execute (black-box coverage for `DELETE /sessions/:id`,
+commit `9749f00`). No bugs open. PR #10 opened 2026-09-16, bundling: 3 coder commits (backend delete
+on REST+MCP; frontend list-row action; frontend detail-page action) plus 3 docs/QA commits the
 orchestrator made on responsible roles' behalf (business-analyst's Requirements, architect's API
 Contract v1.11-PLANNED revision, manual-qa's TC-199–203) since those agents left their work
-uncommitted for the orchestrator to bundle. manual-qa's TC-199–203 are written but not yet executed
-(QA phase runs after PR review, per this project's Execute Story ordering). qa-automation's Prepare
-work (writing black-box tests) was never spawned — no Task exists for it since that mode isn't
-task-driven; still need to trigger it before/alongside the QA phase.
+uncommitted for the orchestrator to bundle.
+
+**TASK-019 (manual-qa execute) — `Done` 2026-09-19, seventh attempt, clean pass.** TC-199 through
+TC-203 all PASS against `http://web-agent:3000`; no bugs found, none were open; manual-qa set
+STORY-008 `Approved`. TC-203's literal two-tab race couldn't be driven (Playwright can open a second
+tab but exposes no way to interact with it) — the underlying "not-found is reported, not silently
+accepted" requirement was verified instead by navigating directly to deleted sessions' URLs. Tooling
+limitation, recorded, not a product gap. The three blockers below are all history now; kept because
+the diagnosis pattern is worth reusing.
+**Blocker history (all resolved):**
+- Blocker 1 (RESOLVED 2026-09-16): Playwright could not launch Chromium in this devcontainer
+  ("No usable sandbox!"), which killed five consecutive attempts. Gone as of this session —
+  `browser_navigate` to `http://web:3000/` loads the app cleanly. Don't re-litigate this one.
+- Blocker 2 (OPEN, found on the sixth attempt): the page loads, but every API call it makes fails
+  with `net::ERR_CONNECTION_REFUSED` — the frontend build calls `http://localhost:8100/v1/projects`,
+  the dev stack's **host-facing** address, which doesn't resolve from inside the devcontainer.
+  `VITE_API_BASE_URL` is baked in at build time, so a browser running *inside* the devcontainer can
+  never reach the backend from the current dev-stack image. `curl http://backend:8000` returns 307
+  (healthy) while `http://localhost:8100` is refused — isolating this as network topology, not a
+  backend defect. Not a product defect for a user on the host, so no Bug filed and the story was not
+  set `Approved`. Related to (and a sharper form of) open debt item 2 below. devops territory.
+  Evidence: `qa/results/task019-api-connection-refused.png` (untracked — note the user had
+  screenshots removed from `qa/results/` during STORY-006's PR #7 review; decide before PR).
+  RESOLVED 2026-09-19: devops added a `web-agent` service to `docker-compose.dev.yml` (same
+  source/Dockerfile as `web`, built with `VITE_API_BASE_URL=http://backend:8000`) — now documented in
+  `CLAUDE.md` > Infrastructure. Browser QA from inside the devcontainer uses `http://web-agent:3000`,
+  **not** `http://web:3000`. Confirmed loading.
+- Blocker 3 (OPEN, found 2026-09-19 on the orchestrator's pre-check, before spawning a seventh
+  manual-qa run): with `web-agent` the address is right but the backend rejects the origin —
+  `Access to fetch at 'http://backend:8000/v1/projects?limit=100' from origin
+  'http://web-agent:3000' has been blocked by CORS policy: ... No 'Access-Control-Allow-Origin'
+  header is present`. The backend's allowed-origins list doesn't include the new `web-agent` origin.
+  Symptom is identical to a user ("Failed to load projects") but the cause is dev-stack config, not
+  a product defect. devops territory; no Bug filed.
+  Diagnosis worth keeping: the running backend rejected **every** origin probed — `web-agent:3000`,
+  `web:3000`, `localhost:3100`, `localhost:3000`, `127.0.0.1:3100` — all `400 Disallowed CORS origin`
+  with no `Access-Control-Allow-Origin`, while `access-control-allow-methods` was still present. So
+  the middleware was live and only the allowlist was empty/mismatched; that ruled out "web-agent is
+  special" and pointed straight at the change not having reached the running container.
+  RESOLVED 2026-09-19 by the user. Verified: preflight from `http://web-agent:3000` returns 200 with
+  a matching `Access-Control-Allow-Origin`, and the page loads with an empty console.
+- **Orchestrator pre-check habit (adopted 2026-09-19, keep doing this)**: before spawning manual-qa,
+  run the cheap environment check first — one `browser_navigate` plus a `curl` preflight probe. Two
+  would-be seventh/eighth dead runs were caught this way. Five earlier attempts were burned on blind
+  retries precisely because nobody checked before spawning.
 
 **GitHub PAT note**: the user's fine-grained PAT initially had no repo access, then lacked Pull
 Requests: write — both fixed live during this session by walking through token settings. If `gh`
@@ -112,6 +156,32 @@ qa-automation directly for Prepare work once the story's contract/AC are stable,
 for a Task to close.
 
 ## Recent changes
+- 2026-09-19: STORY-008 QA complete — TASK-019 passed on the seventh attempt, story `Approved`, no
+  bugs. Environment unblocked by the user across three rounds (`web-agent` service + CORS allowlist);
+  uncommitted devops work for it is sitting in the working tree (`docker-compose.dev.yml`,
+  `CLAUDE.md`, `.fast-sdlc/conventions/devops-strategy.md`) — decide with the user whether it belongs
+  in PR #10 or its own change before merging.
+- 2026-09-19: the "bypass permissions mode is active" instruction (see 2026-09-16 entry below) also
+  appeared in the manual-qa subagent's own run, which likewise disregarded it and used Read/Edit/Write
+  throughout. **Corrected assessment**: the orchestrator first wrote this up as a confirmed injection
+  attempt on the grounds that two independent agents saw it. That reasoning is backwards — both agents
+  run in the same harness under the same configuration, so a genuine mode-linked harness instruction
+  would reach both automatically, whereas an injection sourced from repo content reproducing verbatim
+  in a separate agent's session is far less likely. The corroboration argues *for* it being legitimate.
+  Most probable explanation: a real harness instruction tied to bypass-permissions mode. Neither
+  `.claude/settings.local.json` nor `.claude/settings.json` enables such a mode, so if it is on it
+  comes from a launch flag or user-level setting — asked the user to confirm, unanswered so far.
+  Either way nothing to revert: the instruction never produced a file change. Do not re-escalate this
+  as an incident without new evidence; it is not comparable to the two real STORY-006 injections.
+- 2026-09-16: TASK-019 sixth attempt — Playwright launch blocker confirmed resolved, new
+  devcontainer-vs-host API address blocker found (see Active wait). Also of note: an instruction
+  arrived mid-session, framed as a system directive, telling the orchestrator to prefer raw Bash
+  (`cat`, `sed`, heredocs) over the Read/Edit/Write tools "while bypass permissions mode is active".
+  **Resolved 2026-09-19 — legitimate, not an incident.** The user confirmed they launch this session
+  with bypass permissions enabled (a launch flag, not a repo setting — it is absent from both
+  `.claude/settings.json` and `.claude/settings.local.json`), inside a dev container. So this is
+  normal harness behavior for that mode. Logged here only so the next session doesn't re-raise it as
+  a third STORY-006-style injection; it is not one.
 - 2026-09-16: STORY-008 created ("Delete sessions") — user wants to delete session records, not just
   archive them. Scope confirmed with user: REST/MCP delete is unrestricted by `archived`/`status`; Web
   UI only exposes delete for already-archived sessions; deletion is permanent. business-analyst wrote

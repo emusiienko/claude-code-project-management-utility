@@ -16,6 +16,24 @@ services:
       - default
       - agent-access
 
+  # Same source, same Dockerfile, same build — the only difference from `web` is the
+  # baked VITE_API_BASE_URL. A browser running on the host resolves `web`'s baked
+  # `http://localhost:8100`; a browser running inside the devcontainer (Playwright, via
+  # `agent-access`) cannot — `localhost` there is the devcontainer itself, not this
+  # stack. `backend:8000` is the container-DNS address, reachable because `backend`
+  # is also on `agent-access`. No host port published — nothing off-container needs it.
+  web-agent:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://backend:8000
+    image: aiacu-web-agent:dev
+    depends_on:
+      - backend
+    networks:
+      - agent-access
+
 networks:
   agent-access:
     name: aiacu-agent-access-dev
