@@ -40,7 +40,7 @@ pointers below are entry points, not the full inventory.
   Covers Solution Overview (+ C4 L1/L2 graph+diagram pairs), NFR, Physical Data Model, API Contracts,
   Deployment/Infrastructure View, ADR Log. `index.md` maps the whole folder.
 - **API Contract**: `documentation/technical/api-contracts/coordination-service.md` — **LOCKED**, as-built
-  head **v1.10**. One backend service (REST + path-mounted MCP over a shared service layer); every REST
+  head **v1.11**. One backend service (REST + path-mounted MCP over a shared service layer); every REST
   route lives under the `/v1` base path. Shapes change only via an architect-approved revision. It
   documents what the running backend actually serves — read it as the definitive API surface, never as a
   superset.
