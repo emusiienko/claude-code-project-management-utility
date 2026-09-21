@@ -18,6 +18,8 @@ A single-developer, locally-hosted utility storing the operational state of a mu
 | `qa/` | Manual test case registry (manual-qa) |
 | `.fast-sdlc/` | Fast SDLC operating folder — task management, requirements, role configs, shared conventions |
 
+
+
 ## Commands
 
 | Command | Description |
