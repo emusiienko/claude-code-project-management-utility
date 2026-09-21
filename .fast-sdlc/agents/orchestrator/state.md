@@ -98,10 +98,11 @@ re-checked, the remote had changed to HTTPS (`https://github.com/emusiienko/...`
 shows a loaded identity — unclear whether the user changed the remote directly or something else
 resolved it; not chased further since the retry below hit a new, unrelated blocker anyway.
 
-Second blocker (current): pushing over the now-HTTPS remote fails with
-`remote: Write access to repository not granted. ... 403`. `gh auth status` shows a valid, logged-in
-fine-grained PAT (account `emusiienko`, expires 2026-12-14) with git protocol `https`, but the token
-evidently lacks `contents: write` (or equivalent) on this repo. This is a token-permission gap, not a
+Second blocker (current, reconfirmed on a second push attempt same day, identical error both times):
+pushing over the now-HTTPS remote fails with `remote: Write access to repository not granted. ... 403`.
+`gh auth status` shows a valid, logged-in fine-grained PAT (account `emusiienko`, expires 2026-12-14)
+with git protocol `https`, but the token evidently lacks `contents: write` (or equivalent) on this
+repo. This is a token-permission gap, not a
 network/identity one — `gh api user` succeeds fine. Needs the user to either grant the PAT write access
 to this repo (fine-grained PAT repo permissions) or otherwise restore push access; the orchestrator
 should not modify git remote config or credentials on its own to work around it. Nothing is lost
