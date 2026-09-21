@@ -85,9 +85,15 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: the user to review PR #12 and, once satisfied, merge it and set STORY-009 `Accepted`.
-next_step: on merge, set STORY-009 `Done` and archive it — no Reconcile phase applies (no
+waiting_for: the user to merge PR #12 themselves (approved in chat 2026-09-21; asked whether the
+orchestrator should merge it directly and the user opted to merge it themselves via GitHub) and set
+STORY-009 `Accepted`.
+next_step: once told it's merged, set STORY-009 `Done` and archive it — no Reconcile phase applies (no
 lead-developer/coder/devops Tasks, so no Deviation Report for anyone to read).
+
+Note: PR #12 also carries commit `a72f765` — a user-authored two-line whitespace addition to
+`CLAUDE.md`, added at the user's explicit request to test push access after the PAT permission fix.
+Harmless, unrelated to the story's actual scope.
 
 ## Resolved: git push (2026-09-21)
 Two blockers, both since resolved:
