@@ -85,21 +85,29 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: the user to restore git push access — see Blocked below. No PR is open for STORY-009
-yet; both Tasks are `Done` and committed locally on `chore/artifact-file-reference-links`, which has
-never been pushed.
+waiting_for: the user to grant the `gh` PAT write access to the repo — see Blocked below. No PR is
+open for STORY-009 yet; both Tasks are `Done` and committed locally on
+`chore/artifact-file-reference-links`, which has never been pushed.
 next_step: push the branch, open the Reconcile-less Acceptance PR, then on merge set STORY-009
 `Done` and archive it.
 
-## Blocked: git push (2026-09-21)
-`git push` fails with `git@github.com: Permission denied (publickey)`. Diagnosis: the repo's remote is
-SSH (`git@github.com:...`), the forwarded VS Code ssh-agent socket is present but `ssh-add -l` reports
-"The agent has no identities" — the key is simply not loaded. Pushes over SSH worked earlier in this
-same session, so the key was dropped rather than never configured. Meanwhile `gh` is authenticated
-fine (PAT, account `emusiienko`, git protocol `https`), so the alternative is switching the remote to
-HTTPS. Nothing is lost either way: three commits (`b9c70c9`, `cbdf40b`, `bec69c7`) sit safely on the
-local branch. Note this is a different failure from the PAT-permissions saga recorded earlier — that
-one returned 404s from `gh`, this one never reaches the API at all.
+## Blocked: git push (2026-09-21, updated same day)
+First blocker (resolved on its own, cause unconfirmed): `git push` over SSH failed with
+`Permission denied (publickey)` — `ssh-add -l` reported no identities loaded. By the time this session
+re-checked, the remote had changed to HTTPS (`https://github.com/emusiienko/...`) and `ssh-add -l` now
+shows a loaded identity — unclear whether the user changed the remote directly or something else
+resolved it; not chased further since the retry below hit a new, unrelated blocker anyway.
+
+Second blocker (current): pushing over the now-HTTPS remote fails with
+`remote: Write access to repository not granted. ... 403`. `gh auth status` shows a valid, logged-in
+fine-grained PAT (account `emusiienko`, expires 2026-12-14) with git protocol `https`, but the token
+evidently lacks `contents: write` (or equivalent) on this repo. This is a token-permission gap, not a
+network/identity one — `gh api user` succeeds fine. Needs the user to either grant the PAT write access
+to this repo (fine-grained PAT repo permissions) or otherwise restore push access; the orchestrator
+should not modify git remote config or credentials on its own to work around it. Nothing is lost
+either way: three commits (`b9c70c9`, `cbdf40b`, `bec69c7`) sit safely on the local branch. Note this
+is a different failure from the PAT-permissions saga recorded earlier — that one returned 404s from
+`gh` itself, this one is a plain git push rejection.
 
 Once merged, no Reconcile phase applies to STORY-009 — it has no lead-developer/coder/devops Tasks,
 so there is no Deviation Report for anyone to read.
