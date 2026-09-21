@@ -85,96 +85,79 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: user review + merge of PR #11 (STORY-008 Reconcile,
-`feat/delete-archived-sessions-docs-reconcile` -> `development`).
-next_step: on merge, set STORY-008 `Done` and archive it. Also pending: the user's decision on the
-two stale `v1.10` references (see Open decision below).
+waiting_for: user review + merge of PR #12 (STORY-009, `chore/artifact-file-reference-links` ->
+`development`).
+next_step: on merge, set STORY-009 `Done` and archive it. No Reconcile phase applies — the story has
+no lead-developer/coder/devops Tasks, so there is no Deviation Report for anyone to read.
 
-STORY-008 (Delete sessions) — `Accepted` 2026-09-19. Implementation PR #10 merged (`236594e`), then
-merged again into `development` as `dca6d3b` alongside the user's own devops commit `8573ebb`
-("fixed web for agents") that added the `web-agent` service and the CORS allowlist. All 21 Tasks
-`Done`. Reconcile PR #11 opened 2026-09-19 with architect's `3d6bdb7` (API Contract promoted to
-as-built v1.11, `PLANNED` markers cleared, Solution Overview + `CLAUDE.md` updated; no ADR, next id
-still ADR-032) and business-analyst's `a89c6ac` (Session Deletion moved out of Requirements into
-Business Documentation, folded into the existing Sessions capability).
+STORY-009 (chore, P3) — apply the file-referencing convention the user described: inside a multi-file
+artifact, reference other files by link rather than bare name. TASK-001 (architect, `b9c70c9`) and
+TASK-002 (business-analyst, `cbdf40b`) both `Done`. 17 files, +314/-254.
 
-No QA Reconcile Tasks were created, by orchestrator judgment: TC-199-203 were already in the master
-registry with files on disk, both Deviation Reports report "No deviations" in every section, and
-qa-automation's suite was written after those reports existed and passes.
+**Finding worth keeping: the convention is not in the installed plugin.** Architect reported it could
+not find the rule stated anywhere in `/opt/fast-sdlc-plugin/`, and the orchestrator verified that
+independently: the architect and business-analyst agent definitions were last modified 2026-09-10 and
+2026-09-07, untouched by any recent update, while eight templates under `templates/architect/` and
+`templates/business-analyst/` plus `skills/sdlc/SKILL.md` were modified 2026-09-21 — and not one of
+those files contains the word "link". So the plugin did update that day, but with something else;
+both agents applied this convention purely from the user's own instruction, which is legitimate but
+worth knowing if it ever needs re-deriving.
 
-## Open decision (user, unanswered)
-Two stale `v1.10` references, both confirmed on disk, neither touched:
-1. `fast-sdlc-project-setup.md` line ~192 — architect's own Artifacts chapter, but editing that file
-   needs explicit Task authorization, so architect flagged instead of fixing. Architect's suggestion,
-   which the orchestrator agrees with: drop the version figure from that chapter entirely — it is a
-   location/format chapter and the number will go stale at every contract revision.
-2. `.fast-sdlc/code-maps/frontend.md` line 15 — coder (frontend)'s artifact, its Reconcile Task
-   already run.
-Options put to the user: (1) drop the figure + update the code map, via one Task each; (2) just bump
-both to v1.11; (3) defer to debt. Unanswered as of this writing.
+**Consequence not yet acted on**: the real 2026-09-21 plugin update remains unexamined. Architect
+noticed the symptom — the project's local format copies in `.fast-sdlc/agents/architect/`
+(`adr-format.md`, `story-implementation-plan-format.md`, `claude-md-format.md`,
+`architectural-design/tech-plan-format.md`) have drifted from the current plugin defaults. Put to the
+user as a possible follow-up Task; unanswered.
+
+**Architect judgment calls to confirm if ever revisited**: the ADR Log was deliberately left
+untouched (an ADR body is immutable, only `Status` may change), with every ADR made reachable inbound
+instead via links from the SAD's decision table and Solution Overview's Key Decisions, and the
+exception stated in the SAD so it does not read as an oversight. Provenance tags stay plain IDs — a
+reference telling the reader to go read another file became a link, while a parenthetical recording
+where a stated fact came from did not, to keep the Physical Data Model's tables readable.
+
+## Open decision (user, unanswered across two asks)
+Two stale `v1.10` references to the API Contract, both confirmed on disk, neither touched — the
+contract's as-built head is v1.11 as of STORY-008's Reconcile:
+1. `fast-sdlc-project-setup.md` > Artifacts > API Contract. Architect's own chapter, but editing that
+   file needs explicit Task authorization, so architect flagged instead of fixing. Architect's
+   suggestion, which the orchestrator agrees with: drop the version figure from that chapter entirely
+   — it is a location/format chapter, and the number will go stale at every contract revision.
+2. `.fast-sdlc/code-maps/frontend.md` line 15 — coder (frontend)'s artifact.
+Options put to the user: (1) drop the figure + update the code map, one Task each; (2) bump both to
+v1.11; (3) defer. No answer given; STORY-008's Reconcile PR shipped without them, flagged in its own
+description under "Known, not addressed here".
 
 ## Process friction worth fixing
-Three subagents in a row (manual-qa TASK-019, architect TASK-020, business-analyst TASK-021) set
-their own Task file's `status: Done` but left the row in `tasks/index.md` stale. The orchestrator
-synced all three by hand. If this keeps recurring it belongs in the Task Management skill or the
-agents' own lifecycle steps, not in repeated orchestrator cleanup.
+Now six in a row, across two stories (STORY-008's TASK-019/020/021/022 and STORY-009's
+TASK-001/002): every agent set its own Task file to `Done` and left the `tasks/index.md` row stale.
+Four subagents in a row (manual-qa TASK-019, architect TASK-020, business-analyst TASK-021 and
+TASK-022) set their own Task file's `status: Done` but left the row in `tasks/index.md` stale. The
+orchestrator synced every one by hand. This is a reproducible gap, not carelessness by one agent — it
+belongs in the Task Management skill or the agents' own lifecycle steps, not in repeated orchestrator
+cleanup.
 
-**TASK-019 (manual-qa execute) — `Done` 2026-09-19, seventh attempt, clean pass.** TC-199 through
-TC-203 all PASS against `http://web-agent:3000`; no bugs found, none were open; manual-qa set
-STORY-008 `Approved`. TC-203's literal two-tab race couldn't be driven (Playwright can open a second
-tab but exposes no way to interact with it) — the underlying "not-found is reported, not silently
-accepted" requirement was verified instead by navigating directly to deleted sessions' URLs. Tooling
-limitation, recorded, not a product gap. The three blockers below are all history now; kept because
-the diagnosis pattern is worth reusing.
-**Blocker history (all resolved):**
-- Blocker 1 (RESOLVED 2026-09-16): Playwright could not launch Chromium in this devcontainer
-  ("No usable sandbox!"), which killed five consecutive attempts. Gone as of this session —
-  `browser_navigate` to `http://web:3000/` loads the app cleanly. Don't re-litigate this one.
-- Blocker 2 (OPEN, found on the sixth attempt): the page loads, but every API call it makes fails
-  with `net::ERR_CONNECTION_REFUSED` — the frontend build calls `http://localhost:8100/v1/projects`,
-  the dev stack's **host-facing** address, which doesn't resolve from inside the devcontainer.
-  `VITE_API_BASE_URL` is baked in at build time, so a browser running *inside* the devcontainer can
-  never reach the backend from the current dev-stack image. `curl http://backend:8000` returns 307
-  (healthy) while `http://localhost:8100` is refused — isolating this as network topology, not a
-  backend defect. Not a product defect for a user on the host, so no Bug filed and the story was not
-  set `Approved`. Related to (and a sharper form of) open debt item 2 below. devops territory.
-  Evidence: `qa/results/task019-api-connection-refused.png` (untracked — note the user had
-  screenshots removed from `qa/results/` during STORY-006's PR #7 review; decide before PR).
-  RESOLVED 2026-09-19: devops added a `web-agent` service to `docker-compose.dev.yml` (same
-  source/Dockerfile as `web`, built with `VITE_API_BASE_URL=http://backend:8000`) — now documented in
-  `CLAUDE.md` > Infrastructure. Browser QA from inside the devcontainer uses `http://web-agent:3000`,
-  **not** `http://web:3000`. Confirmed loading.
-- Blocker 3 (OPEN, found 2026-09-19 on the orchestrator's pre-check, before spawning a seventh
-  manual-qa run): with `web-agent` the address is right but the backend rejects the origin —
-  `Access to fetch at 'http://backend:8000/v1/projects?limit=100' from origin
-  'http://web-agent:3000' has been blocked by CORS policy: ... No 'Access-Control-Allow-Origin'
-  header is present`. The backend's allowed-origins list doesn't include the new `web-agent` origin.
-  Symptom is identical to a user ("Failed to load projects") but the cause is dev-stack config, not
-  a product defect. devops territory; no Bug filed.
-  Diagnosis worth keeping: the running backend rejected **every** origin probed — `web-agent:3000`,
-  `web:3000`, `localhost:3100`, `localhost:3000`, `127.0.0.1:3100` — all `400 Disallowed CORS origin`
-  with no `Access-Control-Allow-Origin`, while `access-control-allow-methods` was still present. So
-  the middleware was live and only the allowlist was empty/mismatched; that ruled out "web-agent is
-  special" and pointed straight at the change not having reached the running container.
-  RESOLVED 2026-09-19 by the user. Verified: preflight from `http://web-agent:3000` returns 200 with
-  a matching `Access-Control-Allow-Origin`, and the page loads with an empty console.
-- **Orchestrator pre-check habit (adopted 2026-09-19, keep doing this)**: before spawning manual-qa,
-  run the cheap environment check first — one `browser_navigate` plus a `curl` preflight probe. Two
-  would-be seventh/eighth dead runs were caught this way. Five earlier attempts were burned on blind
-  retries precisely because nobody checked before spawning.
-
-**GitHub PAT note**: the user's fine-grained PAT initially had no repo access, then lacked Pull
-Requests: write — both fixed live during this session by walking through token settings. If `gh`
-commands fail again with a 404 or "Resource not accessible", check token permissions first before
-assuming a sandbox/network issue.
-
-Note: qa-automation's "write automation tests" step for this story is deliberately **not** a Task —
-its own Check Story — Prepare mode is explicitly "not assigned by a task" (derives tests directly from
-API Contracts + acceptance criteria on its own initiative). No Task was created for it; spawn
-qa-automation directly for Prepare work once the story's contract/AC are stable, instead of looking
-for a Task to close.
+## Environment: browser-based QA inside the devcontainer
+Settled 2026-09-19 after seven attempts at one Task. Use `http://web-agent:3000` for a browser, never
+`http://web:3000` — `web-agent` is a separate dev-stack service built with
+`VITE_API_BASE_URL=http://backend:8000` so the browser's own JS resolves from inside the container,
+and the backend's CORS allowlist accepts that origin. `http://backend:8000` for direct API calls.
+Three blockers were cleared in sequence to get here (Chromium sandbox, baked-in host-facing API URL,
+CORS origin); all are documented in TASK-019's Implementation Report if they ever recur.
+**Orchestrator habit worth keeping**: before spawning manual-qa, run the cheap check first — one
+`browser_navigate` plus a `curl` preflight probe. Two dead agent runs were caught that way; five
+earlier ones were burned precisely because nobody checked before spawning.
 
 ## Recent changes
+- 2026-09-19: **STORY-008 (Delete sessions) closed — `Done`, archived.** Implementation PR #10 and
+  Reconcile PR #11 (`297ba4c`) both merged to `development`. 22 Tasks, no bugs ever filed against it.
+  Reconcile carried only documentation catch-up, since both Deviation Reports reported "No deviations"
+  in every section: architect promoted the API Contract to as-built v1.11 and cleared its `PLANNED`
+  markers (no ADR — the archived-only rule is business-stated, not architectural; next id still
+  ADR-032), business-analyst moved Session Deletion out of Requirements into Business Documentation
+  folded into the existing Sessions capability, and TASK-022 removed two comment-only stub files from
+  `requirements/specs/` at the user's request (their content was already recorded in Business
+  Documentation). `requirements/specs/` now holds only `index.md` — no pending scope.
 - 2026-09-19: STORY-008 QA complete — TASK-019 passed on the seventh attempt, story `Approved`, no
   bugs. Environment unblocked by the user across three rounds (`web-agent` service + CORS allowlist);
   uncommitted devops work for it is sitting in the working tree (`docker-compose.dev.yml`,
