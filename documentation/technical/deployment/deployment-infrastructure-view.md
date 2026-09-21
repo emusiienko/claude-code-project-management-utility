@@ -82,7 +82,5 @@ access control. (See the [NFR](../nfr.md) "Security posture — no authenticatio
 
 The concrete infrastructure-as-code artifacts — `docker-compose.yml`, `deploy.sh`, the backend and
 frontend `Dockerfile`s (and their entrypoint / nginx config), and the `.env.example` /
-`.env.dev.example` templates — are owned by **devops** and documented in
-[`.fast-sdlc/conventions/devops-strategy.md`](../../../.fast-sdlc/conventions/devops-strategy.md)
-(including the § Running Two Stacks Concurrently detail). This document is the system-level topology
-view; it references those artifacts rather than restating their contents.
+`.env.dev.example` templates — are owned by **devops**. This document is the system-level topology
+view; it does not restate their contents.

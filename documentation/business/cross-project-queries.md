@@ -24,7 +24,7 @@ N/A — not built.
 
 - **The entire capability is missing, not just a Web UI screen.** Earlier records of this gap
   described it as "the data access already works for agents, only the Web UI screen is a
-  placeholder" — that turned out to be incorrect. Reconciling STORY-001 against the as-built API
+  placeholder" — that turned out to be incorrect. A review against the as-built API
   Contract (v1.10) confirmed neither read exists at all: a project-wide story list and a
   project-wide task list were both specified but never implemented, on any surface.
 - **A related, narrower capability does exist today**: an AI agent can read one project's full

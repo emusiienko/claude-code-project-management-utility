@@ -31,9 +31,8 @@ choices with no business-meaning change:
   groups to 1NF) are realized physically as JSON arrays rather than child tables — see ADR-012 for the
   dialect-aware filtering this requires and ADR-022 for the scalar-setting case.
 
-The Logical Data Model post-dates this document (produced during business-analyst's Setup, STORY-001)
-and was written from the same as-built system, so the two agree; a future story that changes either
-must keep them aligned.
+The Logical Data Model post-dates this document and was written from the same as-built system, so the
+two agree; a future change to either must keep them aligned.
 
 ---
 

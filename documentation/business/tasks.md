@@ -44,5 +44,5 @@ project/story's task list is paginated.
 
 None currently known beyond what's already noted for Work Item Linking and Attachments/Comments,
 which a task's own sections inherit. (A prior version of this file described a dedicated, separately
-readable "dependencies view" as an existing feature — reconciling STORY-001 against the as-built API
+readable "dependencies view" as an existing feature — a review against the as-built API
 Contract confirmed no such dedicated read exists; corrected above.)

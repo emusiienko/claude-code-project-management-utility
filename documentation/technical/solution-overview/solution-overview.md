@@ -87,7 +87,7 @@ filesystem volume holding immutable attachment file content. See:
 | psycopg (binary) | ^3.1 | PostgreSQL driver — used only when `DATABASE_URL` targets Postgres. |
 | stdlib `sqlite3` | — | SQLite driver — the opt-in / code-fallback dialect, zero external service. |
 
-**Frontend** (high-level stack; exact pinning owned by the frontend coding conventions):
+**Frontend** (high-level stack; exact version pinning is not fixed at this level):
 
 | Technology | Rationale |
 |---|---|
@@ -113,8 +113,8 @@ vertical slice — a REST controller, MCP tools, a domain service, ORM models, a
 with `core` holding only cross-cutting concerns. The controller and the MCP tools are thin layers
 over the service, which is the single home of business logic and the only layer that touches the
 data layer. The frontend is feature-based (one folder per feature/screen) with shared UI, hooks, a
-REST client, and contract types. The repository is a monorepo (`backend/`, `frontend/`, `docs/`),
-per ADR-004.
+REST client, and contract types. The repository is a monorepo (`backend/`, `frontend/`,
+`documentation/`), per ADR-004.
 
 ## Data Flow
 
