@@ -169,47 +169,62 @@ not modeled as Requirements — see Requirements above), and the API-contract po
 it already lived (`docs/api-contract.md`, architect's).
 
 ### Architecture
-**location**: `documentation/technical/` — the as-built **Technical Documentation** folder, the
-technical/system-facing sibling of business-analyst's `documentation/business/`. One location for the
-whole folder; its parts are not separately located:
-- `sad.md` — Software Architecture Document, the master/entry doc (read this first)
-- `solution-overview/` — Solution Overview + its C4 Level 1/2 graph (`.yaml`) + diagram (`.mmd`) pairs
-- `nfr.md` — measurable non-functional targets (architect's territory, not business-analyst's)
-- `data-models/physical-data-model.md` — as-built schema (single DB-agnostic store; **no** persistence
-  map — that's multi-store only)
-- `api-contracts/` — one file per service (currently `coordination-service.md`)
-- `deployment/deployment-infrastructure-view.md` — system-level topology (not IaC; devops owns IaC)
-- `adr-log/` — 31 ADRs (`ADR-001`…`ADR-031`), referenced by ID from the SAD; next id ADR-032
+**location**: [`documentation/technical/`](documentation/technical/index.md) — the as-built
+**Technical Documentation** folder, the technical/system-facing sibling of business-analyst's
+[`documentation/business/`](documentation/business/index.md). One location for the whole folder; its
+parts are not separately located:
+- [`sad.md`](documentation/technical/sad.md) — Software Architecture Document, the master/entry doc
+  (read this first)
+- [`solution-overview/`](documentation/technical/solution-overview/solution-overview.md) — Solution
+  Overview + its C4 Level 1/2 graph (`.yaml`) + diagram (`.mmd`) pairs
+- [`nfr.md`](documentation/technical/nfr.md) — measurable non-functional targets (architect's
+  territory, not business-analyst's)
+- [`data-models/physical-data-model.md`](documentation/technical/data-models/physical-data-model.md) —
+  as-built schema (single DB-agnostic store; **no** persistence map — that's multi-store only)
+- [`api-contracts/`](documentation/technical/api-contracts/) — one file per service (currently
+  [`coordination-service.md`](documentation/technical/api-contracts/coordination-service.md))
+- [`deployment/deployment-infrastructure-view.md`](documentation/technical/deployment/deployment-infrastructure-view.md)
+  — system-level topology (not IaC; devops owns IaC)
+- [`adr-log/`](documentation/technical/adr-log/) — 31 ADRs (`ADR-001`…`ADR-031`), referenced by ID
+  from the SAD; next id ADR-032
 
-**format**: plugin defaults, copied into `.fast-sdlc/agents/architect/` and used as-is. Migrated
-"from scratch" during architect Setup (STORY-001/TASK-002) from the legacy single-file
-`docs/architecture.md` + `docs/api-contract.md` + `docs/tech_decisions/`, removed 2026-08-27
-(STORY-001) once no longer needed for reference. See `.fast-sdlc/agents/architect/agent.md`.
+**format**: plugin defaults, copied into [`.fast-sdlc/agents/architect/`](.fast-sdlc/agents/architect/)
+and used as-is. Migrated "from scratch" during architect Setup (STORY-001/TASK-002) from the legacy
+single-file `docs/architecture.md` + `docs/api-contract.md` + `docs/tech_decisions/`, removed
+2026-08-27 (STORY-001) once no longer needed for reference. See
+[`.fast-sdlc/agents/architect/agent.md`](.fast-sdlc/agents/architect/agent.md).
 
 ### API Contract
-**location**: part of the Architecture folder above — `documentation/technical/api-contracts/`
-(one file per service). Format: `.fast-sdlc/agents/architect/api-contract-format.md`. The contract is
+**location**: part of the Architecture folder above —
+[`documentation/technical/api-contracts/`](documentation/technical/api-contracts/)
+(one file per service). Format:
+[`.fast-sdlc/agents/architect/api-contract-format.md`](.fast-sdlc/agents/architect/api-contract-format.md).
+The contract is
 **LOCKED**, as-built head **v1.10**; changes need an architect-approved revision. Every REST route is
 under the `/v1` base path. The contract documents only endpoints that exist on the running backend —
 read it as the definitive list of the API surface, not as a superset. Legacy `docs/api-contract.md`
 removed 2026-08-27 (STORY-001).
 
 ### Architectural Design
-**location**: `.fast-sdlc/planning/{slug}/architecture-design/` — **one folder per scope** (a
-milestone or story group; `{slug}` is the scope name, kebab-case). Holds architect's Phase-1 (Scope
-Planning) output for that scope: Solution Overview draft, NFR draft, Technical Implementation Plan.
+**location**: [`.fast-sdlc/planning/`](.fast-sdlc/planning/README.md)`{slug}/architecture-design/` —
+**one folder per scope** (a milestone or story group; `{slug}` is the scope name, kebab-case). Holds
+architect's Phase-1 (Scope Planning) output for that scope: Solution Overview draft, NFR draft,
+Technical Implementation Plan.
 **Currently empty (no pending scope)** — the whole existing system is already built and reconciled
 into the Architecture folder above; a scope folder is created the first time a milestone/story group
-needs planning. See `.fast-sdlc/planning/README.md`. Mirrors Requirements' empty pending-scope area.
+needs planning. See [`.fast-sdlc/planning/README.md`](.fast-sdlc/planning/README.md). Mirrors
+Requirements' empty pending-scope area.
 The legacy `docs/technical_roadmap.md` (a pre-implementation sequencing plan, fully built) is
 superseded; its modern equivalent is the Technical Implementation Plan produced here per scope.
 
 ### Story Implementation Plan
-**location**: **inside the story's own folder** under Task Management —
+**location**: **inside the story's own folder** under
+[Task Management](.fast-sdlc/task-management/index.md) —
 `.fast-sdlc/task-management/STORY-NNN-<slug>/story-implementation-plan.md` (alongside the story's
 `description.md` and `tasks/`). One per story, produced during a story's execution window only when it
 crosses repo boundaries or needs coordinated steps from other roles. **None yet.** Format:
-`.fast-sdlc/agents/architect/story-implementation-plan-format.md` (as-is).
+[`.fast-sdlc/agents/architect/story-implementation-plan-format.md`](.fast-sdlc/agents/architect/story-implementation-plan-format.md)
+(as-is).
 
 ### Coding Conventions
 One per stack (this repo has two — backend, frontend), each owned by that stack's lead-developer

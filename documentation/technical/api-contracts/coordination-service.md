@@ -12,7 +12,8 @@ The coordination service is a single backend application that exposes **two beha
     trailing slash (`/v1/projects/`); every other collection is declared without one (`/v1/stories`).
     A request to `/v1/projects` therefore gets a `307` redirect, and a client that does not re-send the
     body on redirect silently drops a `POST` payload. Clients must call `/v1/projects/` directly. This
-    is an as-built inconsistency, not an intended contract feature — see the SAD's Risks & Technical Debt.
+    is an as-built inconsistency, not an intended contract feature — see the
+    [SAD](../sad.md)'s Risks & Technical Debt.
 - **MCP server** — the same operations exposed as tools over HTTP streamable transport. MCP is **not a separate port**: it is path-mounted on the same backend app that serves REST (same container, same port `:8000`, e.g. `http://localhost:8000/mcp`). MCP tool names mirror the REST endpoints 1-to-1 (e.g. `create_task`, `list_stories`, `get_task_detail`); request and response payloads use the same schemas defined here. Domain errors map to MCP tool errors with the same `code`.
 
 Each endpoint group below names its MCP tools. REST and MCP are behavior-identical, including error codes. The only inherent transport differences are noted where they occur (e.g. lenient REST query strings vs. strict MCP RPC kwargs; binary crosses MCP only as base64).
@@ -40,11 +41,11 @@ Each endpoint group below names its MCP tools. REST and MCP are behavior-identic
 
 ## Auth (applies to every endpoint)
 
-**None — localhost-only, no auth by design.** No login, roles, or RBAC on any endpoint. The only access boundary is Docker localhost port mapping (see the Authentication Flow subsection of the Solution Overview, `../solution-overview/solution-overview.md`). This applies to **all** endpoints below; it is not restated per-endpoint. Rate limit: 1,000 req/min on every endpoint. All `*_role` fields are descriptive metadata, never access control.
+**None — localhost-only, no auth by design.** No login, roles, or RBAC on any endpoint. The only access boundary is Docker localhost port mapping (see the Authentication Flow subsection of the [Solution Overview](../solution-overview/solution-overview.md)). This applies to **all** endpoints below; it is not restated per-endpoint. Rate limit: 1,000 req/min on every endpoint. All `*_role` fields are descriptive metadata, never access control.
 
 ## Shared shapes
 
-The **error envelope** is defined once in the Error Handling Strategy subsection of the Solution Overview (`../solution-overview/solution-overview.md`) and referenced from every endpoint's Errors field below, never restated. Its shape and the pagination shape are:
+The **error envelope** is defined once in the Error Handling Strategy subsection of the [Solution Overview](../solution-overview/solution-overview.md) and referenced from every endpoint's Errors field below, never restated. Its shape and the pagination shape are:
 
 ```typescript
 // Standard success envelope (single resource)

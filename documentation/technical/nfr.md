@@ -94,5 +94,5 @@ business rationale lives there, not here.
 
 **Category**: security
 **Target**: No authentication, session tokens, roles, or authorization checks. The sole access boundary is Docker port mapping bound to `localhost` only; no service is exposed to the network.
-**Source**: Requirements — single-developer, locally-hosted tool constraint; Architecture "Authentication Flow" (= none).
-**Notes**: This is a deliberate design constraint for a single-developer personal tool, not an omission. Human and agents are structurally equal participants; `participant_role` / `author_role` / `assignee_role` are descriptive metadata, never access-control mechanisms. No application secrets exist (the only credential is the local Postgres password, used between containers only). See the Deployment / Infrastructure View § Access Boundary.
+**Source**: Requirements — single-developer, locally-hosted tool constraint; [Solution Overview](solution-overview/solution-overview.md) § Authentication Flow (= none).
+**Notes**: This is a deliberate design constraint for a single-developer personal tool, not an omission. Human and agents are structurally equal participants; `participant_role` / `author_role` / `assignee_role` are descriptive metadata, never access-control mechanisms. No application secrets exist (the only credential is the local Postgres password, used between containers only). See the [Deployment / Infrastructure View](deployment/deployment-infrastructure-view.md) § Access Boundary.

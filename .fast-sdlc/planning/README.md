@@ -6,9 +6,11 @@ group. `{slug}` is the scope name (kebab-case), e.g. `.fast-sdlc/planning/notifi
 Within each scope folder:
 - `architecture-design/` — the **Architectural Design** for that scope: Solution Overview draft, NFR
   draft, and the Technical Implementation Plan. Format:
-  `.fast-sdlc/agents/architect/architectural-design/` templates (as-is).
+  [`.fast-sdlc/agents/architect/architectural-design/`](../agents/architect/architectural-design/)
+  templates (as-is).
 
 **Currently empty — no pending scope.** The whole existing system is already built and reconciled into
-the as-built Technical Documentation (`documentation/technical/`). A scope folder is created the first
-time a milestone/story group needs planning. Mirrors business-analyst's empty pending-scope
-Requirements area (`.fast-sdlc/requirements/specs/`).
+the as-built Technical Documentation ([`documentation/technical/`](../../documentation/technical/index.md)).
+A scope folder is created the first time a milestone/story group needs planning. Mirrors
+business-analyst's empty pending-scope Requirements area
+([`.fast-sdlc/requirements/specs/`](../requirements/specs/)).

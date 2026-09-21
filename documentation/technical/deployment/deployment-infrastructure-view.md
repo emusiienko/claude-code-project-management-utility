@@ -76,13 +76,13 @@ Docker localhost port mapping is the only access boundary. Every published port 
 no service is reachable from the network. There is no authentication, session token, role, or
 authorization check anywhere in the system — this is a deliberate single-developer-tool constraint,
 not an omission. `participant_role` / `author_role` / `assignee_role` are descriptive metadata, never
-access control. (See the NFR "Security posture — no authentication (by design)" entry.)
+access control. (See the [NFR](../nfr.md) "Security posture — no authentication (by design)" entry.)
 
 ## Ownership
 
 The concrete infrastructure-as-code artifacts — `docker-compose.yml`, `deploy.sh`, the backend and
 frontend `Dockerfile`s (and their entrypoint / nginx config), and the `.env.example` /
 `.env.dev.example` templates — are owned by **devops** and documented in
-`.fast-sdlc/conventions/devops-strategy.md`
+[`.fast-sdlc/conventions/devops-strategy.md`](../../../.fast-sdlc/conventions/devops-strategy.md)
 (including the § Running Two Stacks Concurrently detail). This document is the system-level topology
 view; it references those artifacts rather than restating their contents.

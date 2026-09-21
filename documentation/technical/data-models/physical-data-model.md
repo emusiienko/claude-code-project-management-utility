@@ -3,8 +3,10 @@
 Single logical store, DB-agnostic via **SQLAlchemy 2.0 ORM + Alembic migrations**, selected at
 runtime by `DATABASE_URL`. **PostgreSQL is the deployment default; SQLite is the opt-in.** The same
 ORM models and the same Alembic migration chain run unchanged on both dialects — there is exactly one
-physical data model (no persistence map: this is a single-store system). See ADR-002 (DB-agnostic
-contract) and ADR-031 (PostgreSQL as the deployment default, SQLite opt-in).
+physical data model (no persistence map: this is a single-store system). See
+[ADR-002](../adr-log/ADR-002-db-agnostic-persistence.md) (DB-agnostic contract) and
+[ADR-031](../adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md) (PostgreSQL as the
+deployment default, SQLite opt-in).
 
 ORM models and Pydantic API schemas are kept as separate concerns. Migration DDL declares UUID
 columns portably as `String(36)`; the dialect abstraction (`UUIDType`) lives in the ORM layer, not in
@@ -14,7 +16,7 @@ Throughout: `id`, `created_at`, `updated_at`, and `file_path` are **technical** 
 identity, timestamps, server-internal storage path); all other columns are **business-derived**.
 
 **Canonical source for business meaning.** Every business-derived column traces to an entity/attribute
-in the **Logical Data Model**, `documentation/business/logical-data-model/` — owned by business-analyst,
+in the **Logical Data Model**, [`documentation/business/logical-data-model/`](../../business/logical-data-model/) — owned by business-analyst,
 organized as a shared `catalog.yaml` plus one file per subject area (Project & Work Items, Work Item
 Linking, Collaboration, Sessions, Settings). Table and column names here are the physical realization
 of those logical names; where the physical shape deviates from the logical one, the logical model's own
