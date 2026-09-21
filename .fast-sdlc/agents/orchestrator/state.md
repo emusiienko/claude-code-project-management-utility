@@ -85,10 +85,24 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: user review + merge of PR #12 (STORY-009, `chore/artifact-file-reference-links` ->
-`development`).
-next_step: on merge, set STORY-009 `Done` and archive it. No Reconcile phase applies — the story has
-no lead-developer/coder/devops Tasks, so there is no Deviation Report for anyone to read.
+waiting_for: the user to restore git push access — see Blocked below. No PR is open for STORY-009
+yet; both Tasks are `Done` and committed locally on `chore/artifact-file-reference-links`, which has
+never been pushed.
+next_step: push the branch, open the Reconcile-less Acceptance PR, then on merge set STORY-009
+`Done` and archive it.
+
+## Blocked: git push (2026-09-21)
+`git push` fails with `git@github.com: Permission denied (publickey)`. Diagnosis: the repo's remote is
+SSH (`git@github.com:...`), the forwarded VS Code ssh-agent socket is present but `ssh-add -l` reports
+"The agent has no identities" — the key is simply not loaded. Pushes over SSH worked earlier in this
+same session, so the key was dropped rather than never configured. Meanwhile `gh` is authenticated
+fine (PAT, account `emusiienko`, git protocol `https`), so the alternative is switching the remote to
+HTTPS. Nothing is lost either way: three commits (`b9c70c9`, `cbdf40b`, `bec69c7`) sit safely on the
+local branch. Note this is a different failure from the PAT-permissions saga recorded earlier — that
+one returned 404s from `gh`, this one never reaches the API at all.
+
+Once merged, no Reconcile phase applies to STORY-009 — it has no lead-developer/coder/devops Tasks,
+so there is no Deviation Report for anyone to read.
 
 STORY-009 (chore, P3) — apply the file-referencing convention the user described: inside a multi-file
 artifact, reference other files by link rather than bare name. TASK-001 (architect, `b9c70c9`) and
