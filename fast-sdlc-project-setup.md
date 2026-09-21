@@ -111,57 +111,65 @@ its own Setup workflow — orchestrator does not populate these.
 **format**: default `business-analyst` template (Problem Statement / Target Users / Core Value
 Proposition / MVP Scope IN-OUT / Roles & Permissions / Key Assumptions / Risks & Mitigations /
 Success Metrics / Open Questions) — used as-is.
-**location**: `.fast-sdlc/requirements/validated_idea/` (`latest.md` + `changelog.md`, per
-`file-based-versioning`). Read `latest.md` for the current state; `changelog.md` for how it got
-there. Adopted from the prior process's `docs/validated-business-idea/` during business-analyst
-Setup (STORY-001) — that folder is kept only as historical record (v1–v2), not written to going
-forward.
+**location**: [`.fast-sdlc/requirements/validated_idea/`](.fast-sdlc/requirements/validated_idea/)
+([`latest.md`](.fast-sdlc/requirements/validated_idea/latest.md) +
+[`changelog.md`](.fast-sdlc/requirements/validated_idea/changelog.md), per `file-based-versioning`).
+Read [`latest.md`](.fast-sdlc/requirements/validated_idea/latest.md) for the current state;
+[`changelog.md`](.fast-sdlc/requirements/validated_idea/changelog.md) for how it got there. Adopted
+from the prior process's `docs/validated-business-idea/` during business-analyst Setup (STORY-001) —
+that folder is kept only as historical record (v1–v2), not written to going forward.
 
 ### Requirements
-**format**: folder tree — `index.md` (Feature List) + one file per feature (Validation Rules,
-Error Handling, Usage Limits where applicable); `non-functional.md` added only once a pending change
-actually needs one (see Business Documentation below re: non-functional ownership). Data model here
-holds **only** the Conceptual Data Model — a mandatory structured YAML artifact, `conceptual-data-model/`
-(entities + relationships, business language), composed and approved per subject area (`DATA MODELING`
-process) — using the plugin's default format as-is. The Logical Data Model (complete attributes,
-identifiers, foreign keys, normalized to 3NF) is **not** produced here at all — per the 2026-08-27
-(TASK-008) plugin update, its sole, permanent home is Business Documentation's `logical-data-model/`
-(see below); it's composed directly there, per subject area, during that subject area's story
-execution — never drafted in Requirements and carried across. Holds **pending scope only** — once a
-feature ships and is reconciled, its file moves out of here into Business Documentation.
-**location**: `.fast-sdlc/requirements/specs/`. Read `index.md` first — currently **empty (no
-pending scope)** as of business-analyst Setup (STORY-001): almost everything described in the prior
-process's `docs/requirements.md` + `docs/requirements/` was already built, so it moved to Business
+**format**: folder tree — [`index.md`](.fast-sdlc/requirements/specs/index.md) (Feature List) + one
+file per feature (Validation Rules, Error Handling, Usage Limits where applicable);
+`non-functional.md` added only once a pending change actually needs one (see Business Documentation
+below re: non-functional ownership). Data model here holds **only** the Conceptual Data Model — a
+mandatory structured YAML artifact, `conceptual-data-model/` (entities + relationships, business
+language), composed and approved per subject area (`DATA MODELING` process) — using the plugin's
+default format as-is. The Logical Data Model (complete attributes, identifiers, foreign keys,
+normalized to 3NF) is **not** produced here at all — per the 2026-08-27 (TASK-008) plugin update, its
+sole, permanent home is Business Documentation's
+[`logical-data-model/`](documentation/business/logical-data-model/) (see below); it's composed
+directly there, per subject area, during that subject area's story execution — never drafted in
+Requirements and carried across. Holds **pending scope only** — once a feature ships and is
+reconciled, its file moves out of here into Business Documentation.
+**location**: [`.fast-sdlc/requirements/specs/`](.fast-sdlc/requirements/specs/index.md). Read
+[`index.md`](.fast-sdlc/requirements/specs/index.md) first — currently **empty (no pending scope)**
+as of business-analyst Setup (STORY-001): almost everything described in the prior process's
+`docs/requirements.md` + `docs/requirements/` was already built, so it moved to Business
 Documentation instead (see below). Two known-but-not-yet-commissioned product limitations were found
 during that migration and are noted in Business Documentation only (not modeled as active
-Requirements, by explicit user decision) — see `documentation/business/settings.md` and
-`documentation/business/cross-project-queries.md`. API-contract/endpoint-shape content was
-deliberately left out of the migration entirely — that's architect's territory
-(`docs/api-contract.md`).
+Requirements, by explicit user decision) — see
+[`documentation/business/settings.md`](documentation/business/settings.md) and
+[`documentation/business/cross-project-queries.md`](documentation/business/cross-project-queries.md).
+API-contract/endpoint-shape content was deliberately left out of the migration entirely — that's
+architect's territory (`docs/api-contract.md`).
 
 ### Business Documentation
-**location**: `documentation/` at the repo root — two owners, each in their own
-subfolder: business-analyst's business-facing part is `documentation/business/`; architect's
-technical/system-facing counterpart, Technical Documentation, is `documentation/technical/` (see
-Architecture below).
-**business-facing format**: `index.md` (Capability | File | Summary | Access — no priorities, no
-story/task references) + one file per capability (`Happy Path` / `Other Scenarios` / `Who Can Access
-It` / `Business Rules` / `Known Limitations`), a deliberately different shape from Requirements'
-per-feature files since Business Documentation narrates as-built behavior rather than listing
-validation rules and error tables. Plus two project-wide data model artifacts, not symmetric with
-Requirements: `conceptual-data-model/` — the same artifact as Requirements' own, transcribed here
-as-built, with no fresh approval checkpoint (see business-analyst agent > MODE 3: RECONCILE) — and
-`logical-data-model/` — its sole, permanent home (not a copy of anything in Requirements), populated
-directly, per subject area, by that subject area's Logical Data Model Task during a story's execution
-(see business-analyst agent > DATA MODELING), corrected in place at Reconcile if what was built
-diverged. As of 2026-08-23 these cover all five subject areas (Project & Work Items, Work Item
-Linking, Collaboration, Sessions, Settings) built into the product so far, approved area-by-area with
-the user in SESSION-001. Non-functional
-characteristics (performance, accessibility, browser/device support) are deliberately **not** part
-of this business-facing part at all — by explicit user decision, that content must reflect real
-values from real tests, so it belongs to the technical roles that can measure it (architect and/or
-qa-automation), not business-analyst; see Technical Documentation (architect's part) for that.
-Migrated from the prior process's `docs/requirements/requirements_backend.md` +
+**location**: `documentation/` at the repo root — two owners, each in their own subfolder:
+business-analyst's business-facing part is
+[`documentation/business/`](documentation/business/index.md); architect's technical/system-facing
+counterpart, Technical Documentation, is
+[`documentation/technical/`](documentation/technical/index.md) (see Architecture below).
+**business-facing format**: [`index.md`](documentation/business/index.md) (Capability | File |
+Summary | Access — no priorities, no story/task references) + one file per capability (`Happy Path` /
+`Other Scenarios` / `Who Can Access It` / `Business Rules` / `Known Limitations`), a deliberately
+different shape from Requirements' per-feature files since Business Documentation narrates as-built
+behavior rather than listing validation rules and error tables. Plus two project-wide data model
+artifacts, not symmetric with Requirements:
+[`conceptual-data-model/`](documentation/business/conceptual-data-model/) — the same artifact as
+Requirements' own, transcribed here as-built, with no fresh approval checkpoint (see business-analyst
+agent > MODE 3: RECONCILE) — and [`logical-data-model/`](documentation/business/logical-data-model/)
+— its sole, permanent home (not a copy of anything in Requirements), populated directly, per subject
+area, by that subject area's Logical Data Model Task during a story's execution (see business-analyst
+agent > DATA MODELING), corrected in place at Reconcile if what was built diverged. As of 2026-08-23
+these cover all five subject areas (Project & Work Items, Work Item Linking, Collaboration, Sessions,
+Settings) built into the product so far, approved area-by-area with the user in SESSION-001.
+Non-functional characteristics (performance, accessibility, browser/device support) are deliberately
+**not** part of this business-facing part at all — by explicit user decision, that content must
+reflect real values from real tests, so it belongs to the technical roles that can measure it
+(architect and/or qa-automation), not business-analyst; see Technical Documentation (architect's
+part) for that. Migrated from the prior process's `docs/requirements/requirements_backend.md` +
 `requirements_web.md` during business-analyst Setup (STORY-001) — those two documents blended
 already-built behavior with known gaps and full API-contract detail; the as-built, business-facing
 portion moved here (with the two known-but-not-yet-commissioned gaps noted inline as limitations,
