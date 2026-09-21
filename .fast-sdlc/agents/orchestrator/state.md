@@ -85,47 +85,32 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-waiting_for: the user to review PR #12 and, once satisfied, merge it and set STORY-009 `Accepted`.
-next_step: on merge, set STORY-009 `Done` and archive it — no Reconcile phase applies (no
-lead-developer/coder/devops Tasks, so no Deviation Report for anyone to read).
+None. `index.md` is empty — no story currently on the board.
 
-## Resolved: git push (2026-09-21)
-Two blockers, both since resolved:
-1. SSH push failed (`Permission denied (publickey)`, no identity loaded in the forwarded agent) —
-   resolved itself between sessions when the remote changed to HTTPS; cause not chased.
-2. HTTPS push then failed twice with `403 Write access to repository not granted` — the `gh` PAT
-   lacked write access to the repo. User fixed the PAT's permissions; push succeeded on the next
-   retry (`Everything up-to-date` after `-u`, confirming the branch was already in sync).
+## Open follow-ups from STORY-009 (chore, P3, now `Done` — see Recent changes)
+STORY-009 applied the file-referencing convention the user described (inside a multi-file artifact,
+reference other files by link rather than bare name) to architect's and business-analyst's owned
+artifacts only, per user request. Two items surfaced during it remain unresolved:
 
-Branch `chore/artifact-file-reference-links` is now pushed and tracking `origin/chore/artifact-file-reference-links`.
-PR #12 opened against `development`:
-https://github.com/emusiienko/claude-code-project-management-utility/pull/12
+1. **The convention itself is not in the installed plugin.** Architect couldn't find it stated
+   anywhere in `/opt/fast-sdlc-plugin/`; the orchestrator verified independently — the architect and
+   business-analyst agent definitions were untouched by the 2026-09-21 plugin update, and none of the
+   eight templates/`skills/sdlc/SKILL.md` files that *did* change that day mention "link". So both
+   agents applied this convention purely from the user's own instruction (legitimate, but worth
+   knowing if it ever needs re-deriving), and the real content of that 2026-09-21 plugin update
+   remains unexamined.
+2. **Local format-copy drift**: architect noticed the project's local format copies in
+   `.fast-sdlc/agents/architect/` (`adr-format.md`, `story-implementation-plan-format.md`,
+   `claude-md-format.md`, `architectural-design/tech-plan-format.md`) have drifted from current plugin
+   defaults. Put to the user as a possible follow-up Task; unanswered.
 
-STORY-009 (chore, P3) — apply the file-referencing convention the user described: inside a multi-file
-artifact, reference other files by link rather than bare name. TASK-001 (architect, `b9c70c9`) and
-TASK-002 (business-analyst, `cbdf40b`) both `Done`. 17 files, +314/-254.
-
-**Finding worth keeping: the convention is not in the installed plugin.** Architect reported it could
-not find the rule stated anywhere in `/opt/fast-sdlc-plugin/`, and the orchestrator verified that
-independently: the architect and business-analyst agent definitions were last modified 2026-09-10 and
-2026-09-07, untouched by any recent update, while eight templates under `templates/architect/` and
-`templates/business-analyst/` plus `skills/sdlc/SKILL.md` were modified 2026-09-21 — and not one of
-those files contains the word "link". So the plugin did update that day, but with something else;
-both agents applied this convention purely from the user's own instruction, which is legitimate but
-worth knowing if it ever needs re-deriving.
-
-**Consequence not yet acted on**: the real 2026-09-21 plugin update remains unexamined. Architect
-noticed the symptom — the project's local format copies in `.fast-sdlc/agents/architect/`
-(`adr-format.md`, `story-implementation-plan-format.md`, `claude-md-format.md`,
-`architectural-design/tech-plan-format.md`) have drifted from the current plugin defaults. Put to the
-user as a possible follow-up Task; unanswered.
-
-**Architect judgment calls to confirm if ever revisited**: the ADR Log was deliberately left
-untouched (an ADR body is immutable, only `Status` may change), with every ADR made reachable inbound
-instead via links from the SAD's decision table and Solution Overview's Key Decisions, and the
-exception stated in the SAD so it does not read as an oversight. Provenance tags stay plain IDs — a
-reference telling the reader to go read another file became a link, while a parenthetical recording
-where a stated fact came from did not, to keep the Physical Data Model's tables readable.
+**Architect judgment calls made during STORY-009, worth confirming if ever revisited**: the ADR Log
+was deliberately left untouched (an ADR body is immutable, only `Status` may change), with every ADR
+made reachable inbound instead via links from the SAD's decision table and Solution Overview's Key
+Decisions, and the exception stated in the SAD so it does not read as an oversight. Provenance tags
+stay plain IDs — a reference telling the reader to go read another file became a link, while a
+parenthetical recording where a stated fact came from did not, to keep the Physical Data Model's
+tables readable.
 
 ## Open decision (user, unanswered across two asks)
 Two stale `v1.10` references to the API Contract, both confirmed on disk, neither touched — the
@@ -160,6 +145,14 @@ CORS origin); all are documented in TASK-019's Implementation Report if they eve
 earlier ones were burned precisely because nobody checked before spawning.
 
 ## Recent changes
+- 2026-09-21: **STORY-009 (Apply file-reference-links convention) closed — `Done`, archived.** PR #12
+  (architect's and business-analyst's owned-artifact updates, TASK-001/TASK-002, plus one
+  user-requested test commit `a72f765` confirming push access) merged to `development`
+  (`a4f621d`). No Reconcile phase — no lead-developer/coder/devops Tasks existed for this story. Along
+  the way: `git push` hit two separate, now-resolved blockers (SSH key not loaded, then the `gh` PAT
+  lacking repo write access) — full account was kept live under "Blocked"/"Resolved: git push" while
+  active; removed now that it's closed, since the on-disk auth state (HTTPS remote, PAT with write
+  access) is its own ground truth going forward.
 - 2026-09-19: **STORY-008 (Delete sessions) closed — `Done`, archived.** Implementation PR #10 and
   Reconcile PR #11 (`297ba4c`) both merged to `development`. 22 Tasks, no bugs ever filed against it.
   Reconcile carried only documentation catch-up, since both Deviation Reports reported "No deviations"
