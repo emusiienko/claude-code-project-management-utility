@@ -18,6 +18,8 @@ A single-developer, locally-hosted utility storing the operational state of a mu
 | `qa/` | Manual test case registry (manual-qa) |
 | `.fast-sdlc/` | Fast SDLC operating folder — task management, requirements, role configs, shared conventions |
 
+
+
 ## Commands
 
 | Command | Description |
@@ -33,49 +35,63 @@ A single-developer, locally-hosted utility storing the operational state of a mu
 
 ## Key Docs
 
-Resolve artifact locations from `fast-sdlc-project-setup.md` > Artifacts rather than from memory — the
-pointers below are entry points, not the full inventory.
+Resolve artifact locations from [`fast-sdlc-project-setup.md`](fast-sdlc-project-setup.md) > Artifacts
+rather than from memory — the pointers below are entry points, not the full inventory.
 
-- **Technical Documentation**: `documentation/technical/` — **start at `sad.md`** (the master/entry doc).
+- **Technical Documentation**: [`documentation/technical/`](documentation/technical/index.md) —
+  **start at [`sad.md`](documentation/technical/sad.md)** (the master/entry doc).
   Covers Solution Overview (+ C4 L1/L2 graph+diagram pairs), NFR, Physical Data Model, API Contracts,
-  Deployment/Infrastructure View, ADR Log. `index.md` maps the whole folder.
-- **API Contract**: `documentation/technical/api-contracts/coordination-service.md` — **LOCKED**, as-built
+  Deployment/Infrastructure View, ADR Log. [`index.md`](documentation/technical/index.md) maps the
+  whole folder.
+- **API Contract**: [`documentation/technical/api-contracts/coordination-service.md`](documentation/technical/api-contracts/coordination-service.md)
+  — **LOCKED**, as-built
   head **v1.11**. One backend service (REST + path-mounted MCP over a shared service layer); every REST
   route lives under the `/v1` base path. Shapes change only via an architect-approved revision. It
   documents what the running backend actually serves — read it as the definitive API surface, never as a
   superset.
-- **ADR Log**: `documentation/technical/adr-log/` — `ADR-001`…`ADR-031`, **next id ADR-032**, referenced by
+- **ADR Log**: [`documentation/technical/adr-log/`](documentation/technical/adr-log/) —
+  `ADR-001`…`ADR-031`, **next id ADR-032**, referenced by
   ID from the SAD. ADR-009 superseded by ADR-010; ADR-005 by ADR-021. An ADR body is never edited — only
   its `Status`.
 - **Data models — three layers, two owners**: Conceptual + Logical at
-  `documentation/business/conceptual-data-model/` and `logical-data-model/` (business-analyst; YAML, one
+  [`documentation/business/conceptual-data-model/`](documentation/business/conceptual-data-model/) and
+  [`logical-data-model/`](documentation/business/logical-data-model/) (business-analyst; YAML, one
   file per subject area plus a shared `catalog.yaml`); Physical at
-  `documentation/technical/data-models/physical-data-model.md` (architect). The Logical model is the
+  [`documentation/technical/data-models/physical-data-model.md`](documentation/technical/data-models/physical-data-model.md)
+  (architect). The Logical model is the
   business-meaning anchor the Physical one traces to — read it before any data-model work rather than
   re-deriving business meaning.
-- **Business Documentation**: `documentation/business/` — as-built behavior from the business view;
-  `index.md` lists one file per capability.
-- **Requirements**: `.fast-sdlc/requirements/specs/` — pending scope only, currently none. Everything
+- **Business Documentation**: [`documentation/business/`](documentation/business/index.md) — as-built
+  behavior from the business view;
+  [`index.md`](documentation/business/index.md) lists one file per capability.
+- **Requirements**: [`.fast-sdlc/requirements/specs/`](.fast-sdlc/requirements/specs/) — pending scope
+  only, currently none. Everything
   already built is described in Business Documentation instead.
-- **Architectural Design**: `.fast-sdlc/planning/<scope-slug>/architecture-design/` — one folder per
+- **Architectural Design**: [`.fast-sdlc/planning/`](.fast-sdlc/planning/README.md)`<scope-slug>/architecture-design/`
+  — one folder per
   milestone or story group being planned; currently none. A story's cross-repo Story Implementation Plan,
   when one is needed, sits in that story's own folder under Task Management.
-- **Coding Conventions**: `.fast-sdlc/conventions/coding-conventions-backend.md` and
-  `coding-conventions-frontend.md` — one per stack, each owned by that stack's lead-developer.
-- **Code Map**: `.fast-sdlc/code-maps/frontend.md` (frontend stack) and
-  `.fast-sdlc/code-maps/backend.md` (backend stack) — coder's own module/function-level account of
+- **Coding Conventions**: [`.fast-sdlc/conventions/coding-conventions-backend.md`](.fast-sdlc/conventions/coding-conventions-backend.md)
+  and [`coding-conventions-frontend.md`](.fast-sdlc/conventions/coding-conventions-frontend.md) — one
+  per stack, each owned by that stack's lead-developer.
+- **Code Map**: [`.fast-sdlc/code-maps/frontend.md`](.fast-sdlc/code-maps/frontend.md) (frontend stack)
+  and [`.fast-sdlc/code-maps/backend.md`](.fast-sdlc/code-maps/backend.md) (backend stack) — coder's
+  own module/function-level account of
   where things live in the code, more granular than this file's own Repository Structure table;
   kept current at Reconcile.
-- **DevOps Strategy**: `.fast-sdlc/conventions/devops-strategy.md`.
-- **QA**: strategy at `.fast-sdlc/conventions/qa-strategy.md`, manual test case registry at
-  `qa/test-cases.md` + `qa/test-cases/`; automation strategy at
-  `.fast-sdlc/conventions/qa-automation-strategy.md`, black-box suite at `automation/`.
-- **Stories, Tasks, Milestones**: `.fast-sdlc/task-management/index.md`.
-- **Team / active roles**: `fast-sdlc-project-setup.md` > Team.
+- **DevOps Strategy**: [`.fast-sdlc/conventions/devops-strategy.md`](.fast-sdlc/conventions/devops-strategy.md).
+- **QA**: strategy at [`.fast-sdlc/conventions/qa-strategy.md`](.fast-sdlc/conventions/qa-strategy.md),
+  manual test case registry at
+  [`qa/test-cases.md`](qa/test-cases.md) + [`qa/test-cases/`](qa/test-cases/); automation strategy at
+  [`.fast-sdlc/conventions/qa-automation-strategy.md`](.fast-sdlc/conventions/qa-automation-strategy.md),
+  black-box suite at [`automation/`](automation/).
+- **Stories, Tasks, Milestones**: [`.fast-sdlc/task-management/index.md`](.fast-sdlc/task-management/index.md).
+- **Team / active roles**: [`fast-sdlc-project-setup.md`](fast-sdlc-project-setup.md) > Team.
 
 ### Fast SDLC
-Config: `fast-sdlc-project-setup.md` (repo root) — team/roles, artifact locations, Task Management
-(`.fast-sdlc/task-management/`), Sessions, Pull Requests, Escalation/Feedback.
+Config: [`fast-sdlc-project-setup.md`](fast-sdlc-project-setup.md) (repo root) — team/roles, artifact
+locations, Task Management ([`.fast-sdlc/task-management/`](.fast-sdlc/task-management/index.md)),
+Sessions, Pull Requests, Escalation/Feedback.
 
 ## Infrastructure
 

@@ -13,7 +13,7 @@ N/A — not built.
 ## Who Can Access It
 
 No one. Neither the Web UI nor AI agents (MCP/REST) can perform a cross-project query — the
-project-scoped equivalents (see `stories.md` / `tasks.md`) are the only way to read stories or tasks,
+project-scoped equivalents (see [`stories.md`](stories.md) / [`tasks.md`](tasks.md)) are the only way to read stories or tasks,
 one project at a time.
 
 ## Business Rules
@@ -29,7 +29,7 @@ N/A — not built.
   project-wide task list were both specified but never implemented, on any surface.
 - **A related, narrower capability does exist today**: an AI agent can read one project's full
   work-state (every story, each story's tasks, per-status task counts) in a single call — see
-  `ai-agent-access.md`. That is single-project, not cross-project, and does not substitute for
+  [`ai-agent-access.md`](ai-agent-access.md). That is single-project, not cross-project, and does not substitute for
   browsing or filtering work across every project at once.
 - Not tracked as a pending Requirement — by explicit user decision, nobody has yet decided to
   commission this work (neither the agent-side read nor a Web UI screen for it).

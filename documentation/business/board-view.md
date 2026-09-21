@@ -26,7 +26,7 @@ data directly).
 
 - Board columns always mirror the project's current effective `story_statuses` — adding, removing,
   or reordering that dictionary immediately changes the Board's columns.
-- At most one milestone per project can be "Active" at a time (see `milestones.md`); the Board
+- At most one milestone per project can be "Active" at a time (see [`milestones.md`](milestones.md)); the Board
   defaults to filtering on that milestone when one exists.
 - A story with no status, or a status no longer present in the project's dictionary, is silently
   excluded from the board rather than shown in an "unknown" column.

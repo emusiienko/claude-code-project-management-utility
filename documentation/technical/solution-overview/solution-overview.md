@@ -58,8 +58,8 @@ The actors are the human operator (through the Web UI) and the AI agents (throug
 is self-contained: it deliberately stores state outside git, and git is a source-control tool for
 the codebase rather than a runtime integration — so there are effectively no external systems at the
 context boundary. See:
-- Data: `system-context.yaml`
-- Diagram: `system-context.mmd`
+- Data: [`system-context.yaml`](system-context.yaml)
+- Diagram: [`system-context.mmd`](system-context.mmd)
 
 ## Key Components (C4 Level 2)
 
@@ -68,8 +68,8 @@ the React/nginx **Web UI**; the **Backend** — one FastAPI process serving both
 path-mounted MCP server over a shared per-domain service layer; the **Application Database**
 (PostgreSQL default / SQLite opt-in, DB-agnostic via SQLAlchemy); and the **Attachments Storage**
 filesystem volume holding immutable attachment file content. See:
-- Data: `key-components.yaml`
-- Diagram: `key-components.mmd`
+- Data: [`key-components.yaml`](key-components.yaml)
+- Diagram: [`key-components.mmd`](key-components.mmd)
 
 ## Tech Stack
 
@@ -187,7 +187,8 @@ single `DomainError.to_tool_error()` method returning a `ToolError` with a `[COD
 (ADR-011). Two distinct 4xx validation paths coexist: structural field errors (schema
 `@field_validator`) surface through FastAPI's request-validation handler as **422**, while the domain
 `ValidationError` class maps to **400**; dictionary/business violations use `UnprocessableError` →
-**422**. Per-endpoint error responses live in the API Contract, not here.
+**422**. Per-endpoint error responses live in the
+[API Contract](../api-contracts/coordination-service.md), not here.
 
 ## Logging/Observability
 
@@ -206,37 +207,37 @@ volumes — see the sibling Deployment/Infrastructure View:
 
 ## Key Decisions
 
-- **ADR-001** — Foundational project setup and stack baseline.
-- **ADR-002** — DB-agnostic persistence via SQLAlchemy over `DATABASE_URL` (SQLite and PostgreSQL).
-- **ADR-003** — Model Context Protocol server as the AI-agent access surface.
-- **ADR-004** — Monorepo with app-based (vertical-slice) backend decomposition.
-- **ADR-005** — Attachment version history (superseded by ADR-021).
-- **ADR-006** — React 19 + Vite SPA for the human operator UI.
-- **ADR-007** — MCP path-mounted on the shared backend app and single port (not a separate service).
-- **ADR-008** — Project settings overrides replace, never merge, the system default.
-- **ADR-009** — Seed-only migration approach (superseded by ADR-010).
-- **ADR-010** — Root-table-first migration chain with inline FKs and seed bundled into its schema revision.
-- **ADR-011** — String IDs passed through entry layers; UUID coercion in `BaseRepository`; unified `DomainError.to_tool_error()`.
-- **ADR-012** — Dialect-aware JSON `labels` filtering inside the data layer.
-- **ADR-013** — `story.milestone_id` ships FK-less; the FK is added when the `milestone` table is created.
-- **ADR-014** — App-switcher navigation model, including Sessions as a distinct app.
-- **ADR-015** — Single-project milestone ownership (supersedes the M:N milestone↔project design).
-- **ADR-016** — Atomic milestone lifecycle; single-active-per-project enforced by the service in one transaction.
-- **ADR-017** — Separate `task_links` / `story_links` packages (not one polymorphic table); task-link scope narrowed to same-story.
-- **ADR-018** — Application-level cascade delete for links (SQLite FK actions are inert as built).
-- **ADR-019** — Structured `link_types` dictionary (`{value, outbound, inbound}`); other dictionaries stay plain-string arrays.
-- **ADR-020** — Polymorphic, FK-less `container_id` for attachments and comments across story/task/milestone.
-- **ADR-021** — Attachment immutability: one file per attachment, create + delete only, no versioning (supersedes ADR-005).
-- **ADR-022** — Scalar `default_web_ui_role` settings key.
-- **ADR-023** — Replies as an immutable, materialized `ancestors` id-path.
-- **ADR-024** — `"operator"` added to `participant_roles` (the human driving the Web UI).
-- **ADR-025** — State-driven Projects/Config overlays (revises the routed-Projects/Config parts of ADR-014).
-- **ADR-026** — Sessions are project-scoped with a fixed, non-dictionary 3-value status enum.
-- **ADR-027** — Sessions as a distinct app mode (ratifies ADR-014's Sessions app).
-- **ADR-028** — Never edit an already-applied migration in place; ship a new corrective revision instead (narrows ADR-010).
-- **ADR-029** — Project work-state aggregate breadth read exposed additively on both REST and MCP.
-- **ADR-030** — Concurrent local stacks via env-configurable host ports and per-stack image tags.
-- **ADR-031** — PostgreSQL as the deployment default with a prod/dev env-template split (refines, not supersedes, ADR-002).
+- **[ADR-001](../adr-log/ADR-001-backend-stack-python-fastapi.md)** — Foundational project setup and stack baseline.
+- **[ADR-002](../adr-log/ADR-002-db-agnostic-persistence.md)** — DB-agnostic persistence via SQLAlchemy over `DATABASE_URL` (SQLite and PostgreSQL).
+- **[ADR-003](../adr-log/ADR-003-mcp-shared-service-layer-http.md)** — Model Context Protocol server as the AI-agent access surface.
+- **[ADR-004](../adr-log/ADR-004-app-based-monorepo.md)** — Monorepo with app-based (vertical-slice) backend decomposition.
+- **[ADR-005](../adr-log/ADR-005-attachment-filesystem-storage.md)** — Attachment version history (superseded by ADR-021).
+- **[ADR-006](../adr-log/ADR-006-frontend-react-spa.md)** — React 19 + Vite SPA for the human operator UI.
+- **[ADR-007](../adr-log/ADR-007-mcp-path-mounted-shared-port.md)** — MCP path-mounted on the shared backend app and single port (not a separate service).
+- **[ADR-008](../adr-log/ADR-008-effective-dictionary-resolution.md)** — Project settings overrides replace, never merge, the system default.
+- **[ADR-009](../adr-log/ADR-009-system-defaults-seed-migration.md)** — Seed-only migration approach (superseded by ADR-010).
+- **[ADR-010](../adr-log/ADR-010-dependency-ordered-migrations-bundled-seed.md)** — Root-table-first migration chain with inline FKs and seed bundled into its schema revision.
+- **[ADR-011](../adr-log/ADR-011-id-coercion-and-validation-placement.md)** — String IDs passed through entry layers; UUID coercion in `BaseRepository`; unified `DomainError.to_tool_error()`.
+- **[ADR-012](../adr-log/ADR-012-dialect-aware-json-label-filtering.md)** — Dialect-aware JSON `labels` filtering inside the data layer.
+- **[ADR-013](../adr-log/ADR-013-deferred-milestone-fk-on-story.md)** — `story.milestone_id` ships FK-less; the FK is added when the `milestone` table is created.
+- **[ADR-014](../adr-log/ADR-014-app-switcher-shell-navigation.md)** — App-switcher navigation model, including Sessions as a distinct app.
+- **[ADR-015](../adr-log/ADR-015-milestone-single-project-lifecycle-model.md)** — Single-project milestone ownership (supersedes the M:N milestone↔project design).
+- **[ADR-016](../adr-log/ADR-016-single-active-milestone-service-transaction.md)** — Atomic milestone lifecycle; single-active-per-project enforced by the service in one transaction.
+- **[ADR-017](../adr-log/ADR-017-two-separate-link-domains.md)** — Separate `task_links` / `story_links` packages (not one polymorphic table); task-link scope narrowed to same-story.
+- **[ADR-018](../adr-log/ADR-018-application-level-link-cascade-cleanup.md)** — Application-level cascade delete for links (SQLite FK actions are inert as built).
+- **[ADR-019](../adr-log/ADR-019-structured-link-types-dictionary.md)** — Structured `link_types` dictionary (`{value, outbound, inbound}`); other dictionaries stay plain-string arrays.
+- **[ADR-020](../adr-log/ADR-020-polymorphic-fkless-attachment-container.md)** — Polymorphic, FK-less `container_id` for attachments and comments across story/task/milestone.
+- **[ADR-021](../adr-log/ADR-021-attachment-immutability-no-versioning.md)** — Attachment immutability: one file per attachment, create + delete only, no versioning (supersedes ADR-005).
+- **[ADR-022](../adr-log/ADR-022-scalar-setting-in-shared-store.md)** — Scalar `default_web_ui_role` settings key.
+- **[ADR-023](../adr-log/ADR-023-persisted-materialized-ancestor-path-for-replies.md)** — Replies as an immutable, materialized `ancestors` id-path.
+- **[ADR-024](../adr-log/ADR-024-operator-participant-role.md)** — `"operator"` added to `participant_roles` (the human driving the Web UI).
+- **[ADR-025](../adr-log/ADR-025-state-driven-overlay-for-global-navigation.md)** — State-driven Projects/Config overlays (revises the routed-Projects/Config parts of ADR-014).
+- **[ADR-026](../adr-log/ADR-026-session-project-scope-fixed-status-enum.md)** — Sessions are project-scoped with a fixed, non-dictionary 3-value status enum.
+- **[ADR-027](../adr-log/ADR-027-sessions-distinct-app-mode.md)** — Sessions as a distinct app mode (ratifies ADR-014's Sessions app).
+- **[ADR-028](../adr-log/ADR-028-no-in-place-edit-of-applied-migrations.md)** — Never edit an already-applied migration in place; ship a new corrective revision instead (narrows ADR-010).
+- **[ADR-029](../adr-log/ADR-029-work-state-breadth-read-both-surfaces.md)** — Project work-state aggregate breadth read exposed additively on both REST and MCP.
+- **[ADR-030](../adr-log/ADR-030-concurrent-local-stacks-env-ports-image-tags.md)** — Concurrent local stacks via env-configurable host ports and per-stack image tags.
+- **[ADR-031](../adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md)** — PostgreSQL as the deployment default with a prod/dev env-template split (refines, not supersedes, ADR-002).
 
 Open items carried in the reconcile log (not yet ADR-backed): enabling SQLite `PRAGMA foreign_keys = ON`
 so declared `CASCADE`/`SET NULL` actions become enforced, and adding an end-to-end clear-project-override
