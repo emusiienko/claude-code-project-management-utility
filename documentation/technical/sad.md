@@ -97,7 +97,7 @@ surfaces traverse the identical service path.
 See [`deployment/deployment-infrastructure-view.md`](deployment/deployment-infrastructure-view.md) —
 single environment (developer's local machine), Docker Compose, localhost-only, with the prod/dev
 concurrent-stack model (ADR-030) and PostgreSQL/SQLite selection (ADR-031). Concrete IaC is owned by
-devops ([`.fast-sdlc/conventions/devops-strategy.md`](../../.fast-sdlc/conventions/devops-strategy.md)).
+devops and is not described here.
 
 ## Quality Requirements
 
@@ -122,14 +122,12 @@ Summary only — full detail, Source, and Notes live in [`nfr.md`](nfr.md).
 
 Full records in [`adr-log/`](adr-log/). Next id: **ADR-032**.
 
-> **Reading note.** Some ADR bodies cite pre-`fast-sdlc` document paths that no longer exist
-> (`docs/architecture.md`, `docs/api-contract.md`, `docs/devops-strategy.md`,
-> `docs/backend-coding-conventions.md` — in ADR-001, ADR-007, ADR-011, ADR-015, ADR-026). Those
-> references are **deliberately not corrected**: an ADR body is immutable once written, and only its
-> `Status` field may ever change — which is also why the ADR files themselves carry plain-ID
-> cross-references rather than links. Read them as pointing at whatever now holds that content — this
-> SAD and the artifacts it references, per [`index.md`](index.md) and
-> [`fast-sdlc-project-setup.md`](../../fast-sdlc-project-setup.md) > Artifacts.
+> **Reading note.** Some ADR bodies cite document paths that no longer exist (in ADR-001, ADR-007,
+> ADR-011, ADR-015, ADR-026). Those references are **deliberately not corrected**: an ADR body is
+> immutable once written, and only its `Status` field may ever change — which is also why the ADR
+> files themselves carry plain-ID cross-references rather than links. Read them as pointing at
+> whatever now holds that content — this SAD and the artifacts it references, per
+> [`index.md`](index.md).
 
 | ID | Title | Status |
 |---|---|---|
@@ -177,7 +175,7 @@ documentation migration):
 - **SQLite FK actions are inert as built.** `PRAGMA foreign_keys = ON` is not enabled, so
   `ON DELETE CASCADE` / `SET NULL` are inert on SQLite (enforced on PostgreSQL). Built cases are
   covered by application-level cleanups (ADR-018); resolution is to enable the PRAGMA and restore the
-  cascade tests downgraded during STORY-012.
+  cascade tests that were downgraded once the PRAGMA was found inert.
 - **`link_types` duplicate-value returns 400, not the story-specified 422.** Status-code-only
   divergence — the rejection behavior and message are correct; the check lives in the service
   (domain `ValidationError` → 400) rather than the schema.

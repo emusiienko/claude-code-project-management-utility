@@ -2,8 +2,8 @@
 Business Documentation — business-facing behavior of the AI Agent Coordination Utility, as actually
 built. Owned by business-analyst (this file + the capability files below + conceptual-data-model/ +
 logical-data-model/). The technical/system-facing counterpart (architecture, API contract, ADRs, and
-non-functional data drawn from real measurements) lives in architect's own Technical Documentation
-location — see fast-sdlc-project-setup.md > Artifacts > Architecture. Non-functional characteristics
+non-functional data drawn from real measurements) lives in architect's own Technical Documentation.
+Non-functional characteristics
 are deliberately not part of this business-facing part at all: they belong to the technical roles that
 can measure them from real tests, not to business-analyst.
 
