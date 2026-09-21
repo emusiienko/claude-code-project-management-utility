@@ -25,13 +25,22 @@ echo 'alias claude="claude --dangerously-skip-permissions"' >> ~/.bashrc
 # below would otherwise fail under `set -e` and silently skip everything after it.
 sudo chown vscode:vscode ~/.claude
 mkdir -p ~/.claude
+# sandbox.enabled is false below (was true) — bwrap cannot create user namespaces in
+# this container (Docker denies it by default; confirmed with a bare
+# `bwrap --ro-bind / / true` outside Claude Code too, and that only `--privileged` —
+# not `seccomp=unconfined` alone — makes it work). Left `true`, every Bash call
+# retries through a dead sandbox and escalates to a `dangerouslyDisableSandbox`
+# confirmation that's gated unconditionally, regardless of bypassPermissions — a
+# prompt on every single command. The allowedDomains/credentials-masking below were
+# never actually enforced for the same reason, so this isn't giving up working
+# protection. Re-enable if the container ever gets real unprivileged-userns support.
 cat > ~/.claude/settings.json <<'EOF'
 {
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
   "sandbox": {
-    "enabled": true,
+    "enabled": false,
     "network": {
       "tlsTerminate": {},
       "allowedDomains": [
