@@ -15,7 +15,7 @@ personal tool, no authentication). See § Access Boundary.
 
 | Service | Container | Default host port | Exposure |
 |---------|-----------|-------------------|----------|
-| Backend (REST + MCP) | FastAPI on a single Uvicorn process; the MCP server is path-mounted on the same app (e.g. `/mcp`), not a separate port | 8000 | localhost only |
+| Backend (REST + MCP) | FastAPI on a single Uvicorn process; the MCP server is path-mounted on the same app at `/mcp/v1` (one instance per version under `/mcp/<version>`, ADR-032), not a separate port | 8000 | localhost only |
 | Web UI | nginx serving the static React (Vite) build | 3000 | localhost only |
 | PostgreSQL | PostgreSQL container, run under the `postgres` Compose profile | 5432 | localhost only |
 

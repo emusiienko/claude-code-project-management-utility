@@ -45,12 +45,12 @@ rather than from memory — the pointers below are entry points, not the full in
   whole folder.
 - **API Contract**: [`documentation/technical/api-contracts/coordination-service.md`](documentation/technical/api-contracts/coordination-service.md)
   — **LOCKED**, as-built
-  head **v1.11**. One backend service (REST + path-mounted MCP over a shared service layer); every REST
-  route lives under the `/v1` base path. Shapes change only via an architect-approved revision. It
+  head **v1.12**. One backend service (REST + path-mounted MCP over a shared service layer); every REST
+  route lives under the `/v1` base path, and MCP is served at `/mcp/v1`. Shapes change only via an architect-approved revision. It
   documents what the running backend actually serves — read it as the definitive API surface, never as a
   superset.
 - **ADR Log**: [`documentation/technical/adr-log/`](documentation/technical/adr-log/) —
-  `ADR-001`…`ADR-031`, **next id ADR-032**, referenced by
+  `ADR-001`…`ADR-032`, **next id ADR-033**, referenced by
   ID from the SAD. ADR-009 superseded by ADR-010; ADR-005 by ADR-021. An ADR body is never edited — only
   its `Status`.
 - **Data models — three layers, two owners**: Conceptual + Logical at

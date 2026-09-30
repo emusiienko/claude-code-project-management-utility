@@ -47,6 +47,7 @@ is stored outside git but git is not a runtime dependency.
 - **App-based modular monolith in a two-folder monorepo** (`backend/`, `frontend/`) — ADR-004.
 - **One backend process, two surfaces**: REST and the **path-mounted MCP server** share a single port
   and a single service layer, so business logic lives once — ADR-003 (superseded by ADR-007), ADR-007.
+  MCP is path-versioned like REST: served at `/mcp/v1`, one server instance per version — ADR-032.
 - **DB-agnostic persistence**: SQLAlchemy 2.0 + Alembic run identically on PostgreSQL (deployment
   default) and SQLite (opt-in) — ADR-002, ADR-031.
 - **React SPA** for the operator surface, justified by rich interactivity — ADR-006.
@@ -120,7 +121,7 @@ Summary only — full detail, Source, and Notes live in [`nfr.md`](nfr.md).
 
 ## Architecture Decisions
 
-Full records in [`adr-log/`](adr-log/). Next id: **ADR-032**.
+Full records in [`adr-log/`](adr-log/). Next id: **ADR-033**.
 
 > **Reading note.** Some ADR bodies cite document paths that no longer exist (in ADR-001, ADR-007,
 > ADR-011, ADR-015, ADR-026). Those references are **deliberately not corrected**: an ADR body is
@@ -162,6 +163,7 @@ Full records in [`adr-log/`](adr-log/). Next id: **ADR-032**.
 | [ADR-029](adr-log/ADR-029-work-state-breadth-read-both-surfaces.md) | Project work-state as an aggregate breadth read on both surfaces | Accepted |
 | [ADR-030](adr-log/ADR-030-concurrent-local-stacks-env-ports-image-tags.md) | Concurrent local stacks via env-configurable ports + image tags | Accepted |
 | [ADR-031](adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md) | PostgreSQL as the deployment default + two-file env templates | Accepted |
+| [ADR-032](adr-log/ADR-032-mcp-path-versioned-mount.md) | MCP surface path-versioned under `/mcp/<version>` (served at `/mcp/v1`) | Accepted |
 
 ## Risks & Technical Debt
 

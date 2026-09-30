@@ -23,7 +23,7 @@ and the participants decide what to do with it.
   - System- and project-level dictionaries with effective-dictionary resolution (replace, never
     merge), plus a scalar `default_web_ui_role` setting.
   - Two behavior-identical access surfaces over one service layer: a REST API for the Web UI and an
-    MCP server for AI agents (path-mounted on the same backend process/port).
+    MCP server for AI agents (path-mounted on the same backend process/port at `/mcp/v1`).
   - Detail composition and on-demand aggregation (task/story detail with links/attachments/comments;
     story task-status aggregate; project work-state breadth read).
   - Filesystem-backed, immutable attachment file storage (create + delete only).
@@ -44,7 +44,7 @@ and the participants decide what to do with it.
   - Localhost-only: Docker port mapping to `127.0.0.1` is the sole access boundary — no auth by design.
   - DB-agnostic: identical schema and migrations must run on both PostgreSQL (default) and SQLite
     (opt-in, WAL); dialect-specific logic stays inside the data layer.
-  - The API contract is LOCKED at v1.0 (revised incrementally through v1.11); shapes do not change
+  - The API contract is LOCKED at v1.0 (revised incrementally through v1.12); shapes do not change
     without an architect-approved revision.
   - REST and MCP must remain behavior-identical — business logic lives only in the service layer.
   - Non-functional targets: single-resource CRUD p95 < 200 ms; list (≤1,000) p95 < 500 ms; story
@@ -238,6 +238,7 @@ volumes — see the sibling Deployment/Infrastructure View:
 - **[ADR-029](../adr-log/ADR-029-work-state-breadth-read-both-surfaces.md)** — Project work-state aggregate breadth read exposed additively on both REST and MCP.
 - **[ADR-030](../adr-log/ADR-030-concurrent-local-stacks-env-ports-image-tags.md)** — Concurrent local stacks via env-configurable host ports and per-stack image tags.
 - **[ADR-031](../adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md)** — PostgreSQL as the deployment default with a prod/dev env-template split (refines, not supersedes, ADR-002).
+- **[ADR-032](../adr-log/ADR-032-mcp-path-versioned-mount.md)** — MCP surface path-versioned under `/mcp/<version>`, one server instance per version, served at `/mcp/v1` (refines, not supersedes, ADR-007).
 
 Open items carried in the reconcile log (not yet ADR-backed): enabling SQLite `PRAGMA foreign_keys = ON`
 so declared `CASCADE`/`SET NULL` actions become enforced, and adding an end-to-end clear-project-override

@@ -193,8 +193,8 @@ parts are not separately located:
   [`coordination-service.md`](documentation/technical/api-contracts/coordination-service.md))
 - [`deployment/deployment-infrastructure-view.md`](documentation/technical/deployment/deployment-infrastructure-view.md)
   — system-level topology (not IaC; devops owns IaC)
-- [`adr-log/`](documentation/technical/adr-log/) — 31 ADRs (`ADR-001`…`ADR-031`), referenced by ID
-  from the SAD; next id ADR-032
+- [`adr-log/`](documentation/technical/adr-log/) — 32 ADRs (`ADR-001`…`ADR-032`), referenced by ID
+  from the SAD; next id ADR-033
 
 **format**: plugin defaults, copied into [`.fast-sdlc/agents/architect/`](.fast-sdlc/agents/architect/)
 and used as-is. Migrated "from scratch" during architect Setup (STORY-001/TASK-002) from the legacy
