@@ -107,7 +107,7 @@ ports stay fixed at 8000/3000/5432.
 
 | Service | prod stack | dev stack | Notes |
 |---|---|---|---|
-| Backend (REST + MCP) | http://localhost:8000 | http://localhost:8100 | One Uvicorn process; MCP path-mounted at `/mcp`; OpenAPI at `/v1/docs` |
+| Backend (REST + MCP) | http://localhost:8000 | http://localhost:8100 | One Uvicorn process; MCP path-mounted at `/mcp/v1`; OpenAPI at `/v1/docs` |
 | Web UI (nginx + Vite build) | http://localhost:3000 | http://localhost:3100 | `VITE_API_BASE_URL` is baked in at **build** time — it must match that stack's backend port |
 | PostgreSQL | localhost:5432 | localhost:5433 | Own `db` container per stack, under the `postgres` profile; absent on the SQLite opt-in |
 

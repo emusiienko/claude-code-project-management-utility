@@ -27,7 +27,7 @@
 services:
   # ---------------------------------------------------------------------------
   # backend — one Uvicorn process serving BOTH the REST API and the MCP server
-  # (path-mounted at /mcp) on a single port (:8000). See ADR-003 / ADR-007.
+  # (path-mounted at /mcp/v1) on a single port (:8000). See ADR-003 / ADR-032.
   # ---------------------------------------------------------------------------
   backend:
     build:

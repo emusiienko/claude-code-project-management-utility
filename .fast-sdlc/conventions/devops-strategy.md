@@ -113,7 +113,7 @@ The whole system is one Docker Compose project. All ports are mapped to `127.0.0
 
 | Service | Image source | Port (localhost) | Notes |
 |---|---|---|---|
-| `backend` | Built from `backend/` | `8000` | Single FastAPI/Uvicorn process serving **both** the REST surface and the MCP server. MCP HTTP streamable transport is mounted on a path of the same app (e.g. `/mcp`), not a separate port — the API Contract (`documentation/technical/api-contracts/coordination-service.md`) defines no distinct MCP port (ADR-003). |
+| `backend` | Built from `backend/` | `8000` | Single FastAPI/Uvicorn process serving **both** the REST surface and the MCP server. MCP HTTP streamable transport is mounted on a path of the same app (`/mcp/v1`, ADR-032), not a separate port — the API Contract (`documentation/technical/api-contracts/coordination-service.md`) defines no distinct MCP port (ADR-003). |
 | `web` | Built from `frontend/` (multi-stage: Vite build → nginx) | `3000` | Serves the static SPA; single web entry. |
 | `db` | `postgres:18` | `5432` | **Default** database (STORY-024). Started under the `postgres` Compose profile, which `deploy.sh` activates automatically because the shipped `.env` targets Postgres; absent when `DATABASE_URL` is switched to the SQLite opt-in (ADR-002). |
 
