@@ -145,6 +145,21 @@ CORS origin); all are documented in TASK-019's Implementation Report if they eve
 earlier ones were burned precisely because nobody checked before spawning.
 
 ## Recent changes
+- 2026-09-21: Deleted the leftover on-disk folders for STORY-006, STORY-007, STORY-008, STORY-009 —
+  all were already `Done` and rowed in `archive.md`, but the archive flow's folder-deletion step had
+  never actually been run for them. User explicitly confirmed after being warned these folders are
+  gitignored (`.fast-sdlc/task-management/**`, unlike STORY-010's PR-backed changes) so the deletion
+  is unrecoverable — not a repeat of the earlier accidental-loss incident.
+- 2026-09-21: **STORY-010 (Separate product artifacts from operational agent artifacts) closed —
+  `Done`, archived.** New chore, P1, triggered by a `fast-sdlc` plugin update introducing a
+  writing-discipline rule: product artifacts must never reference operational agent artifacts.
+  Scoped to architect's and business-analyst's owned artifacts only, per user request. TASK-001
+  (architect): removed 7 references from Technical Documentation, restating lost meaning in place;
+  ADR Log deliberately left untouched (ADR bodies are immutable). TASK-002 (business-analyst):
+  removed 5 references from Requirements and Business Documentation; Validated Idea judged itself
+  operational, so out of scope. PR #13 merged to `development` (`8b6d2cf`). No coder/devops Tasks
+  existed for this story, so Reconcile was skipped entirely — went straight from `Accepted` to
+  `Done` per the no-Reconcile shortcut (same shape as STORY-007/STORY-009).
 - 2026-09-21: **STORY-009 (Apply file-reference-links convention) closed — `Done`, archived.** PR #12
   (architect's and business-analyst's owned-artifact updates, TASK-001/TASK-002, plus one
   user-requested test commit `a72f765` confirming push access) merged to `development`
