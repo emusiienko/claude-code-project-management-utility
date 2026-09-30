@@ -85,7 +85,7 @@ in-progress work (e.g. ask, or check mtime/authorship) before reverting anything
 incidents remain real; this one wasn't.
 
 ## Active wait
-None. `index.md` is empty — no story currently on the board.
+None. SESSION-011 report read and closed.
 
 ## Open follow-ups from STORY-009 (chore, P3, now `Done` — see Recent changes)
 STORY-009 applied the file-referencing convention the user described (inside a multi-file artifact,
@@ -145,6 +145,56 @@ CORS origin); all are documented in TASK-019's Implementation Report if they eve
 earlier ones were burned precisely because nobody checked before spawning.
 
 ## Recent changes
+- 2026-09-30: **STORY-011 (Fix broken MCP HTTP mount) — `Pending Approval`.** User reported their
+  external orchestrator app couldn't reach this project's MCP server on prod (`localhost:8000`);
+  routed to a face-to-face session (SESSION-011, coder backend) rather than diagnosed inline. Coder
+  found and fixed two stacked defects in `backend/app/main.py`'s MCP mount (missing `path="/"`;
+  missing `lifespan=mcp_app_v1.lifespan`), added a real over-the-wire integration test
+  (`backend/tests/test_mcp_mount.py`), full suite green, committed on branch `fix/mcp-http-mount`
+  (`46851fb`, `cfd5f0f`) — not yet merged. Canonical mount path confirmed with the user as `/mcp/v1`.
+  Opened `escalation-mcp-contract-url-coder-architect` (open) — the LOCKED API Contract states `/mcp`
+  (no version segment), which matches neither the pre-fix nor post-fix code; suggested resolution is
+  an architect-approved revision to `/mcp/v1`. Still needed from the user: redeploy the prod stack
+  (`./deploy.sh rebuild` or equivalent) to pick up the fix before retrying their external app's
+  connection — the fix only lives in this branch's code so far, prod is still running the old build.
+  QA clean: qa-automation (TASK-002) added real over-the-wire MCP test coverage
+  (`automation/tests/mcp.spec.ts`, 3 tests) and verified all 4 ACs against the dev stack, no bugs;
+  manual-qa (TASK-003) found no web-facing surface for this story (out of its scope per QA Strategy)
+  and approved on qa-automation's coverage — story `Approved`. PR #14 opened
+  (`fix/mcp-http-mount` → `development`), awaiting user review/merge/accept. Escalation to architect
+  on the API Contract's stale `/mcp` URL — routed and answered: architect confirmed `/mcp/v1` as
+  canonical (doesn't contradict ADR-007, which only gives `/mcp` as an example, not a fixed value; no
+  client depended on the old path; matches existing REST/MCP versioning conventions). Escalation stays
+  `open` — only the requester (coder, backend) closes it, per the escalation skill's own rule.
+  Architect flagged follow-up work for STORY-011's Reconcile (once Accepted): architect will bump the
+  API Contract to v1.12 with the exact URL + MCP versioning spelled out, and write ADR-032 refining
+  (not superseding) ADR-007; devops needs a Task to fix `/mcp` → `/mcp/v1` in `README.md`, `CLAUDE.md`
+  Infrastructure table, DevOps Strategy, and a `docker-compose.yml` comment; qa-automation needs a
+  small follow-up to replace its escalation-pointer note in `automation/README.md` once the contract
+  is updated. TASK-004: qa-automation addressed the user's one PR review comment (removed a header
+  comment block in `automation/tests/mcp.spec.ts`, commit `038b999`) — but in doing so re-ran
+  `mcp.spec.ts` against the dev stack and found the same 3 tests failing before and after the edit,
+  contradicting TASK-002's earlier clean pass on the same suite/stack. Flagged to the user as an
+  unresolved discrepancy before merge; user chose to approve and merge anyway (own call). PR #14
+  merged to `development` (`76c30c3`) by the orchestrator on the user's explicit instruction ("I
+  approve the PR. Run reconcile"). Story set `Accepted`. Reconcile started: TASK-005 (lead-developer
+  backend, Deviation Report) fulfilling now; architect's and business-analyst's Reconcile Tasks, plus
+  devops's and qa-automation's follow-up Tasks from the escalation resolution, to be created once it's
+  Done. **TASK-004 test-failure discrepancy resolved (TASK-010, qa-automation)**: not a regression —
+  the dev stack's backend container was still running a pre-fix image, never rebuilt since STORY-011
+  landed. No bug filed. **User should run `./deploy.sh rebuild` (or `up`) on the dev stack** before
+  the next MCP verification pass.
+  Reconcile complete: TASK-005/006 (lead-developer backend: Deviation Report + Coding Conventions
+  rev 12, user-approved), TASK-007 (architect: API Contract v1.12, ADR-032 refining ADR-007), TASK-008
+  (business-analyst: no changes needed), TASK-009 (devops: fixed stale `/mcp` refs, plus two
+  self-found extras in `backend/Dockerfile`/`deploy.sh`), TASK-010 (qa-automation: README updated,
+  closed the TASK-004 loop). Reconcile PR #15 drew 2 review comments (TASK-011 qa-automation,
+  TASK-012 architect — both addressed: `automation/README.md`'s § Known Divergences section removed
+  outright; ADR-032's "Options Considered" field removed, editing it pre-merge doesn't violate ADR
+  immutability since the record wasn't published yet). PR #15 merged to `development` (`7557a2d`).
+  **STORY-011 → `Done`, archived.**
+  Unrelated debt noted by devops: `deploy.sh`'s `up` output hardcodes prod ports (8000/3000) even on
+  the dev stack — pre-existing, not part of this story, no story/task created for it yet.
 - 2026-09-21: Deleted the leftover on-disk folders for STORY-006, STORY-007, STORY-008, STORY-009 —
   all were already `Done` and rowed in `archive.md`, but the archive flow's folder-deletion step had
   never actually been run for them. User explicitly confirmed after being warned these folders are
