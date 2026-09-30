@@ -38,13 +38,6 @@ there is no prod-target exception here the way `manual-qa` has one. Bring the de
   (`/v1/stories`, `/v1/milestones`, `/v1/sessions`, … all work with or without one). `createProject()`
   in `utils/helpers.ts` already posts to `/v1/projects/`.
 
-## Known Divergences (as-built backend vs. the contract)
-
-None currently open. The MCP mount path was the last one — architect confirmed `/mcp/v1` as
-canonical (ADR-032, API Contract v1.12): the MCP surface is path-versioned under `/mcp/<version>`,
-one server instance per version, parallel to REST's `/v1`. `tests/mcp.spec.ts` already targets
-`/mcp/v1`, matching the contract.
-
 ## Retired Contract Reads (historical — resolved at STORY-001 Reconcile)
 
 Three reads were found during Setup (2026-08-27) to be specified in the contract but never built,
