@@ -1,5 +1,5 @@
 # Backend image — single FastAPI/Uvicorn process serving BOTH the REST API
-# and the MCP server (path-mounted at /mcp) on one port (:8000). See ADR-003/007.
+# and the MCP server (path-mounted at /mcp/v1) on one port (:8000). See ADR-003/032.
 #
 # Dependencies are installed with uv (the project package manager, per
 # docs/backend-coding-conventions.md) against the committed uv.lock, so builds

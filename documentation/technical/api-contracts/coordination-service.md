@@ -14,13 +14,17 @@ The coordination service is a single backend application that exposes **two beha
     body on redirect silently drops a `POST` payload. Clients must call `/v1/projects/` directly. This
     is an as-built inconsistency, not an intended contract feature — see the
     [SAD](../sad.md)'s Risks & Technical Debt.
-- **MCP server** — the same operations exposed as tools over HTTP streamable transport. MCP is **not a separate port**: it is path-mounted on the same backend app that serves REST (same container, same port `:8000`, e.g. `http://localhost:8000/mcp`). MCP tool names mirror the REST endpoints 1-to-1 (e.g. `create_task`, `list_stories`, `get_task_detail`); request and response payloads use the same schemas defined here. Domain errors map to MCP tool errors with the same `code`.
+- **MCP server** — the same operations exposed as tools over HTTP streamable transport. MCP is **not a separate port**: it is path-mounted on the same backend app that serves REST (same container, same port). MCP clients connect at exactly `http://<host>:<port>/mcp/v1`, i.e. `http://localhost:8000/mcp/v1` on the prod stack (`:8100` on the dev stack). No other MCP path is served. MCP tool names mirror the REST endpoints 1-to-1 (e.g. `create_task`, `list_stories`, `get_task_detail`); request and response payloads use the same schemas defined here. Domain errors map to MCP tool errors with the same `code`.
 
 Each endpoint group below names its MCP tools. REST and MCP are behavior-identical, including error codes. The only inherent transport differences are noted where they occur (e.g. lenient REST query strings vs. strict MCP RPC kwargs; binary crosses MCP only as base64).
 
 ## Versioning & status
 
-**This contract is LOCKED.** It was locked at **v1.0** and has evolved through a sequence of architect-approved revisions to its current as-built head, **v1.11**. Shapes are not changed without an architect-approved revision. The revisions folded into this document are:
+**This contract is LOCKED.** It was locked at **v1.0** and has evolved through a sequence of architect-approved revisions to its current as-built head, **v1.12**. Shapes are not changed without an architect-approved revision.
+
+**Surface versioning.** Both surfaces are path-versioned, and this document is version `v1` of both. REST lives under the `/v1` base path. MCP lives under `/mcp/<version>`, one MCP server instance per version, so `v1` is served at `/mcp/v1` (ADR-032). A breaking change to either surface ships as a new path version beside the old one, never in place. The `v1.N` revision numbers below track this document's evolution within `v1`. They are not wire versions.
+
+The revisions folded into this document are:
 
 - **v1.1** — Stories list/create move to a single `/stories` base path; `project_id` becomes a body field (POST) and required query param (GET list).
 - **v1.2** — A milestone belongs to exactly one project and carries a lifecycle status (`planned` → `active` → `finished`); activate/finish action endpoints; `Story.milestone_id`.
@@ -38,6 +42,11 @@ Each endpoint group below names its MCP tools. REST and MCP are behavior-identic
   single-resource delete pattern. Accepted for any session regardless of `archived_at` or `status`:
   the archived-only restriction the Web UI applies is a UI-side affordance only and is deliberately
   absent from this contract.
+- **v1.12** — *As-built correction; no tool name, payload, or error code changed.* States the MCP
+  address as the literal `/mcp/v1` instead of the example `/mcp`, and states MCP path versioning
+  (`/mcp/<version>`, one server instance per version) explicitly, per ADR-032. Before the mount fix
+  this revision records, the only MCP route was `/mcp/v1/mcp`, and it failed every request, so no
+  working client depended on any address. That route is gone and now returns `404`.
 
 ## Auth (applies to every endpoint)
 

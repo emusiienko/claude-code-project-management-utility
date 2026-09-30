@@ -108,7 +108,7 @@ case "$cmd" in
     "${COMPOSE[@]}" up -d
 
     echo "[deploy] Done. Services (localhost only):"
-    echo "          REST + MCP : http://localhost:8000  (MCP at /mcp, docs at /v1/docs)"
+    echo "          REST + MCP : http://localhost:8000  (MCP at /mcp/v1, docs at /v1/docs)"
     echo "          Web UI      : http://localhost:3000"
     ;;
 

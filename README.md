@@ -38,7 +38,7 @@ Then run `./deploy.sh up` in each. See `.fast-sdlc/conventions/devops-strategy.m
 | Resource | URL (localhost) |
 |----------|-----------------|
 | Backend REST API | http://localhost:8000 (OpenAPI docs at `/v1/docs`) |
-| MCP server | http://localhost:8000/mcp |
+| MCP server | http://localhost:8000/mcp/v1 |
 | Web UI | http://localhost:3000 |
 | PostgreSQL (default DB) | localhost:5432 |
 

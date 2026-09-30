@@ -2,9 +2,13 @@
 
 > Owned by **lead-developer** (backend stack). Update only at the user's explicit request.
 > Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · fastmcp
-> Last updated: 2026-09-09 (rev 11 — new § Technical Decisions — Escalation vs. Repo-level ADR:
+> Last updated: 2026-09-30 (rev 12 — § MCP Tools Layer: MCP mount requires `path="/"` on
+> `http_app()` and `lifespan=mcp_app_v1.lifespan` on `FastAPI()`; § Testing: MCP mount/lifespan
+> wiring needs an over-the-wire test. STORY-011/TASK-006)
+>
+> rev 11 (2026-09-09) — new § Technical Decisions — Escalation vs. Repo-level ADR:
 > criteria for when a decision is architect's cross-repo territory versus a backend-local
-> repo-level ADR candidate. STORY-005/TASK-003)
+> repo-level ADR candidate. STORY-005/TASK-003
 >
 > rev 10 (2026-08-27) — new § Testing: the implementer owns this stack's unit and
 > integration tests, unit tests are test-first via `Skill("superpowers:test-driven-development")`,
@@ -293,7 +297,14 @@ which are not available in the SDK's bundled FastMCP.
   logic path
 - Domain errors are caught and re-raised as `fastmcp.exceptions.ToolError` with
   `f"[{exc.code}] {exc.message}"` — raw Python exceptions are never exposed to agents
-- The MCP server is mounted with `http_app(transport="streamable-http")` in `main.py`
+- The MCP server is mounted in `main.py` with `http_app(path="/", transport="streamable-http")`.
+  `path="/"` is required: without it, FastMCP's default internal `/mcp` path stacks on the mount
+  prefix, and the server answers at `/mcp/v1/mcp` instead of `/mcp/v1`.
+- The `FastAPI()` constructor takes `lifespan=mcp_app_v1.lifespan`. Without it, the MCP sub-app's
+  ASGI lifespan never runs, its session manager never starts, and every MCP request fails. Build the
+  sub-app before `FastAPI(...)` so its lifespan can be passed in.
+- A change to this mount or lifespan wiring needs the over-the-wire test described in
+  § Testing > Two kinds, two locations.
 
 ---
 
@@ -530,6 +541,11 @@ is set explicitly on the command line; `.env` is not used for tests.
   file.
 - Both surfaces of a shared service must be covered: when a change touches an endpoint, the
   integration test asserts the REST route **and** the MCP tool behave identically.
+- MCP mount and lifespan wiring in `main.py` must be covered by an **over-the-wire** integration test:
+  a real Uvicorn server on a loopback port and an HTTP MCP client connecting to the mount path
+  (`backend/tests/test_mcp_mount.py`). The `client` fixture's `httpx.ASGITransport` never runs the
+  ASGI lifespan. In-process `fastmcp.Client(mcp_server_v1)` skips `application.mount(...)`. Neither
+  can catch a broken mount path or a missing lifespan.
 
 ### Mode: TDD for unit tests
 

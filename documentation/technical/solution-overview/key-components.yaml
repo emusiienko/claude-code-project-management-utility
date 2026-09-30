@@ -13,7 +13,7 @@ components:
     name: Backend (REST + MCP)
     type: service
     bounded_context: Coordination Core
-    description: One FastAPI/Uvicorn process serving BOTH the REST API and the path-mounted MCP server (e.g. /mcp) over a single shared per-domain service layer, so the two surfaces stay behavior-identical.
+    description: One FastAPI/Uvicorn process serving BOTH the REST API and the path-mounted MCP server (at /mcp/v1, path-versioned per ADR-032) over a single shared per-domain service layer, so the two surfaces stay behavior-identical.
 
   - id: database
     name: Application Database
