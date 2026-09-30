@@ -2,23 +2,6 @@ import { test, expect } from "@playwright/test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-// STORY-011 (fix/mcp-http-mount). Real, over-the-wire MCP smoke coverage — the one scenario
-// backend/tests/ structurally cannot cover: every MCP test there talks to `mcp_server_v1` in-process
-// via `fastmcp.Client(mcp_server_v1)`, bypassing `application.mount(...)` and the ASGI lifespan
-// protocol entirely (see STORY-011 description.md). This is the first coverage in either suite of a
-// real `StreamableHTTPClientTransport` handshake against the running app.
-//
-// Mount path used here (`/mcp/v1`) is what's actually mounted on the running backend today
-// (backend/app/main.py, confirmed with the user in SESSION-011). Whether `/mcp/v1` or bare `/mcp`
-// (per the original, Accepted ADR-007) is the long-term canonical answer is an open architect
-// decision — see `.fast-sdlc/escalations/escalation-mcp-contract-url-coder-architect.md`. This spec
-// verifies the mount as currently shipped, not the API Contract's still-stated `/mcp` URL (a known,
-// separately-tracked divergence).
-//
-// Uses the official `@modelcontextprotocol/sdk` client, not the `request` fixture: streamable-HTTP is
-// a stateful protocol (session id, SSE-capable responses) that the plain `request` fixture cannot
-// negotiate. Added as a devDependency for this file only; every other spec keeps using `request`.
-
 const MCP_BASE_URL = `${process.env.API_BASE_URL ?? "http://localhost:8100"}/mcp/v1`;
 
 async function connectClient() {
