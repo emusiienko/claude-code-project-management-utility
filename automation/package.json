@@ -9,6 +9,7 @@
     "report": "playwright show-report"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@playwright/test": "^1.48.0",
     "@types/node": "^22.0.0",
     "dotenv": "^16.4.5",

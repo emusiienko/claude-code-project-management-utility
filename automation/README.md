@@ -38,6 +38,15 @@ there is no prod-target exception here the way `manual-qa` has one. Bring the de
   (`/v1/stories`, `/v1/milestones`, `/v1/sessions`, … all work with or without one). `createProject()`
   in `utils/helpers.ts` already posts to `/v1/projects/`.
 
+## Known Divergences (as-built backend vs. the contract)
+
+- **MCP mount path**: the contract states `http://localhost:8000/mcp` (no version segment); the
+  running backend actually mounts at `/mcp/v1` (confirmed with the user in SESSION-011, STORY-011).
+  `tests/mcp.spec.ts` targets `/mcp/v1`, the path as currently shipped. Which one is the true
+  canonical answer is an open architect decision — see
+  `.fast-sdlc/escalations/escalation-mcp-contract-url-coder-architect.md`. Once resolved, update this
+  entry and `tests/mcp.spec.ts`'s `MCP_BASE_URL` together.
+
 ## Retired Contract Reads (historical — resolved at STORY-001 Reconcile)
 
 Three reads were found during Setup (2026-08-27) to be specified in the contract but never built,
@@ -72,8 +81,18 @@ automation/
     sessions.spec.ts
     settings.spec.ts
     milestones.spec.ts
+    mcp.spec.ts
 ```
 
 One spec file per API contract domain — mirrors the contract's own `##` section headings, not the
 backend's internal module layout. Every test creates its own fixtures (via `utils/helpers.ts`) and
 never depends on execution order or another test's data — tests run `fullyParallel`.
+
+`mcp.spec.ts` is the exception to "one file per domain": it's a transport-level smoke pass (STORY-011,
+2026-09-30) added once an MCP-specific bug actually surfaced, per the qa-automation strategy's MCP
+scope note. It uses the official `@modelcontextprotocol/sdk` client (`StreamableHTTPClientTransport`)
+instead of the `request` fixture — streamable-HTTP is a stateful protocol the plain fixture can't
+negotiate — to prove a **real** over-the-wire MCP client can complete `initialize` and call a tool
+against the running app, the one thing `backend/tests/`'s in-process `fastmcp.Client(mcp_server_v1)`
+tests structurally cannot cover. Targets `/mcp/v1`, the mount path as currently shipped — see
+§ Known Divergences above for why that doesn't match the API Contract's stated `/mcp` yet.
