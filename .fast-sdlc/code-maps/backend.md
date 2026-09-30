@@ -48,7 +48,7 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 | Module/File | Purpose | Key exports/functions | Notes |
 |---|---|---|---|
 | `config.py` | App configuration | `Settings`, `settings` | `database_url`, `attachments_dir`, `cors_allowed_origins` (space-separated or JSON-array env string via `parse_cors_origins`), `app_title`, `app_version`. |
-| `main.py` | FastAPI app assembly | `application` / `app` | Wires the DI container across every domain package (also triggers `@mcp_server_v1.tool()` registration via import), configures CORS, registers `domain_error_handler`, mounts `app_router` and the MCP sub-app at `/mcp/v1`. |
+| `main.py` | FastAPI app assembly | `application` / `app`, `mcp_app_v1` | Wires the DI container across every domain package (also triggers `@mcp_server_v1.tool()` registration via import), configures CORS, registers `domain_error_handler`, mounts `app_router` and the MCP sub-app at `/mcp/v1`. `mcp_app_v1 = mcp_server_v1.http_app(path="/", ...)` — `path="/"` is required or FastMCP's own default internal path (`/mcp`) stacks on the mount prefix, serving at `/mcp/v1/mcp` instead (STORY-011). `FastAPI(lifespan=mcp_app_v1.lifespan, ...)` is required too, or the MCP sub-app's session manager task group never starts and every MCP HTTP request fails (STORY-011). |
 | `exc_handlers.py` | Domain error → HTTP mapping | `domain_error_handler` | Maps every `DomainError` to `{error, code, details}`; `INTERNAL_ERROR` is logged server-side but never leaks its message to the client. |
 
 ---
@@ -188,3 +188,7 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 One `test_<domain>.py` per domain package (listed inline in each domain's table above), exercising
 REST and MCP through the same assertions via `tests/conftest.py`'s `client` fixture / `_mcp_call`
 helper. No `tests/unit/` yet — all coverage today is integration-level through the two surfaces.
+
+| Module/File | Purpose | Notes |
+|---|---|---|
+| `test_mcp_mount.py` | Verifies the MCP server's actual HTTP mount (STORY-011) | The only MCP test that goes over the wire: boots a real Uvicorn server + real `fastmcp.Client` (streamable-HTTP) against `app.main.application`, so it exercises `application.mount(...)` and the ASGI lifespan protocol. Every other MCP test uses `_mcp_call`/`fastmcp.Client(mcp_server_v1)` in-process and never touches the mount or lifespan. |
