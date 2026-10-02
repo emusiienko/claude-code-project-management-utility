@@ -1,0 +1,6 @@
+# Commits listed here are ignored by `git blame --ignore-revs-file .git-blame-ignore-revs`
+# (or via `git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+# Only add commits that are formatting-only, with no behavior change.
+
+# chore(backend): run black and isort across the backend (STORY-013/TASK-002)
+60c32b4836d8f347661c8adf197261158c585290
