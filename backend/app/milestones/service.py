@@ -2,9 +2,11 @@ import datetime
 import uuid
 
 from app.attachments.schema import CONTAINER_MILESTONE
+
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
 from app.comments.schema import CONTAINER_MILESTONE as COMMENT_CONTAINER_MILESTONE
+
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import ConflictError, NotFoundError
@@ -136,9 +138,7 @@ class MilestoneService:
         # no-FK polymorphic attachment container): remove the milestone's
         # attachments — rows and files — before the milestone itself is removed.
         if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(
-                CONTAINER_MILESTONE, mid
-            )
+            self._attachment_reader.delete_all_for_container(CONTAINER_MILESTONE, mid)
         # Same cascade contract, extended to comments (STORY-008 TASK-004).
         if self._comment_reader is not None:
             self._comment_reader.delete_all_for_container(
@@ -159,9 +159,7 @@ class MilestoneService:
         current_active = self._repo.get_active_for_project(milestone.project_id)
         if current_active is not None:
             current_active.status = MILESTONE_STATUS_PLANNED
-            current_active.updated_at = datetime.datetime.now(
-                tz=datetime.timezone.utc
-            )
+            current_active.updated_at = datetime.datetime.now(tz=datetime.timezone.utc)
             self._repo.save(current_active)
 
         milestone.status = MILESTONE_STATUS_ACTIVE
@@ -212,8 +210,6 @@ class MilestoneService:
         project_id: uuid.UUID,
         exclude_id: uuid.UUID | None,
     ) -> None:
-        conflict = self._repo.get_name_conflict(
-            name, project_id, exclude_id=exclude_id
-        )
+        conflict = self._repo.get_name_conflict(name, project_id, exclude_id=exclude_id)
         if conflict is not None:
             raise ConflictError(_NAME_CONFLICT_MSG.format(name=name))

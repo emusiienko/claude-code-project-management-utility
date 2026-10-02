@@ -55,9 +55,9 @@ STORIES_URL = "/v1/stories"
 async def _create_project(client: AsyncClient, name: str) -> dict:
     """POST /v1/projects and return the 'data' dict."""
     resp = await client.post(PROJECTS_URL, json={"name": name})
-    assert resp.status_code == 201, (
-        f"Helper _create_project: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_project: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -74,9 +74,9 @@ async def _create_milestone(
     if description is not None:
         payload["description"] = description
     resp = await client.post(MILESTONES_URL, json=payload)
-    assert resp.status_code == 201, (
-        f"Helper _create_milestone: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_milestone: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -91,9 +91,9 @@ async def _create_story(
     if milestone_id is not None:
         payload["milestone_id"] = milestone_id
     resp = await client.post(STORIES_URL, json=payload)
-    assert resp.status_code == 201, (
-        f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -144,7 +144,9 @@ async def test_create_milestone_without_description(client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_create_milestone_unknown_project_returns_404(client: AsyncClient) -> None:
+async def test_create_milestone_unknown_project_returns_404(
+    client: AsyncClient,
+) -> None:
     import uuid
 
     unknown_id = str(uuid.uuid4())
@@ -185,9 +187,9 @@ async def test_create_milestone_same_name_allowed_in_different_project(
             MILESTONES_URL,
             json={"name": "Common Name", "project_id": project_b["id"]},
         )
-        assert resp.status_code == 201, (
-            f"Same name in different project should be allowed: {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 201
+        ), f"Same name in different project should be allowed: {resp.status_code}"
     finally:
         await _delete_project(client, project_a["id"])
         await _delete_project(client, project_b["id"])
@@ -238,16 +240,14 @@ async def test_list_milestones_filtered_by_project_id(client: AsyncClient) -> No
         await _create_milestone(client, project_a["id"], "A Sprint 2")
         await _create_milestone(client, project_b["id"], "B Sprint 1")
 
-        resp = await client.get(
-            MILESTONES_URL, params={"project_id": project_a["id"]}
-        )
+        resp = await client.get(MILESTONES_URL, params={"project_id": project_a["id"]})
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
         data = resp.json()["data"]
         assert len(data) == 2, f"Expected 2 milestones for project A, got {len(data)}"
         project_ids = {m["project_id"] for m in data}
-        assert project_ids == {project_a["id"]}, (
-            "All milestones should belong to project A"
-        )
+        assert project_ids == {
+            project_a["id"]
+        }, "All milestones should belong to project A"
     finally:
         await _delete_project(client, project_a["id"])
         await _delete_project(client, project_b["id"])
@@ -261,16 +261,14 @@ async def test_list_milestones_items_include_story_count(client: AsyncClient) ->
         await _create_story(client, project["id"], "Story 1", milestone["id"])
         await _create_story(client, project["id"], "Story 2", milestone["id"])
 
-        resp = await client.get(
-            MILESTONES_URL, params={"project_id": project["id"]}
-        )
+        resp = await client.get(MILESTONES_URL, params={"project_id": project["id"]})
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
         items = resp.json()["data"]
         matching = [m for m in items if m["id"] == milestone["id"]]
         assert len(matching) == 1, "Milestone should appear in list"
-        assert matching[0]["story_count"] == 2, (
-            f"story_count should be 2, got {matching[0]['story_count']}"
-        )
+        assert (
+            matching[0]["story_count"] == 2
+        ), f"story_count should be 2, got {matching[0]['story_count']}"
     finally:
         await _delete_project(client, project["id"])
 
@@ -281,9 +279,7 @@ async def test_list_milestones_items_include_status(client: AsyncClient) -> None
     try:
         await _create_milestone(client, project["id"], "Status Sprint")
 
-        resp = await client.get(
-            MILESTONES_URL, params={"project_id": project["id"]}
-        )
+        resp = await client.get(MILESTONES_URL, params={"project_id": project["id"]})
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
         items = resp.json()["data"]
         assert len(items) >= 1, "Expected at least one item"
@@ -328,15 +324,15 @@ async def test_get_milestone_story_count_reflects_assignments(
         # No stories yet — count should be 0.
         resp = await client.get(f"{MILESTONES_URL}/{milestone['id']}")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["story_count"] == 0, (
-            "story_count should be 0 before any assignment"
-        )
+        assert (
+            resp.json()["data"]["story_count"] == 0
+        ), "story_count should be 0 before any assignment"
 
         await _create_story(client, project["id"], "S1", milestone["id"])
         resp2 = await client.get(f"{MILESTONES_URL}/{milestone['id']}")
-        assert resp2.json()["data"]["story_count"] == 1, (
-            "story_count should be 1 after one assignment"
-        )
+        assert (
+            resp2.json()["data"]["story_count"] == 1
+        ), "story_count should be 1 after one assignment"
     finally:
         await _delete_project(client, project["id"])
 
@@ -354,9 +350,9 @@ async def test_get_milestone_not_found_returns_404(client: AsyncClient) -> None:
 async def test_get_milestone_malformed_id_returns_404(client: AsyncClient) -> None:
     # Per ADR-011: malformed (non-UUID) ids return 404, not 422.
     resp = await client.get(f"{MILESTONES_URL}/not-a-uuid")
-    assert resp.status_code == 404, (
-        f"Malformed id should return 404 (ADR-011), got {resp.status_code}"
-    )
+    assert (
+        resp.status_code == 404
+    ), f"Malformed id should return 404 (ADR-011), got {resp.status_code}"
 
 
 # ===========================================================================
@@ -376,9 +372,7 @@ async def test_update_milestone_name(client: AsyncClient) -> None:
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
         data = resp.json()["data"]
         assert data["name"] == "New Name", "name should be updated"
-        assert data["project_id"] == project["id"], (
-            "project_id must remain unchanged"
-        )
+        assert data["project_id"] == project["id"], "project_id must remain unchanged"
     finally:
         await _delete_project(client, project["id"])
 
@@ -387,18 +381,20 @@ async def test_update_milestone_name(client: AsyncClient) -> None:
 async def test_update_milestone_description(client: AsyncClient) -> None:
     project = await _create_project(client, "M-Update-Project-2")
     try:
-        milestone = await _create_milestone(client, project["id"], "Sprint X", "Old desc")
+        milestone = await _create_milestone(
+            client, project["id"], "Sprint X", "Old desc"
+        )
         resp = await client.put(
             f"{MILESTONES_URL}/{milestone['id']}",
             json={"description": "New desc"},
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["description"] == "New desc", (
-            "description should be updated"
-        )
-        assert resp.json()["data"]["name"] == "Sprint X", (
-            "name should remain unchanged when not provided"
-        )
+        assert (
+            resp.json()["data"]["description"] == "New desc"
+        ), "description should be updated"
+        assert (
+            resp.json()["data"]["name"] == "Sprint X"
+        ), "name should remain unchanged when not provided"
     finally:
         await _delete_project(client, project["id"])
 
@@ -445,9 +441,7 @@ async def test_delete_milestone_returns_204(client: AsyncClient) -> None:
 
         # Verify gone.
         get_resp = await client.get(f"{MILESTONES_URL}/{milestone['id']}")
-        assert get_resp.status_code == 404, (
-            "Deleted milestone should return 404 on GET"
-        )
+        assert get_resp.status_code == 404, "Deleted milestone should return 404 on GET"
     finally:
         await _delete_project(client, project["id"])
 
@@ -463,9 +457,9 @@ async def test_delete_milestone_clears_story_milestone_id(
         story = await _create_story(
             client, project["id"], "Assigned Story", milestone["id"]
         )
-        assert story["milestone_id"] == milestone["id"], (
-            "Precondition: story should be assigned to milestone"
-        )
+        assert (
+            story["milestone_id"] == milestone["id"]
+        ), "Precondition: story should be assigned to milestone"
 
         # Delete the milestone.
         del_resp = await client.delete(f"{MILESTONES_URL}/{milestone['id']}")
@@ -473,16 +467,14 @@ async def test_delete_milestone_clears_story_milestone_id(
 
         # Story must still exist with milestone_id cleared.
         story_resp = await client.get(f"{STORIES_URL}/{story['id']}")
-        assert story_resp.status_code == 200, (
-            f"Story should still exist after milestone deletion, got {story_resp.status_code}"
-        )
+        assert (
+            story_resp.status_code == 200
+        ), f"Story should still exist after milestone deletion, got {story_resp.status_code}"
         story_data = story_resp.json()["data"]
-        assert story_data["milestone_id"] is None, (
-            "milestone_id should be null after milestone deletion"
-        )
-        assert story_data["title"] == "Assigned Story", (
-            "Story content must not change"
-        )
+        assert (
+            story_data["milestone_id"] is None
+        ), "milestone_id should be null after milestone deletion"
+        assert story_data["title"] == "Assigned Story", "Story content must not change"
     finally:
         await _delete_project(client, project["id"])
 
@@ -505,7 +497,9 @@ async def test_activate_milestone_sets_status_active(client: AsyncClient) -> Non
     project = await _create_project(client, "M-Activate-Project-1")
     try:
         milestone = await _create_milestone(client, project["id"], "Activate Me")
-        assert milestone["status"] == "planned", "Precondition: status should be planned"
+        assert (
+            milestone["status"] == "planned"
+        ), "Precondition: status should be planned"
 
         resp = await client.post(f"{MILESTONES_URL}/{milestone['id']}/activate")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
@@ -527,12 +521,12 @@ async def test_activate_milestone_idempotent_when_already_active(
 
         # Activate again — should succeed with no error.
         resp = await client.post(f"{MILESTONES_URL}/{milestone['id']}/activate")
-        assert resp.status_code == 200, (
-            f"Activating already-active milestone should be 200, got {resp.status_code}"
-        )
-        assert resp.json()["data"]["status"] == "active", (
-            "status should still be 'active'"
-        )
+        assert (
+            resp.status_code == 200
+        ), f"Activating already-active milestone should be 200, got {resp.status_code}"
+        assert (
+            resp.json()["data"]["status"] == "active"
+        ), "status should still be 'active'"
     finally:
         await _delete_project(client, project["id"])
 
@@ -541,16 +535,18 @@ async def test_activate_milestone_idempotent_when_already_active(
 async def test_activate_milestone_valid_from_finished(client: AsyncClient) -> None:
     project = await _create_project(client, "M-Activate-FromFinished")
     try:
-        milestone = await _create_milestone(client, project["id"], "Finished Re-activate")
+        milestone = await _create_milestone(
+            client, project["id"], "Finished Re-activate"
+        )
         await client.post(f"{MILESTONES_URL}/{milestone['id']}/activate")
         await client.post(f"{MILESTONES_URL}/{milestone['id']}/finish")
 
         # Re-activate from 'finished'.
         resp = await client.post(f"{MILESTONES_URL}/{milestone['id']}/activate")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["status"] == "active", (
-            "status should be 'active' after re-activation from 'finished'"
-        )
+        assert (
+            resp.json()["data"]["status"] == "active"
+        ), "status should be 'active' after re-activation from 'finished'"
     finally:
         await _delete_project(client, project["id"])
 
@@ -578,22 +574,24 @@ async def test_single_active_invariant_demotes_previous(client: AsyncClient) -> 
 
         # Activate A.
         activate_a = await client.post(f"{MILESTONES_URL}/{m_a['id']}/activate")
-        assert activate_a.json()["data"]["status"] == "active", (
-            "Milestone A should be active"
-        )
+        assert (
+            activate_a.json()["data"]["status"] == "active"
+        ), "Milestone A should be active"
 
         # Activate B — this should demote A.
         activate_b = await client.post(f"{MILESTONES_URL}/{m_b['id']}/activate")
-        assert activate_b.status_code == 200, f"Expected 200, got {activate_b.status_code}"
-        assert activate_b.json()["data"]["status"] == "active", (
-            "Milestone B should now be active"
-        )
+        assert (
+            activate_b.status_code == 200
+        ), f"Expected 200, got {activate_b.status_code}"
+        assert (
+            activate_b.json()["data"]["status"] == "active"
+        ), "Milestone B should now be active"
 
         # Verify A was demoted to 'planned'.
         get_a = await client.get(f"{MILESTONES_URL}/{m_a['id']}")
-        assert get_a.json()["data"]["status"] == "planned", (
-            "Milestone A should have been demoted to 'planned'"
-        )
+        assert (
+            get_a.json()["data"]["status"] == "planned"
+        ), "Milestone A should have been demoted to 'planned'"
     finally:
         await _delete_project(client, project["id"])
 
@@ -619,15 +617,15 @@ async def test_single_active_invariant_cross_project_isolation(
 
         # m_a should be demoted to 'planned'.
         get_a = await client.get(f"{MILESTONES_URL}/{m_a['id']}")
-        assert get_a.json()["data"]["status"] == "planned", (
-            "m_a should be demoted to 'planned'"
-        )
+        assert (
+            get_a.json()["data"]["status"] == "planned"
+        ), "m_a should be demoted to 'planned'"
 
         # m_b in project B must remain 'active' — unaffected.
         get_b = await client.get(f"{MILESTONES_URL}/{m_b['id']}")
-        assert get_b.json()["data"]["status"] == "active", (
-            "m_b in project B must remain 'active' — cross-project isolation violated"
-        )
+        assert (
+            get_b.json()["data"]["status"] == "active"
+        ), "m_b in project B must remain 'active' — cross-project isolation violated"
     finally:
         await _delete_project(client, project_a["id"])
         await _delete_project(client, project_b["id"])
@@ -646,7 +644,7 @@ async def test_single_active_re_activating_finished_demotes_current_active(
         # Activate A, then finish B (B was planned, not yet active).
         await client.post(f"{MILESTONES_URL}/{m_a['id']}/activate")
         # Activate B so it has history, then finish it.
-        await client.post(f"{MILESTONES_URL}/{m_b['id']}/activate")   # demotes A
+        await client.post(f"{MILESTONES_URL}/{m_b['id']}/activate")  # demotes A
         await client.post(f"{MILESTONES_URL}/{m_b['id']}/finish")
 
         # Now A is planned, B is finished.
@@ -657,13 +655,13 @@ async def test_single_active_re_activating_finished_demotes_current_active(
         await client.post(f"{MILESTONES_URL}/{m_b['id']}/activate")
 
         get_a = await client.get(f"{MILESTONES_URL}/{m_a['id']}")
-        assert get_a.json()["data"]["status"] == "planned", (
-            "A should be demoted to 'planned' when B is re-activated"
-        )
+        assert (
+            get_a.json()["data"]["status"] == "planned"
+        ), "A should be demoted to 'planned' when B is re-activated"
         get_b = await client.get(f"{MILESTONES_URL}/{m_b['id']}")
-        assert get_b.json()["data"]["status"] == "active", (
-            "B should be 'active' after re-activation"
-        )
+        assert (
+            get_b.json()["data"]["status"] == "active"
+        ), "B should be 'active' after re-activation"
     finally:
         await _delete_project(client, project["id"])
 
@@ -682,9 +680,9 @@ async def test_finish_milestone_sets_status_finished(client: AsyncClient) -> Non
 
         resp = await client.post(f"{MILESTONES_URL}/{milestone['id']}/finish")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["status"] == "finished", (
-            "status should be 'finished'"
-        )
+        assert (
+            resp.json()["data"]["status"] == "finished"
+        ), "status should be 'finished'"
     finally:
         await _delete_project(client, project["id"])
 
@@ -700,12 +698,12 @@ async def test_finish_milestone_idempotent_when_already_finished(
         await client.post(f"{MILESTONES_URL}/{milestone['id']}/finish")
 
         resp = await client.post(f"{MILESTONES_URL}/{milestone['id']}/finish")
-        assert resp.status_code == 200, (
-            f"Finishing already-finished milestone should be 200, got {resp.status_code}"
-        )
-        assert resp.json()["data"]["status"] == "finished", (
-            "status should still be 'finished'"
-        )
+        assert (
+            resp.status_code == 200
+        ), f"Finishing already-finished milestone should be 200, got {resp.status_code}"
+        assert (
+            resp.json()["data"]["status"] == "finished"
+        ), "status should still be 'finished'"
     finally:
         await _delete_project(client, project["id"])
 
@@ -719,9 +717,9 @@ async def test_finish_milestone_from_planned(client: AsyncClient) -> None:
         # No activate call — milestone stays 'planned'.
         resp = await client.post(f"{MILESTONES_URL}/{milestone['id']}/finish")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["status"] == "finished", (
-            "status should be 'finished'"
-        )
+        assert (
+            resp.json()["data"]["status"] == "finished"
+        ), "status should be 'finished'"
     finally:
         await _delete_project(client, project["id"])
 
@@ -758,9 +756,9 @@ async def test_list_milestone_stories_returns_assigned_stories(
         story_ids = {s["id"] for s in body["data"]}
         assert s1["id"] in story_ids, "Story Alpha should appear"
         assert s2["id"] in story_ids, "Story Beta should appear"
-        assert body["meta"]["total"] == 2, (
-            f"total should be 2, got {body['meta']['total']}"
-        )
+        assert (
+            body["meta"]["total"] == 2
+        ), f"total should be 2, got {body['meta']['total']}"
     finally:
         await _delete_project(client, project["id"])
 
@@ -775,9 +773,9 @@ async def test_list_milestone_stories_empty_when_no_assignments(
 
         resp = await client.get(f"{MILESTONES_URL}/{milestone['id']}/stories")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["meta"]["total"] == 0, (
-            "total should be 0 when no stories assigned"
-        )
+        assert (
+            resp.json()["meta"]["total"] == 0
+        ), "total should be 0 when no stories assigned"
     finally:
         await _delete_project(client, project["id"])
 
@@ -802,9 +800,7 @@ async def test_story_list_filtered_by_milestone_id(client: AsyncClient) -> None:
     project = await _create_project(client, "M-StoryFilter-Project-1")
     try:
         m1 = await _create_milestone(client, project["id"], "Filter Sprint")
-        s_in = await _create_story(
-            client, project["id"], "In Filter", m1["id"]
-        )
+        s_in = await _create_story(client, project["id"], "In Filter", m1["id"])
         s_out = await _create_story(client, project["id"], "Out of Filter")
 
         resp = await client.get(
@@ -834,12 +830,12 @@ async def test_story_list_unknown_milestone_id_yields_empty_page(
             STORIES_URL,
             params={"project_id": project["id"], "milestone_id": str(uuid.uuid4())},
         )
-        assert resp.status_code == 200, (
-            f"Unknown milestone_id should yield 200 (empty page), got {resp.status_code}"
-        )
-        assert resp.json()["meta"]["total"] == 0, (
-            "total should be 0 for unknown milestone_id"
-        )
+        assert (
+            resp.status_code == 200
+        ), f"Unknown milestone_id should yield 200 (empty page), got {resp.status_code}"
+        assert (
+            resp.json()["meta"]["total"] == 0
+        ), "total should be 0 for unknown milestone_id"
     finally:
         await _delete_project(client, project["id"])
 
@@ -855,18 +851,18 @@ async def test_assign_valid_milestone_to_story(client: AsyncClient) -> None:
     try:
         milestone = await _create_milestone(client, project["id"], "Assign Sprint")
         story = await _create_story(client, project["id"], "Assignable Story")
-        assert story["milestone_id"] is None, (
-            "Precondition: story should start with no milestone"
-        )
+        assert (
+            story["milestone_id"] is None
+        ), "Precondition: story should start with no milestone"
 
         resp = await client.put(
             f"{STORIES_URL}/{story['id']}",
             json={"milestone_id": milestone["id"]},
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["milestone_id"] == milestone["id"], (
-            "milestone_id should be set"
-        )
+        assert (
+            resp.json()["data"]["milestone_id"] == milestone["id"]
+        ), "milestone_id should be set"
     finally:
         await _delete_project(client, project["id"])
 
@@ -879,18 +875,18 @@ async def test_clear_milestone_assignment_to_null(client: AsyncClient) -> None:
         story = await _create_story(
             client, project["id"], "Clearable Story", milestone["id"]
         )
-        assert story["milestone_id"] == milestone["id"], (
-            "Precondition: story should be assigned"
-        )
+        assert (
+            story["milestone_id"] == milestone["id"]
+        ), "Precondition: story should be assigned"
 
         resp = await client.put(
             f"{STORIES_URL}/{story['id']}",
             json={"milestone_id": None},
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-        assert resp.json()["data"]["milestone_id"] is None, (
-            "milestone_id should be cleared to null"
-        )
+        assert (
+            resp.json()["data"]["milestone_id"] is None
+        ), "milestone_id should be cleared to null"
     finally:
         await _delete_project(client, project["id"])
 
@@ -908,12 +904,10 @@ async def test_assign_cross_project_milestone_returns_422(client: AsyncClient) -
             f"{STORIES_URL}/{story_a['id']}",
             json={"milestone_id": milestone_b["id"]},
         )
-        assert resp.status_code == 422, (
-            f"Cross-project milestone assignment should return 422, got {resp.status_code}"
-        )
-        assert resp.json()["code"] == "UNPROCESSABLE", (
-            "code should be UNPROCESSABLE"
-        )
+        assert (
+            resp.status_code == 422
+        ), f"Cross-project milestone assignment should return 422, got {resp.status_code}"
+        assert resp.json()["code"] == "UNPROCESSABLE", "code should be UNPROCESSABLE"
     finally:
         await _delete_project(client, project_a["id"])
         await _delete_project(client, project_b["id"])
@@ -931,9 +925,9 @@ async def test_assign_nonexistent_milestone_returns_404(client: AsyncClient) -> 
             f"{STORIES_URL}/{story['id']}",
             json={"milestone_id": str(uuid.uuid4())},
         )
-        assert resp.status_code == 404, (
-            f"Assigning non-existent milestone should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Assigning non-existent milestone should return 404, got {resp.status_code}"
     finally:
         await _delete_project(client, project["id"])
 
@@ -980,9 +974,9 @@ async def test_delete_project_removes_its_stories(client: AsyncClient) -> None:
         # behavior for stories is validated in test_projects.py.
         # Here we only confirm the project delete itself succeeds and the story
         # had the expected milestone_id before deletion.
-        assert story["milestone_id"] == milestone["id"], (
-            "Precondition confirmed: story was assigned to the milestone"
-        )
+        assert (
+            story["milestone_id"] == milestone["id"]
+        ), "Precondition confirmed: story was assigned to the milestone"
     finally:
         # project_a already deleted; clean up project_b only.
         await _delete_project(client, project_b["id"])
@@ -1008,14 +1002,14 @@ async def test_milestone_with_no_stories_has_zero_story_count(
         items = list_resp.json()["data"]
         matching = [m for m in items if m["id"] == milestone["id"]]
         assert len(matching) == 1, "Milestone should appear in list"
-        assert matching[0]["story_count"] == 0, (
-            "story_count should be 0 for a milestone with no stories"
-        )
+        assert (
+            matching[0]["story_count"] == 0
+        ), "story_count should be 0 for a milestone with no stories"
 
         # Verify via detail.
         detail_resp = await client.get(f"{MILESTONES_URL}/{milestone['id']}")
-        assert detail_resp.json()["data"]["story_count"] == 0, (
-            "story_count should be 0 in detail"
-        )
+        assert (
+            detail_resp.json()["data"]["story_count"] == 0
+        ), "story_count should be 0 in detail"
     finally:
         await _delete_project(client, project["id"])

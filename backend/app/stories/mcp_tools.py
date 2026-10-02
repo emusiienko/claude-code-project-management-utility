@@ -159,7 +159,5 @@ async def get_story_aggregate(
     except DomainError as exc:
         raise exc.to_tool_error() from exc
     except Exception as exc:
-        logger.error(
-            "Unexpected error in get_story_aggregate: %s", exc, exc_info=exc
-        )
+        logger.error("Unexpected error in get_story_aggregate: %s", exc, exc_info=exc)
         raise ToolError("Internal server error.") from exc

@@ -104,8 +104,8 @@ class ProjectService:
         if story_ids:
             for task in self._task_reader.list_all_for_stories(story_ids):
                 tasks_by_story.setdefault(task.story_id, []).append(task)
-            status_counts_by_story = (
-                self._task_reader.get_status_counts_for_stories(story_ids)
+            status_counts_by_story = self._task_reader.get_status_counts_for_stories(
+                story_ids
             )
 
         stories: list[WorkStateStory] = []
@@ -144,9 +144,7 @@ class StoryReaderProtocol(Protocol):
 
 @runtime_checkable
 class TaskReaderProtocol(Protocol):
-    def list_all_for_stories(
-        self, story_ids: list[uuid.UUID]
-    ) -> list["TaskModel"]: ...
+    def list_all_for_stories(self, story_ids: list[uuid.UUID]) -> list["TaskModel"]: ...
 
     def get_status_counts_for_stories(
         self, story_ids: list[uuid.UUID]

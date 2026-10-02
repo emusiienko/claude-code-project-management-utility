@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import ForeignKey, JSON, String, Text
+from sqlalchemy import JSON, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
@@ -26,9 +26,7 @@ class Story(Base):
     # root-first inline-FK rule the constraint can only be added once that
     # parent table exists. STORY-012 will add the constraint in its own
     # migration via batch_alter_table on SQLite.
-    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUIDType, nullable=True
-    )
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(UUIDType, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         UTCDateTime(),
         nullable=False,

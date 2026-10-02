@@ -11,6 +11,7 @@ Notes:
   dependent service to fail, so there is no negative-path test here.
 - Every test creates no data and does not depend on execution order.
 """
+
 from fastmcp import Client
 from httpx import AsyncClient
 
@@ -39,20 +40,18 @@ async def _mcp_call(tool_name: str, args: dict):
 
 
 class TestGetStatus:
-    async def test_get_status_returns_ok_and_version(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_get_status_returns_ok_and_version(self, client: AsyncClient) -> None:
         response = await client.get(STATUS_URL)
-        assert response.status_code == 200, (
-            f"Status should return 200, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Status should return 200, got {response.status_code}"
         data = response.json()["data"]
-        assert data["status"] == "ok", (
-            f"status field should be 'ok', got '{data.get('status')}'"
-        )
-        assert isinstance(data["version"], str) and data["version"], (
-            f"version should be a non-empty string, got {data.get('version')!r}"
-        )
+        assert (
+            data["status"] == "ok"
+        ), f"status field should be 'ok', got '{data.get('status')}'"
+        assert (
+            isinstance(data["version"], str) and data["version"]
+        ), f"version should be a non-empty string, got {data.get('version')!r}"
 
     async def test_get_status_carries_no_mcp_availability_flag(
         self, client: AsyncClient
@@ -69,9 +68,9 @@ class TestGetStatus:
     ) -> None:
         first = (await client.get(STATUS_URL)).json()["data"]
         second = (await client.get(STATUS_URL)).json()["data"]
-        assert first["version"] == second["version"], (
-            "The application version should be stable across calls within one process"
-        )
+        assert (
+            first["version"] == second["version"]
+        ), "The application version should be stable across calls within one process"
 
 
 # ===========================================================================

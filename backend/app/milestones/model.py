@@ -22,9 +22,7 @@ class Milestone(Base):
     # Lowercase wire values: planned | active | finished (v1.2).
     # The service assigns the default "planned" on create; the DB server_default
     # in the migration covers any direct SQL inserts.
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="planned"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
     created_at: Mapped[datetime.datetime] = mapped_column(
         UTCDateTime(),
         nullable=False,

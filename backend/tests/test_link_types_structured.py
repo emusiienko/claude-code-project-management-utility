@@ -68,7 +68,9 @@ def _settings_data(response_json: dict) -> dict:
 
 async def _create_project(client: AsyncClient, name: str) -> str:
     resp = await client.post(PROJECTS_URL, json={"name": name})
-    assert resp.status_code == 201, f"create_project: expected 201, got {resp.status_code}"
+    assert (
+        resp.status_code == 201
+    ), f"create_project: expected 201, got {resp.status_code}"
     return resp.json()["data"]["id"]
 
 
@@ -77,7 +79,9 @@ async def _create_story(client: AsyncClient, project_id: str, title: str) -> str
         STORIES_URL,
         json={"project_id": project_id, "title": title, "status": "planned"},
     )
-    assert resp.status_code == 201, f"create_story: expected 201, got {resp.status_code}"
+    assert (
+        resp.status_code == 201
+    ), f"create_story: expected 201, got {resp.status_code}"
     return resp.json()["data"]["id"]
 
 
@@ -86,7 +90,9 @@ async def _create_task(client: AsyncClient, story_id: str, title: str) -> str:
         f"{STORIES_URL}/{story_id}/tasks",
         json={"title": title, "status": "todo", "type": "task"},
     )
-    assert resp.status_code == 201, f"create_task: expected 201, got {resp.status_code}: {resp.text}"
+    assert (
+        resp.status_code == 201
+    ), f"create_task: expected 201, got {resp.status_code}: {resp.text}"
     return resp.json()["data"]["id"]
 
 
@@ -108,9 +114,9 @@ class TestSystemSettingsStructuredLinkTypes:
             "/v1/system/settings",
             json={"link_types": entries},
         )
-        assert response.status_code == 200, (
-            f"Structured link_types should be accepted, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Structured link_types should be accepted, got {response.status_code}"
         # Restore
         await client.put(
             "/v1/system/settings",
@@ -123,7 +129,9 @@ class TestSystemSettingsStructuredLinkTypes:
         link_types = data["link_types"]
         assert isinstance(link_types, list), "link_types should be a list"
         for entry in link_types:
-            assert isinstance(entry, dict), f"Each link_types entry should be a dict, got {type(entry)}"
+            assert isinstance(
+                entry, dict
+            ), f"Each link_types entry should be a dict, got {type(entry)}"
             assert "value" in entry, f"Entry missing 'value': {entry}"
             assert "outbound" in entry, f"Entry missing 'outbound': {entry}"
             assert "inbound" in entry, f"Entry missing 'inbound': {entry}"
@@ -136,24 +144,20 @@ class TestSystemSettingsStructuredLinkTypes:
         link_types = data["link_types"]
         values = {e["value"] for e in link_types}
         expected_values = {e["value"] for e in CANONICAL_SEED_ENTRIES}
-        assert values == expected_values, (
-            f"Expected values {expected_values}, got {values}"
-        )
+        assert (
+            values == expected_values
+        ), f"Expected values {expected_values}, got {values}"
 
-    async def test_plain_string_rejected_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_plain_string_rejected_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
             json={"link_types": ["depends-on", "context"]},
         )
-        assert response.status_code == 422, (
-            f"Plain string link_types should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Plain string link_types should return 422, got {response.status_code}"
 
-    async def test_plain_string_exact_error_message(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_plain_string_exact_error_message(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
             json={"link_types": ["depends-on"]},
@@ -163,9 +167,9 @@ class TestSystemSettingsStructuredLinkTypes:
         # with our exact message — it appears somewhere in the detail list
         detail_str = json.dumps(body)
         expected_msg = "link_types entries must be objects with 'value', 'outbound', and 'inbound' fields"
-        assert expected_msg in detail_str, (
-            f"Expected exact error message in response, got: {detail_str}"
-        )
+        assert (
+            expected_msg in detail_str
+        ), f"Expected exact error message in response, got: {detail_str}"
 
     async def test_missing_outbound_field_returns_422(
         self, client: AsyncClient
@@ -174,76 +178,88 @@ class TestSystemSettingsStructuredLinkTypes:
             "/v1/system/settings",
             json={"link_types": [{"value": "blocks", "inbound": "is blocked by"}]},
         )
-        assert response.status_code == 422, (
-            f"Entry missing 'outbound' should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Entry missing 'outbound' should return 422, got {response.status_code}"
 
-    async def test_missing_value_field_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_missing_value_field_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
             json={"link_types": [{"outbound": "blocks", "inbound": "is blocked by"}]},
         )
-        assert response.status_code == 422, (
-            f"Entry missing 'value' should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Entry missing 'value' should return 422, got {response.status_code}"
 
-    async def test_missing_inbound_field_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_missing_inbound_field_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
             json={"link_types": [{"value": "blocks", "outbound": "blocks"}]},
         )
-        assert response.status_code == 422, (
-            f"Entry missing 'inbound' should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Entry missing 'inbound' should return 422, got {response.status_code}"
 
     async def test_blank_value_field_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
-            json={"link_types": [{"value": "", "outbound": "blocks", "inbound": "is blocked by"}]},
+            json={
+                "link_types": [
+                    {"value": "", "outbound": "blocks", "inbound": "is blocked by"}
+                ]
+            },
         )
-        assert response.status_code == 422, (
-            f"Blank 'value' field should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Blank 'value' field should return 422, got {response.status_code}"
 
     async def test_blank_outbound_field_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
-            json={"link_types": [{"value": "blocks", "outbound": "", "inbound": "is blocked by"}]},
+            json={
+                "link_types": [
+                    {"value": "blocks", "outbound": "", "inbound": "is blocked by"}
+                ]
+            },
         )
-        assert response.status_code == 422, (
-            f"Blank 'outbound' field should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Blank 'outbound' field should return 422, got {response.status_code}"
 
     async def test_blank_inbound_field_returns_422(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
-            json={"link_types": [{"value": "blocks", "outbound": "blocks", "inbound": ""}]},
+            json={
+                "link_types": [{"value": "blocks", "outbound": "blocks", "inbound": ""}]
+            },
         )
-        assert response.status_code == 422, (
-            f"Blank 'inbound' field should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Blank 'inbound' field should return 422, got {response.status_code}"
 
-    async def test_duplicate_value_field_returns_400(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_duplicate_value_field_returns_400(self, client: AsyncClient) -> None:
         # Duplicate value check is a domain-level business rule enforced by the service,
         # not Pydantic field validation — the service raises ValidationError which maps to 400.
         response = await client.put(
             "/v1/system/settings",
             json={
                 "link_types": [
-                    {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
-                    {"value": "blocks", "outbound": "blocks again", "inbound": "is blocked by again"},
+                    {
+                        "value": "blocks",
+                        "outbound": "blocks",
+                        "inbound": "is blocked by",
+                    },
+                    {
+                        "value": "blocks",
+                        "outbound": "blocks again",
+                        "inbound": "is blocked by again",
+                    },
                 ]
             },
         )
-        assert response.status_code == 400, (
-            f"Duplicate 'value' fields should return 400 (domain ValidationError), got {response.status_code}"
-        )
+        assert (
+            response.status_code == 400
+        ), f"Duplicate 'value' fields should return 400 (domain ValidationError), got {response.status_code}"
 
     async def test_duplicate_value_exact_error_message(
         self, client: AsyncClient
@@ -252,15 +268,23 @@ class TestSystemSettingsStructuredLinkTypes:
             "/v1/system/settings",
             json={
                 "link_types": [
-                    {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
-                    {"value": "blocks", "outbound": "blocks v2", "inbound": "is blocked by v2"},
+                    {
+                        "value": "blocks",
+                        "outbound": "blocks",
+                        "inbound": "is blocked by",
+                    },
+                    {
+                        "value": "blocks",
+                        "outbound": "blocks v2",
+                        "inbound": "is blocked by v2",
+                    },
                 ]
             },
         )
         body = response.json()
-        assert body.get("error") == "link_types values must be unique", (
-            f"Expected exact duplicate-value error, got: {body}"
-        )
+        assert (
+            body.get("error") == "link_types values must be unique"
+        ), f"Expected exact duplicate-value error, got: {body}"
 
     async def test_symmetric_entry_accepted_returns_200(
         self, client: AsyncClient
@@ -273,9 +297,9 @@ class TestSystemSettingsStructuredLinkTypes:
             "/v1/system/settings",
             json={"link_types": entries},
         )
-        assert response.status_code == 200, (
-            f"Symmetric entry should be accepted, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Symmetric entry should be accepted, got {response.status_code}"
         # Restore
         await client.put(
             "/v1/system/settings",
@@ -290,14 +314,14 @@ class TestSystemSettingsStructuredLinkTypes:
             "/v1/system/settings",
             json={"task_statuses": ["todo", "in-progress", "done"]},
         )
-        assert response.status_code == 200, (
-            f"task_statuses plain strings should be accepted, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"task_statuses plain strings should be accepted, got {response.status_code}"
         data = _settings_data(response.json())
         for item in data["task_statuses"]:
-            assert isinstance(item, str), (
-                f"task_statuses items should be plain strings, got {type(item)}"
-            )
+            assert isinstance(
+                item, str
+            ), f"task_statuses items should be plain strings, got {type(item)}"
 
     async def test_put_and_get_round_trip(self, client: AsyncClient) -> None:
         """PUT structured link_types then GET returns the same structured entries."""
@@ -312,9 +336,10 @@ class TestSystemSettingsStructuredLinkTypes:
             link_types = data["link_types"]
             assert len(link_types) == 2, f"Expected 2 entries, got {len(link_types)}"
             result_values = {e["value"] for e in link_types}
-            assert result_values == {"depends-on", "context"}, (
-                f"Unexpected values: {result_values}"
-            )
+            assert result_values == {
+                "depends-on",
+                "context",
+            }, f"Unexpected values: {result_values}"
             dep = next(e for e in link_types if e["value"] == "depends-on")
             assert dep["outbound"] == "depends on", f"Wrong outbound: {dep['outbound']}"
             assert dep["inbound"] == "dependent", f"Wrong inbound: {dep['inbound']}"
@@ -339,9 +364,9 @@ class TestProjectSettingsStructuredLinkTypes:
             f"/v1/projects/{project_id}/settings",
             json={"link_types": entries},
         )
-        assert response.status_code == 200, (
-            f"Structured link_types should be accepted for project, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Structured link_types should be accepted for project, got {response.status_code}"
 
     async def test_project_plain_string_rejected_returns_422(
         self, client: AsyncClient, create_project
@@ -351,9 +376,9 @@ class TestProjectSettingsStructuredLinkTypes:
             f"/v1/projects/{project_id}/settings",
             json={"link_types": ["depends-on"]},
         )
-        assert response.status_code == 422, (
-            f"Plain string link_types for project should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Plain string link_types for project should return 422, got {response.status_code}"
 
     async def test_project_missing_field_returns_422(
         self, client: AsyncClient, create_project
@@ -363,9 +388,9 @@ class TestProjectSettingsStructuredLinkTypes:
             f"/v1/projects/{project_id}/settings",
             json={"link_types": [{"value": "test", "outbound": "test"}]},
         )
-        assert response.status_code == 422, (
-            f"Entry missing 'inbound' should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Entry missing 'inbound' should return 422, got {response.status_code}"
 
     async def test_project_blank_value_returns_422(
         self, client: AsyncClient, create_project
@@ -375,9 +400,9 @@ class TestProjectSettingsStructuredLinkTypes:
             f"/v1/projects/{project_id}/settings",
             json={"link_types": [{"value": "", "outbound": "test", "inbound": "test"}]},
         )
-        assert response.status_code == 422, (
-            f"Blank 'value' should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Blank 'value' should return 422, got {response.status_code}"
 
     async def test_project_duplicate_value_returns_400(
         self, client: AsyncClient, create_project
@@ -409,9 +434,9 @@ class TestProjectSettingsStructuredLinkTypes:
             f"/v1/projects/{project_id}/settings",
             json={"link_types": entries},
         )
-        assert response.status_code == 200, (
-            f"Symmetric entry should be accepted for project, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Symmetric entry should be accepted for project, got {response.status_code}"
 
     async def test_effective_settings_returns_structured_link_types(
         self, client: AsyncClient, create_project
@@ -423,7 +448,9 @@ class TestProjectSettingsStructuredLinkTypes:
         assert isinstance(link_types, list), "link_types should be a list"
         assert len(link_types) > 0, "link_types should be non-empty"
         for entry in link_types:
-            assert isinstance(entry, dict), f"Each entry should be a dict, got {type(entry)}"
+            assert isinstance(
+                entry, dict
+            ), f"Each entry should be a dict, got {type(entry)}"
             assert "value" in entry, f"Entry missing 'value': {entry}"
             assert "outbound" in entry, f"Entry missing 'outbound': {entry}"
             assert "inbound" in entry, f"Entry missing 'inbound': {entry}"
@@ -444,10 +471,12 @@ class TestProjectSettingsStructuredLinkTypes:
         data = _settings_data(response.json())
         link_types = data["link_types"]
         values = [e["value"] for e in link_types]
-        assert "custom-type" in values, f"Override value 'custom-type' not in effective: {values}"
-        assert "depends-on" not in values, (
-            f"System default 'depends-on' should be replaced by override, got: {values}"
-        )
+        assert (
+            "custom-type" in values
+        ), f"Override value 'custom-type' not in effective: {values}"
+        assert (
+            "depends-on" not in values
+        ), f"System default 'depends-on' should be replaced by override, got: {values}"
 
 
 # ===========================================================================
@@ -458,9 +487,7 @@ class TestProjectSettingsStructuredLinkTypes:
 class TestTaskLinkTypeResolution:
     """link_type validation for POST /v1/tasks/:taskId/links uses structured entries."""
 
-    async def test_valid_link_type_creates_task_link(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_valid_link_type_creates_task_link(self, client: AsyncClient) -> None:
         project_id = await _create_project(client, "TL Resolution Project")
         story_id = await _create_story(client, project_id, "TL Resolution Story")
         task_a = await _create_task(client, story_id, "Task A")
@@ -487,9 +514,9 @@ class TestTaskLinkTypeResolution:
             f"{TASKS_URL}/{task_a}/links",
             json={"target_task_id": task_b, "link_type": INVALID_LINK_TYPE},
         )
-        assert response.status_code == 422, (
-            f"Invalid link_type should return 422, got {response.status_code}: {response.text}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Invalid link_type should return 422, got {response.status_code}: {response.text}"
 
     async def test_project_level_link_type_override_accepted(
         self, client: AsyncClient
@@ -501,7 +528,11 @@ class TestTaskLinkTypeResolution:
             f"/v1/projects/{project_id}/settings",
             json={
                 "link_types": [
-                    {"value": "project-only-type", "outbound": "project only", "inbound": "project only back"},
+                    {
+                        "value": "project-only-type",
+                        "outbound": "project only",
+                        "inbound": "project only back",
+                    },
                 ]
             },
         )
@@ -528,7 +559,11 @@ class TestTaskLinkTypeResolution:
             f"/v1/projects/{project_id}/settings",
             json={
                 "link_types": [
-                    {"value": "custom-only", "outbound": "custom", "inbound": "custom back"},
+                    {
+                        "value": "custom-only",
+                        "outbound": "custom",
+                        "inbound": "custom back",
+                    },
                 ]
             },
         )
@@ -590,7 +625,11 @@ class TestStoryLinkTypeResolution:
             f"/v1/projects/{project_id}/settings",
             json={
                 "link_types": [
-                    {"value": "sl-custom-type", "outbound": "sl custom", "inbound": "sl custom back"},
+                    {
+                        "value": "sl-custom-type",
+                        "outbound": "sl custom",
+                        "inbound": "sl custom back",
+                    },
                 ]
             },
         )
@@ -614,7 +653,11 @@ class TestStoryLinkTypeResolution:
             f"/v1/projects/{project_id}/settings",
             json={
                 "link_types": [
-                    {"value": "sl-only", "outbound": "sl only", "inbound": "sl only back"},
+                    {
+                        "value": "sl-only",
+                        "outbound": "sl only",
+                        "inbound": "sl only back",
+                    },
                 ]
             },
         )
@@ -665,22 +708,18 @@ def migration_db():
 
     engine = sa.create_engine("sqlite:///:memory:", echo=False)
     with engine.begin() as conn:
-        conn.execute(sa.text(
-            """CREATE TABLE system_settings (
+        conn.execute(sa.text("""CREATE TABLE system_settings (
                 key TEXT PRIMARY KEY,
                 "values" TEXT NOT NULL,
                 updated_at TEXT NOT NULL
-            )"""
-        ))
-        conn.execute(sa.text(
-            """CREATE TABLE project_settings (
+            )"""))
+        conn.execute(sa.text("""CREATE TABLE project_settings (
                 project_id TEXT NOT NULL,
                 key TEXT NOT NULL,
                 "values" TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 PRIMARY KEY (project_id, key)
-            )"""
-        ))
+            )"""))
     yield engine
     engine.dispose()
 
@@ -712,13 +751,17 @@ def _run_upgrade(engine) -> None:
     for table in ("system_settings", "project_settings"):
         with engine.begin() as conn:
             rows = conn.execute(
-                text(f'SELECT key, "values" FROM {table} WHERE key = \'link_types\'')  # noqa: S608
+                text(
+                    f"SELECT key, \"values\" FROM {table} WHERE key = 'link_types'"
+                )  # noqa: S608
             ).fetchall()
             for row in rows:
                 raw = row[1] if isinstance(row[1], list) else json.loads(row[1])
                 converted = [_to_structured_entry(e) for e in raw]
                 conn.execute(
-                    text(f'UPDATE {table} SET "values" = :v WHERE key = \'link_types\''),  # noqa: S608
+                    text(
+                        f"UPDATE {table} SET \"values\" = :v WHERE key = 'link_types'"
+                    ),  # noqa: S608
                     {"v": json.dumps(converted)},
                 )
 
@@ -739,13 +782,17 @@ def _run_downgrade(engine) -> None:
     for table in ("system_settings", "project_settings"):
         with engine.begin() as conn:
             rows = conn.execute(
-                text(f'SELECT key, "values" FROM {table} WHERE key = \'link_types\'')  # noqa: S608
+                text(
+                    f"SELECT key, \"values\" FROM {table} WHERE key = 'link_types'"
+                )  # noqa: S608
             ).fetchall()
             for row in rows:
                 raw = row[1] if isinstance(row[1], list) else json.loads(row[1])
                 flat = [_to_flat_entry(e) for e in raw]
                 conn.execute(
-                    text(f'UPDATE {table} SET "values" = :v WHERE key = \'link_types\''),  # noqa: S608
+                    text(
+                        f"UPDATE {table} SET \"values\" = :v WHERE key = 'link_types'"
+                    ),  # noqa: S608
                     {"v": json.dumps(flat)},
                 )
 
@@ -756,64 +803,88 @@ class TestMigrationHelperFunctions:
     def test_to_structured_canonical_depends_on(self, migration_helpers) -> None:
         to_structured, _ = migration_helpers
         result = to_structured("depends-on")
-        assert result == {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"}, (
-            f"Unexpected result: {result}"
-        )
+        assert result == {
+            "value": "depends-on",
+            "outbound": "depends on",
+            "inbound": "dependent",
+        }, f"Unexpected result: {result}"
 
     def test_to_structured_canonical_dependent(self, migration_helpers) -> None:
         to_structured, _ = migration_helpers
         result = to_structured("dependent")
-        assert result == {"value": "dependent", "outbound": "dependent", "inbound": "depends on"}, (
-            f"Unexpected result: {result}"
-        )
+        assert result == {
+            "value": "dependent",
+            "outbound": "dependent",
+            "inbound": "depends on",
+        }, f"Unexpected result: {result}"
 
     def test_to_structured_canonical_created_by(self, migration_helpers) -> None:
         to_structured, _ = migration_helpers
         result = to_structured("created-by")
-        assert result == {"value": "created-by", "outbound": "created by", "inbound": "creates"}, (
-            f"Unexpected result: {result}"
-        )
+        assert result == {
+            "value": "created-by",
+            "outbound": "created by",
+            "inbound": "creates",
+        }, f"Unexpected result: {result}"
 
     def test_to_structured_canonical_creates(self, migration_helpers) -> None:
         to_structured, _ = migration_helpers
         result = to_structured("creates")
-        assert result == {"value": "creates", "outbound": "creates", "inbound": "created by"}, (
-            f"Unexpected result: {result}"
-        )
+        assert result == {
+            "value": "creates",
+            "outbound": "creates",
+            "inbound": "created by",
+        }, f"Unexpected result: {result}"
 
     def test_to_structured_canonical_context(self, migration_helpers) -> None:
         to_structured, _ = migration_helpers
         result = to_structured("context")
-        assert result == {"value": "context", "outbound": "context", "inbound": "context for"}, (
-            f"Unexpected result: {result}"
-        )
+        assert result == {
+            "value": "context",
+            "outbound": "context",
+            "inbound": "context for",
+        }, f"Unexpected result: {result}"
 
     def test_to_structured_custom_slug_best_effort(self, migration_helpers) -> None:
         """Custom slug falls back to hyphen→space for both outbound and inbound."""
         to_structured, _ = migration_helpers
         result = to_structured("blocks")
-        assert result == {"value": "blocks", "outbound": "blocks", "inbound": "blocks"}, (
-            f"Custom slug best-effort result unexpected: {result}"
-        )
+        assert result == {
+            "value": "blocks",
+            "outbound": "blocks",
+            "inbound": "blocks",
+        }, f"Custom slug best-effort result unexpected: {result}"
 
     def test_to_structured_hyphenated_custom_slug(self, migration_helpers) -> None:
         """Hyphenated custom slug: hyphens replaced by spaces in both labels."""
         to_structured, _ = migration_helpers
         result = to_structured("related-to")
-        assert result["value"] == "related-to", "value field should be the original slug"
-        assert result["outbound"] == "related to", f"Wrong outbound: {result['outbound']}"
+        assert (
+            result["value"] == "related-to"
+        ), "value field should be the original slug"
+        assert (
+            result["outbound"] == "related to"
+        ), f"Wrong outbound: {result['outbound']}"
         assert result["inbound"] == "related to", f"Wrong inbound: {result['inbound']}"
 
-    def test_to_structured_already_structured_is_idempotent(self, migration_helpers) -> None:
+    def test_to_structured_already_structured_is_idempotent(
+        self, migration_helpers
+    ) -> None:
         """An already-structured dict is returned unchanged."""
         to_structured, _ = migration_helpers
         entry = {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"}
         result = to_structured(entry)
-        assert result == entry, f"Already-structured entry should be unchanged: {result}"
+        assert (
+            result == entry
+        ), f"Already-structured entry should be unchanged: {result}"
 
     def test_to_flat_extracts_value_field(self, migration_helpers) -> None:
         _, to_flat = migration_helpers
-        entry = {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"}
+        entry = {
+            "value": "depends-on",
+            "outbound": "depends on",
+            "inbound": "dependent",
+        }
         result = to_flat(entry)
         assert result == "depends-on", f"Expected 'depends-on', got {result}"
 
@@ -842,36 +913,53 @@ class TestMigrationUpgradeScenarios:
     ) -> None:
         """Upgrade on flat-string canonical slugs produces exact canonical label objects."""
         engine = migration_db
-        flat_values = json.dumps(["depends-on", "dependent", "created-by", "creates", "context"])
+        flat_values = json.dumps(
+            ["depends-on", "dependent", "created-by", "creates", "context"]
+        )
         with engine.begin() as conn:
-            conn.execute(sa.text(
-                "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
-            ), {"v": flat_values})
+            conn.execute(
+                sa.text(
+                    "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
+                ),
+                {"v": flat_values},
+            )
 
         _run_upgrade(engine)
 
         with engine.connect() as conn:
             row = conn.execute(
-                sa.text("SELECT \"values\" FROM system_settings WHERE key = 'link_types'")
+                sa.text(
+                    "SELECT \"values\" FROM system_settings WHERE key = 'link_types'"
+                )
             ).fetchone()
         assert row is not None, "link_types row should exist"
         structured = json.loads(row[0])
         values_map = {e["value"]: e for e in structured}
 
         assert values_map["depends-on"] == {
-            "value": "depends-on", "outbound": "depends on", "inbound": "dependent"
+            "value": "depends-on",
+            "outbound": "depends on",
+            "inbound": "dependent",
         }
         assert values_map["dependent"] == {
-            "value": "dependent", "outbound": "dependent", "inbound": "depends on"
+            "value": "dependent",
+            "outbound": "dependent",
+            "inbound": "depends on",
         }
         assert values_map["created-by"] == {
-            "value": "created-by", "outbound": "created by", "inbound": "creates"
+            "value": "created-by",
+            "outbound": "created by",
+            "inbound": "creates",
         }
         assert values_map["creates"] == {
-            "value": "creates", "outbound": "creates", "inbound": "created by"
+            "value": "creates",
+            "outbound": "creates",
+            "inbound": "created by",
         }
         assert values_map["context"] == {
-            "value": "context", "outbound": "context", "inbound": "context for"
+            "value": "context",
+            "outbound": "context",
+            "inbound": "context for",
         }
 
     def test_upgrade_custom_slug_best_effort(self, migration_db) -> None:
@@ -879,15 +967,20 @@ class TestMigrationUpgradeScenarios:
         engine = migration_db
         flat_values = json.dumps(["blocks"])
         with engine.begin() as conn:
-            conn.execute(sa.text(
-                "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
-            ), {"v": flat_values})
+            conn.execute(
+                sa.text(
+                    "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
+                ),
+                {"v": flat_values},
+            )
 
         _run_upgrade(engine)
 
         with engine.connect() as conn:
             row = conn.execute(
-                sa.text("SELECT \"values\" FROM system_settings WHERE key = 'link_types'")
+                sa.text(
+                    "SELECT \"values\" FROM system_settings WHERE key = 'link_types'"
+                )
             ).fetchone()
         structured = json.loads(row[0])
         assert len(structured) == 1, f"Expected 1 entry, got {len(structured)}"
@@ -899,13 +992,16 @@ class TestMigrationUpgradeScenarios:
     def test_upgrade_idempotent(self, migration_db) -> None:
         """Running upgrade twice on already-structured rows leaves them unchanged."""
         engine = migration_db
-        structured_values = json.dumps([
-            {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"}
-        ])
+        structured_values = json.dumps(
+            [{"value": "depends-on", "outbound": "depends on", "inbound": "dependent"}]
+        )
         with engine.begin() as conn:
-            conn.execute(sa.text(
-                "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
-            ), {"v": structured_values})
+            conn.execute(
+                sa.text(
+                    "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
+                ),
+                {"v": structured_values},
+            )
 
         # Run upgrade twice
         _run_upgrade(engine)
@@ -913,12 +1009,16 @@ class TestMigrationUpgradeScenarios:
 
         with engine.connect() as conn:
             row = conn.execute(
-                sa.text("SELECT \"values\" FROM system_settings WHERE key = 'link_types'")
+                sa.text(
+                    "SELECT \"values\" FROM system_settings WHERE key = 'link_types'"
+                )
             ).fetchone()
         result = json.loads(row[0])
         assert len(result) == 1, f"Should still have 1 entry, got {len(result)}"
         assert result[0] == {
-            "value": "depends-on", "outbound": "depends on", "inbound": "dependent"
+            "value": "depends-on",
+            "outbound": "depends on",
+            "inbound": "dependent",
         }, f"Entry should be unchanged after double upgrade: {result[0]}"
 
     def test_upgrade_converts_project_settings_rows(self, migration_db) -> None:
@@ -927,17 +1027,20 @@ class TestMigrationUpgradeScenarios:
         project_id = str(uuid.uuid4())
         flat_values = json.dumps(["context"])
         with engine.begin() as conn:
-            conn.execute(sa.text(
-                "INSERT INTO project_settings (project_id, key, \"values\", updated_at) "
-                "VALUES (:pid, 'link_types', :v, '2026-01-01')"
-            ), {"pid": project_id, "v": flat_values})
+            conn.execute(
+                sa.text(
+                    'INSERT INTO project_settings (project_id, key, "values", updated_at) '
+                    "VALUES (:pid, 'link_types', :v, '2026-01-01')"
+                ),
+                {"pid": project_id, "v": flat_values},
+            )
 
         _run_upgrade(engine)
 
         with engine.connect() as conn:
             row = conn.execute(
                 sa.text(
-                    "SELECT \"values\" FROM project_settings "
+                    'SELECT "values" FROM project_settings '
                     "WHERE project_id = :pid AND key = 'link_types'"
                 ),
                 {"pid": project_id},
@@ -946,7 +1049,9 @@ class TestMigrationUpgradeScenarios:
         structured = json.loads(row[0])
         assert len(structured) == 1, f"Expected 1 entry, got {len(structured)}"
         assert structured[0] == {
-            "value": "context", "outbound": "context", "inbound": "context for"
+            "value": "context",
+            "outbound": "context",
+            "inbound": "context for",
         }, f"context entry not converted correctly: {structured[0]}"
 
 
@@ -956,53 +1061,70 @@ class TestMigrationDowngradeScenarios:
     def test_downgrade_structured_to_flat(self, migration_db) -> None:
         """Downgrade collapses structured objects to value strings only."""
         engine = migration_db
-        structured_values = json.dumps([
-            {"value": "depends-on", "outbound": "depends on", "inbound": "dependent"},
-            {"value": "context", "outbound": "context", "inbound": "context for"},
-        ])
-        with engine.begin() as conn:
-            conn.execute(sa.text(
-                "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
-            ), {"v": structured_values})
-
-        _run_downgrade(engine)
-
-        with engine.connect() as conn:
-            row = conn.execute(
-                sa.text("SELECT \"values\" FROM system_settings WHERE key = 'link_types'")
-            ).fetchone()
-        result = json.loads(row[0])
-        assert result == ["depends-on", "context"], (
-            f"Downgraded values should be flat strings, got {result}"
+        structured_values = json.dumps(
+            [
+                {
+                    "value": "depends-on",
+                    "outbound": "depends on",
+                    "inbound": "dependent",
+                },
+                {"value": "context", "outbound": "context", "inbound": "context for"},
+            ]
         )
-
-    def test_downgrade_project_settings_rows(self, migration_db) -> None:
-        """Downgrade also collapses project_settings rows."""
-        engine = migration_db
-        project_id = str(uuid.uuid4())
-        structured_values = json.dumps([
-            {"value": "creates", "outbound": "creates", "inbound": "created by"},
-        ])
         with engine.begin() as conn:
-            conn.execute(sa.text(
-                "INSERT INTO project_settings (project_id, key, \"values\", updated_at) "
-                "VALUES (:pid, 'link_types', :v, '2026-01-01')"
-            ), {"pid": project_id, "v": structured_values})
+            conn.execute(
+                sa.text(
+                    "INSERT INTO system_settings (key, \"values\", updated_at) VALUES ('link_types', :v, '2026-01-01')"
+                ),
+                {"v": structured_values},
+            )
 
         _run_downgrade(engine)
 
         with engine.connect() as conn:
             row = conn.execute(
                 sa.text(
-                    "SELECT \"values\" FROM project_settings "
+                    "SELECT \"values\" FROM system_settings WHERE key = 'link_types'"
+                )
+            ).fetchone()
+        result = json.loads(row[0])
+        assert result == [
+            "depends-on",
+            "context",
+        ], f"Downgraded values should be flat strings, got {result}"
+
+    def test_downgrade_project_settings_rows(self, migration_db) -> None:
+        """Downgrade also collapses project_settings rows."""
+        engine = migration_db
+        project_id = str(uuid.uuid4())
+        structured_values = json.dumps(
+            [
+                {"value": "creates", "outbound": "creates", "inbound": "created by"},
+            ]
+        )
+        with engine.begin() as conn:
+            conn.execute(
+                sa.text(
+                    'INSERT INTO project_settings (project_id, key, "values", updated_at) '
+                    "VALUES (:pid, 'link_types', :v, '2026-01-01')"
+                ),
+                {"pid": project_id, "v": structured_values},
+            )
+
+        _run_downgrade(engine)
+
+        with engine.connect() as conn:
+            row = conn.execute(
+                sa.text(
+                    'SELECT "values" FROM project_settings '
                     "WHERE project_id = :pid AND key = 'link_types'"
                 ),
                 {"pid": project_id},
             ).fetchone()
         result = json.loads(row[0])
-        assert result == ["creates"], (
-            f"Downgraded project_settings should be flat strings, got {result}"
-        )
+        assert result == [
+            "creates"
+        ], f"Downgraded project_settings should be flat strings, got {result}"
 
     def test_downgrade_fresh_db_no_rows_no_error(self, migration_db) -> None:
         """Downgrade on a fresh DB with no link_types rows raises no error."""
@@ -1032,28 +1154,38 @@ class TestSeedDefaults:
         data = _settings_data(response.json())
         link_types = data["link_types"]
 
-        assert len(link_types) == 5, (
-            f"Expected 5 canonical link_types entries, got {len(link_types)}: {link_types}"
-        )
+        assert (
+            len(link_types) == 5
+        ), f"Expected 5 canonical link_types entries, got {len(link_types)}: {link_types}"
 
         values_map = {e["value"]: e for e in link_types}
 
         assert values_map.get("depends-on") == {
-            "value": "depends-on", "outbound": "depends on", "inbound": "dependent"
+            "value": "depends-on",
+            "outbound": "depends on",
+            "inbound": "dependent",
         }, f"depends-on entry wrong: {values_map.get('depends-on')}"
 
         assert values_map.get("dependent") == {
-            "value": "dependent", "outbound": "dependent", "inbound": "depends on"
+            "value": "dependent",
+            "outbound": "dependent",
+            "inbound": "depends on",
         }, f"dependent entry wrong: {values_map.get('dependent')}"
 
         assert values_map.get("created-by") == {
-            "value": "created-by", "outbound": "created by", "inbound": "creates"
+            "value": "created-by",
+            "outbound": "created by",
+            "inbound": "creates",
         }, f"created-by entry wrong: {values_map.get('created-by')}"
 
         assert values_map.get("creates") == {
-            "value": "creates", "outbound": "creates", "inbound": "created by"
+            "value": "creates",
+            "outbound": "creates",
+            "inbound": "created by",
         }, f"creates entry wrong: {values_map.get('creates')}"
 
         assert values_map.get("context") == {
-            "value": "context", "outbound": "context", "inbound": "context for"
+            "value": "context",
+            "outbound": "context",
+            "inbound": "context for",
         }, f"context entry wrong: {values_map.get('context')}"

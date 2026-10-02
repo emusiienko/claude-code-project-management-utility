@@ -48,7 +48,9 @@ def _to_structured(entry: object) -> dict:
         return entry
     if isinstance(entry, str):
         slug = entry
-        outbound, inbound = _CANONICAL_LABELS.get(slug, (slug.replace("-", " "), slug.replace("-", " ")))
+        outbound, inbound = _CANONICAL_LABELS.get(
+            slug, (slug.replace("-", " "), slug.replace("-", " "))
+        )
         return {"value": slug, "outbound": outbound, "inbound": inbound}
     # Malformed entry — preserve as-is so the migration does not destroy data.
     return entry  # type: ignore[return-value]
@@ -63,11 +65,15 @@ def _to_flat(entry: object) -> str:
     return str(entry)
 
 
-def _fetch_link_types_rows(connection: sa.engine.Connection, table_name: str) -> list[Any]:
+def _fetch_link_types_rows(
+    connection: sa.engine.Connection, table_name: str
+) -> list[Any]:
     # Quote `values` to avoid conflict with the SQLite reserved keyword.
     # Double-quote syntax is ANSI SQL and valid on both SQLite and PostgreSQL.
     result = connection.execute(
-        sa.text(f'SELECT key, "values" FROM {table_name} WHERE key = \'link_types\'')  # noqa: S608
+        sa.text(
+            f"SELECT key, \"values\" FROM {table_name} WHERE key = 'link_types'"
+        )  # noqa: S608
     )
     return list(result.fetchall())
 
@@ -76,7 +82,9 @@ def _write_link_types(
     connection: sa.engine.Connection, table_name: str, converted: list
 ) -> None:
     connection.execute(
-        sa.text(f'UPDATE {table_name} SET "values" = :v WHERE key = \'link_types\''),  # noqa: S608
+        sa.text(
+            f"UPDATE {table_name} SET \"values\" = :v WHERE key = 'link_types'"
+        ),  # noqa: S608
         {"v": json.dumps(converted)},
     )
 

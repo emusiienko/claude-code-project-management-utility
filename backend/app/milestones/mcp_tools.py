@@ -175,9 +175,7 @@ async def list_milestone_stories(
     service: MilestoneService = Depends(provide_milestone_service),
 ) -> dict:
     try:
-        stories, total = service.list_stories(
-            milestone_id=id, page=page, limit=limit
-        )
+        stories, total = service.list_stories(milestone_id=id, page=page, limit=limit)
         total_pages = math.ceil(total / limit) if total > 0 else 0
         return {
             "data": [Story.model_validate(s).model_dump() for s in stories],

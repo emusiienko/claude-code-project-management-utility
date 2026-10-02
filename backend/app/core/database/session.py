@@ -13,7 +13,9 @@ def build_session_factory(engine: Engine) -> sessionmaker[Session]:
     )
 
 
-def init_db_session(session_factory: sessionmaker[Session]) -> Generator[Session, None, None]:
+def init_db_session(
+    session_factory: sessionmaker[Session],
+) -> Generator[Session, None, None]:
     db = session_factory()
     try:
         yield db

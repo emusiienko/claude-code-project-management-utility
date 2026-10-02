@@ -115,9 +115,7 @@ class TaskLinkService:
         link = self.get_by_id(link_id)
         self._repo.delete(link)
 
-    def list_all_enriched_for_task(
-        self, task_id: uuid.UUID
-    ) -> list[EnrichedTaskLink]:
+    def list_all_enriched_for_task(self, task_id: uuid.UUID) -> list[EnrichedTaskLink]:
         links = self._repo.list_all_for_task(task_id)
         return self._enrich_links(task_id, links)
 

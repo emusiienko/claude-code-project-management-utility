@@ -22,9 +22,7 @@ _TOPIC_REQUIRED_MSG = "topic is required and must not be empty."
 _TOPIC_TOO_LONG_MSG = f"topic must not exceed {TOPIC_MAX_LENGTH} characters."
 _GOAL_REQUIRED_MSG = "goal is required and must not be empty."
 _GOAL_TOO_LONG_MSG = f"goal must not exceed {GOAL_MAX_LENGTH} characters."
-_PARTICIPANT_ROLE_REQUIRED_MSG = (
-    "participant_role is required and must not be empty."
-)
+_PARTICIPANT_ROLE_REQUIRED_MSG = "participant_role is required and must not be empty."
 _STATUS_REQUIRED_MSG = "status cannot be null."
 _STATUS_NOT_ALLOWED_MSG = (
     "Value '{v}' is not allowed. Allowed: " + ", ".join(ALL_SESSION_STATUSES) + "."

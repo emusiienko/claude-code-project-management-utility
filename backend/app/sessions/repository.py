@@ -43,8 +43,7 @@ class SessionRepository(BaseRepository[Session]):
         total = self._session.execute(count_stmt).scalar_one()
 
         rows_stmt = (
-            base_stmt
-            .order_by(Session.created_at.desc(), Session.id.desc())
+            base_stmt.order_by(Session.created_at.desc(), Session.id.desc())
             .limit(limit)
             .offset(offset)
         )

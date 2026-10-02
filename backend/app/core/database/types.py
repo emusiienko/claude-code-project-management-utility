@@ -29,7 +29,9 @@ class UUIDType(TypeDecorator[uuid.UUID]):
     ) -> str | None:
         if value is None:
             return None
-        return str(value) if isinstance(value, uuid.UUID) else str(uuid.UUID(str(value)))
+        return (
+            str(value) if isinstance(value, uuid.UUID) else str(uuid.UUID(str(value)))
+        )
 
     def process_result_value(
         self,

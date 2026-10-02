@@ -7,7 +7,11 @@ from app.settings.service import EffectiveDictionary
 from app.stories.repository import StoryRepository
 from app.story_links.model import StoryLink
 from app.story_links.repository import StoryLinkRepository
-from app.story_links.schema import CreateStoryLink, EnrichedStoryLink, LinkedStorySummary
+from app.story_links.schema import (
+    CreateStoryLink,
+    EnrichedStoryLink,
+    LinkedStorySummary,
+)
 
 _SELF_LINK_MSG = "A story cannot link to itself."
 _DIFFERENT_PROJECTS_MSG = "Cannot link stories from different projects."

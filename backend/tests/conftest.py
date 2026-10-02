@@ -3,6 +3,7 @@
 All tests run against a real SQLite database created fresh each session.
 The test database is written to tests/test.db and removed at teardown.
 """
+
 import os
 import shutil
 import uuid

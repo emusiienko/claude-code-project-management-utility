@@ -33,9 +33,7 @@ class MilestoneRepository(BaseRepository[Milestone]):
             stmt = stmt.where(Milestone.id != exclude_id)
         return self._session.scalars(stmt).first()
 
-    def get_active_for_project(
-        self, project_id: uuid.UUID
-    ) -> Milestone | None:
+    def get_active_for_project(self, project_id: uuid.UUID) -> Milestone | None:
         # Returns the single active milestone for a project, or None.
         # The service relies on the "at most one active" invariant it maintains.
         stmt = select(Milestone).where(
@@ -59,17 +57,12 @@ class MilestoneRepository(BaseRepository[Milestone]):
         total = self._session.execute(count_stmt).scalar_one()
 
         rows_stmt = (
-            base_stmt
-            .order_by(Milestone.created_at.asc())
-            .limit(limit)
-            .offset(offset)
+            base_stmt.order_by(Milestone.created_at.asc()).limit(limit).offset(offset)
         )
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total
 
-    def get_story_counts(
-        self, milestone_ids: list[uuid.UUID]
-    ) -> dict[uuid.UUID, int]:
+    def get_story_counts(self, milestone_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
         # Resolves story counts for a batch of milestones in a single grouped
         # query — avoids an N+1 per-milestone query on the list endpoint.
         if not milestone_ids:
@@ -85,10 +78,7 @@ class MilestoneRepository(BaseRepository[Milestone]):
     def get_story_count(self, milestone_id: uuid.UUID) -> int:
         # Counts stories assigned to a single milestone (used on the detail
         # endpoint where the batch variant would be wasteful).
-        stmt = (
-            select(func.count(Story.id))
-            .where(Story.milestone_id == milestone_id)
-        )
+        stmt = select(func.count(Story.id)).where(Story.milestone_id == milestone_id)
         return self._session.execute(stmt).scalar_one()
 
     def clear_story_links(self, milestone_id: uuid.UUID) -> None:

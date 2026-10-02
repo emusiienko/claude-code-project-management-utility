@@ -3,16 +3,20 @@ import uuid
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from app.attachments.schema import CONTAINER_STORY
+
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
 from app.comments.schema import CONTAINER_STORY as COMMENT_CONTAINER_STORY
+
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
 from app.projects.repository import ProjectRepository
+
 # Import only the Protocol, never the concrete SessionService.
 from app.sessions.service import SessionReferenceCleanerProtocol
 from app.settings.schema import DICT_KEY_STORY_STATUSES
+
 # Import only the Protocol, never the concrete SettingsService.
 from app.settings.service import EffectiveDictionary
 from app.stories.model import Story
@@ -22,12 +26,8 @@ from app.stories.schema import CreateStory, StoryAggregate, StoryDetail, UpdateS
 if TYPE_CHECKING:
     from app.milestones.model import Milestone as MilestoneModel
 
-_STATUS_VIOLATION_MSG = (
-    "Status value '{v}' is not allowed. Allowed: {allowed}."
-)
-_MILESTONE_WRONG_PROJECT_MSG = (
-    "This milestone does not belong to the story's project."
-)
+_STATUS_VIOLATION_MSG = "Status value '{v}' is not allowed. Allowed: {allowed}."
+_MILESTONE_WRONG_PROJECT_MSG = "This milestone does not belong to the story's project."
 
 _LIST_DEFAULT_LIMIT = 20
 _LIST_MAX_LIMIT = 100
@@ -204,9 +204,7 @@ class StoryService:
         # no-FK polymorphic attachment container): remove the story's
         # attachments — rows and files — before the story itself is removed.
         if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(
-                CONTAINER_STORY, story.id
-            )
+            self._attachment_reader.delete_all_for_container(CONTAINER_STORY, story.id)
         # Same cascade contract, extended to comments (STORY-008 TASK-004).
         if self._comment_reader is not None:
             self._comment_reader.delete_all_for_container(
