@@ -1,11 +1,11 @@
 import datetime
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
-from app.core.database.types import UUIDType
+from app.core.database.types import UTCDateTime, UUIDType
 
 
 class Milestone(Base):
@@ -24,10 +24,10 @@ class Milestone(Base):
     # in the migration covers any direct SQL inserts.
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )

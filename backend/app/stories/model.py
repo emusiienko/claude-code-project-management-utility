@@ -1,11 +1,11 @@
 import datetime
 import uuid
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
-from app.core.database.types import UUIDType
+from app.core.database.types import UTCDateTime, UUIDType
 
 
 class Story(Base):
@@ -28,10 +28,10 @@ class Story(Base):
     # migration via batch_alter_table on SQLite.
     milestone_id: Mapped[uuid.UUID | None] = mapped_column(UUIDType, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )

@@ -1,11 +1,11 @@
 import datetime
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
-from app.core.database.types import UUIDType
+from app.core.database.types import UTCDateTime, UUIDType
 
 
 class Session(Base):
@@ -42,14 +42,14 @@ class Session(Base):
         nullable=True,
     )
     archived_at: Mapped[datetime.datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        UTCDateTime(), nullable=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
 

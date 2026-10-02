@@ -1,11 +1,11 @@
 import datetime
 import uuid
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
-from app.core.database.types import UUIDType
+from app.core.database.types import UTCDateTime, UUIDType
 
 
 class Task(Base):
@@ -25,11 +25,11 @@ class Task(Base):
     creator_role: Mapped[str | None] = mapped_column(String(100), nullable=True)
     labels: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
 
