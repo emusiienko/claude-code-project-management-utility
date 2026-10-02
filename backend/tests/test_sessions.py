@@ -59,6 +59,7 @@ Notes:
     ["orchestrator", "architect", "backend-developer", "frontend-developer", "devops",
      "spec-writer", "qa-automation", "manual-qa", "operator"]
 """
+
 import uuid
 
 import pytest
@@ -89,9 +90,9 @@ INVALID_ROLE = "not-a-valid-role-xyz"
 
 async def _create_project(client: AsyncClient, name: str) -> dict:
     resp = await client.post(PROJECTS_URL, json={"name": name})
-    assert resp.status_code == 201, (
-        f"Helper _create_project: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_project: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -105,9 +106,9 @@ async def _create_story(
     resp = await client.post(
         STORIES_URL, json={"project_id": project_id, "title": title}
     )
-    assert resp.status_code == 201, (
-        f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -122,9 +123,9 @@ async def _create_task(
         f"{STORIES_URL}/{story_id}/tasks",
         json={"title": title, "type": "task", "status": "todo"},
     )
-    assert resp.status_code == 201, (
-        f"Helper _create_task: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_task: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -156,9 +157,9 @@ async def _create_session(
     if linked_task_id is not None:
         payload["linked_task_id"] = linked_task_id
     resp = await client.post(SESSIONS_URL, json=payload)
-    assert resp.status_code == 201, (
-        f"Helper _create_session: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_session: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -185,9 +186,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 201, (
-                f"Expected 201, got {resp.status_code} — {resp.text}"
-            )
+            assert (
+                resp.status_code == 201
+            ), f"Expected 201, got {resp.status_code} — {resp.text}"
             body = resp.json()["data"]
             assert body["topic"] == "Minimal Session", "topic mismatch"
             assert body["goal"] == "Do the minimal thing", "goal mismatch"
@@ -197,18 +198,16 @@ class TestCreateSession:
             assert body["status"] == "pending", "status should default to pending"
             assert body["result_decisions"] is None, "result_decisions should be null"
             assert body["result_summary"] is None, "result_summary should be null"
-            assert "is_complete" not in body, (
-                "is_complete has been retired in favor of the status enum"
-            )
+            assert (
+                "is_complete" not in body
+            ), "is_complete has been retired in favor of the status enum"
             assert body["linked_story_id"] is None, "linked_story_id should be null"
             assert body["linked_task_id"] is None, "linked_task_id should be null"
             assert body["archived_at"] is None, "archived_at should be null"
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_happy_path_with_links_returns_201(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_happy_path_with_links_returns_201(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Create Session With Links Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -235,9 +234,9 @@ class TestCreateSession:
                 context="Some broader background",
             )
             assert body["context"] == "Some broader background", "context mismatch"
-            assert body["status"] == "pending", (
-                "A newly created session should always start at status 'pending'"
-            )
+            assert (
+                body["status"] == "pending"
+            ), "A newly created session should always start at status 'pending'"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -271,9 +270,9 @@ class TestCreateSession:
                     f"of an attempted {attempted_status!r} in the payload, "
                     f"got {body['status']!r}"
                 )
-                assert "is_complete" not in body, (
-                    "is_complete has been retired in favor of the status enum"
-                )
+                assert (
+                    "is_complete" not in body
+                ), "is_complete has been retired in favor of the status enum"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -288,9 +287,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 422, (
-                f"Missing topic should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Missing topic should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -305,9 +304,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 422, (
-                f"Missing goal should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Missing goal should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -323,9 +322,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 422, (
-                f"topic > 500 chars should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"topic > 500 chars should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -341,9 +340,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 422, (
-                f"goal > 500 chars should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"goal > 500 chars should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -359,9 +358,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 422, (
-                f"Empty topic should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Empty topic should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -377,9 +376,9 @@ class TestCreateSession:
                     "participant_role": VALID_ROLE,
                 },
             )
-            assert resp.status_code == 422, (
-                f"Empty goal should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Empty goal should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -398,9 +397,9 @@ class TestCreateSession:
                     "goal": "A goal",
                 },
             )
-            assert resp.status_code == 422, (
-                f"Missing participant_role should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Missing participant_role should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -424,9 +423,9 @@ class TestCreateSession:
                 f"participant_role outside the effective dictionary should return "
                 f"422, got {resp.status_code}"
             )
-            assert "not allowed" in resp.text, (
-                f"Expected 'not allowed' validation message, got: {resp.text}"
-            )
+            assert (
+                "not allowed" in resp.text
+            ), f"Expected 'not allowed' validation message, got: {resp.text}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -439,9 +438,9 @@ class TestCreateSession:
                 "participant_role": VALID_ROLE,
             },
         )
-        assert resp.status_code == 422, (
-            f"Missing project_id should return 422, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 422
+        ), f"Missing project_id should return 422, got {resp.status_code}"
 
     async def test_nonexistent_project_id_returns_404(
         self, client: AsyncClient
@@ -456,9 +455,9 @@ class TestCreateSession:
                 "participant_role": VALID_ROLE,
             },
         )
-        assert resp.status_code == 404, (
-            f"Non-existent project_id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Non-existent project_id should return 404, got {resp.status_code}"
 
     async def test_link_to_nonexistent_story_returns_404(
         self, client: AsyncClient
@@ -582,9 +581,9 @@ class TestListSessions:
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             topics = [s["topic"] for s in resp.json()["data"]]
             assert "Session In A" in topics, "Project A's session missing from its list"
-            assert "Session In B" not in topics, (
-                "Project B's session leaked into project A's list"
-            )
+            assert (
+                "Session In B" not in topics
+            ), "Project B's session leaked into project A's list"
         finally:
             await _delete_project(client, proj_a["id"])
             await _delete_project(client, proj_b["id"])
@@ -625,20 +624,24 @@ class TestListSessions:
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             ids = [s["id"] for s in resp.json()["data"]]
             assert incomplete["id"] in ids, "Incomplete session missing from filter"
-            assert complete["id"] not in ids, (
-                "Complete session should not appear in incomplete-only filter"
-            )
+            assert (
+                complete["id"] not in ids
+            ), "Complete session should not appear in incomplete-only filter"
         finally:
             await _delete_project(client, proj["id"])
 
     async def test_linked_story_id_filter(self, client: AsyncClient) -> None:
-        proj = await _create_project(client, "List Sessions Linked Story Filter Project")
+        proj = await _create_project(
+            client, "List Sessions Linked Story Filter Project"
+        )
         try:
             story = await _create_story(client, proj["id"])
             linked = await _create_session(
                 client, proj["id"], topic="Linked Session", linked_story_id=story["id"]
             )
-            unlinked = await _create_session(client, proj["id"], topic="Unlinked Session")
+            unlinked = await _create_session(
+                client, proj["id"], topic="Unlinked Session"
+            )
 
             resp = await client.get(
                 SESSIONS_URL,
@@ -646,10 +649,12 @@ class TestListSessions:
             )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             ids = [s["id"] for s in resp.json()["data"]]
-            assert linked["id"] in ids, "Linked session missing from linked_story_id filter"
-            assert unlinked["id"] not in ids, (
-                "Unlinked session should not appear in linked_story_id filter"
-            )
+            assert (
+                linked["id"] in ids
+            ), "Linked session missing from linked_story_id filter"
+            assert (
+                unlinked["id"] not in ids
+            ), "Unlinked session should not appear in linked_story_id filter"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -693,12 +698,12 @@ class TestListSessions:
                 f"Combined filter should return exactly the incomplete+linked "
                 f"session, got {ids}"
             )
-            assert complete_and_linked["id"] not in ids, (
-                "Complete session should be excluded even though it is linked"
-            )
-            assert incomplete_but_unlinked["id"] not in ids, (
-                "Unlinked session should be excluded even though it is incomplete"
-            )
+            assert (
+                complete_and_linked["id"] not in ids
+            ), "Complete session should be excluded even though it is linked"
+            assert (
+                incomplete_but_unlinked["id"] not in ids
+            ), "Unlinked session should be excluded even though it is incomplete"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -708,16 +713,18 @@ class TestListSessions:
         proj = await _create_project(client, "List Sessions Archived Default Project")
         try:
             active = await _create_session(client, proj["id"], topic="Active Session")
-            archived = await _create_session(client, proj["id"], topic="Archived Session")
+            archived = await _create_session(
+                client, proj["id"], topic="Archived Session"
+            )
             await client.post(f"{SESSIONS_URL}/{archived['id']}/archive")
 
             resp = await client.get(SESSIONS_URL, params={"project_id": proj["id"]})
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             ids = [s["id"] for s in resp.json()["data"]]
             assert active["id"] in ids, "Active session should be in the default list"
-            assert archived["id"] not in ids, (
-                "Archived session should be excluded from the default list"
-            )
+            assert (
+                archived["id"] not in ids
+            ), "Archived session should be excluded from the default list"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -726,7 +733,9 @@ class TestListSessions:
     ) -> None:
         proj = await _create_project(client, "List Sessions Include Archived Project")
         try:
-            archived = await _create_session(client, proj["id"], topic="Archived Session")
+            archived = await _create_session(
+                client, proj["id"], topic="Archived Session"
+            )
             await client.post(f"{SESSIONS_URL}/{archived['id']}/archive")
 
             resp = await client.get(
@@ -735,9 +744,9 @@ class TestListSessions:
             )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             ids = [s["id"] for s in resp.json()["data"]]
-            assert archived["id"] in ids, (
-                "include_archived=true should surface archived sessions"
-            )
+            assert (
+                archived["id"] in ids
+            ), "include_archived=true should surface archived sessions"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -745,7 +754,9 @@ class TestListSessions:
         proj = await _create_project(client, "List Sessions Pagination Project")
         try:
             for i in range(3):
-                await _create_session(client, proj["id"], topic=f"Paginated Session {i}")
+                await _create_session(
+                    client, proj["id"], topic=f"Paginated Session {i}"
+                )
 
             resp = await client.get(
                 SESSIONS_URL,
@@ -765,9 +776,9 @@ class TestListSessions:
             assert resp2.status_code == 200, f"Expected 200, got {resp2.status_code}"
             page1_ids = {s["id"] for s in body["data"]}
             page2_ids = {s["id"] for s in resp2.json()["data"]}
-            assert page1_ids.isdisjoint(page2_ids), (
-                "Page 1 and page 2 should not overlap"
-            )
+            assert page1_ids.isdisjoint(
+                page2_ids
+            ), "Page 1 and page 2 should not overlap"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -791,15 +802,15 @@ class TestGetSession:
     async def test_get_unknown_id_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"{SESSIONS_URL}/{fake_id}")
-        assert resp.status_code == 404, (
-            f"Unknown session id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Unknown session id should return 404, got {resp.status_code}"
 
     async def test_get_malformed_id_returns_404(self, client: AsyncClient) -> None:
         resp = await client.get(f"{SESSIONS_URL}/not-a-uuid")
-        assert resp.status_code == 404, (
-            f"Malformed session id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Malformed session id should return 404, got {resp.status_code}"
 
 
 # ===========================================================================
@@ -819,9 +830,9 @@ class TestUpdateSession:
             )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             body = resp.json()["data"]
-            assert body["context"] == "Original context", (
-                "Omitted context should remain unchanged"
-            )
+            assert (
+                body["context"] == "Original context"
+            ), "Omitted context should remain unchanged"
             assert body["status"] == "in-progress", "status should be updated"
         finally:
             await _delete_project(client, proj["id"])
@@ -829,16 +840,14 @@ class TestUpdateSession:
     async def test_explicit_null_clears_context(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Update Session Clear Context Project")
         try:
-            session = await _create_session(
-                client, proj["id"], context="To be cleared"
-            )
+            session = await _create_session(client, proj["id"], context="To be cleared")
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"context": None}
             )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
-            assert resp.json()["data"]["context"] is None, (
-                "Explicit null should clear context"
-            )
+            assert (
+                resp.json()["data"]["context"] is None
+            ), "Explicit null should clear context"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -869,17 +878,17 @@ class TestUpdateSession:
                     "result_summary": "Summary Y",
                 },
             )
-            assert set_resp.status_code == 200, (
-                f"Expected 200, got {set_resp.status_code}"
-            )
+            assert (
+                set_resp.status_code == 200
+            ), f"Expected 200, got {set_resp.status_code}"
 
             clear_resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}",
                 json={"result_decisions": None, "result_summary": None},
             )
-            assert clear_resp.status_code == 200, (
-                f"Expected 200, got {clear_resp.status_code}"
-            )
+            assert (
+                clear_resp.status_code == 200
+            ), f"Expected 200, got {clear_resp.status_code}"
             body = clear_resp.json()["data"]
             assert body["result_decisions"] is None, "result_decisions should clear"
             assert body["result_summary"] is None, "result_summary should clear"
@@ -915,9 +924,9 @@ class TestUpdateSession:
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"topic": None}
             )
-            assert resp.status_code == 422, (
-                f"Explicit null topic should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Explicit null topic should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -928,9 +937,9 @@ class TestUpdateSession:
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"goal": None}
             )
-            assert resp.status_code == 422, (
-                f"Explicit null goal should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Explicit null goal should return 422, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -952,28 +961,26 @@ class TestUpdateSession:
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_new_topic_revalidated_for_length(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_new_topic_revalidated_for_length(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Update Session New Topic Length Project")
         try:
             session = await _create_session(client, proj["id"])
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"topic": "x" * 501}
             )
-            assert resp.status_code == 422, (
-                f"New topic over 500 chars should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"New topic over 500 chars should return 422, got {resp.status_code}"
 
             ok_resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"topic": "New Valid Topic"}
             )
-            assert ok_resp.status_code == 200, (
-                f"Expected 200, got {ok_resp.status_code}"
-            )
-            assert ok_resp.json()["data"]["topic"] == "New Valid Topic", (
-                "topic should be updated to the new value"
-            )
+            assert (
+                ok_resp.status_code == 200
+            ), f"Expected 200, got {ok_resp.status_code}"
+            assert (
+                ok_resp.json()["data"]["topic"] == "New Valid Topic"
+            ), "topic should be updated to the new value"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -984,19 +991,19 @@ class TestUpdateSession:
             resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"goal": "x" * 501}
             )
-            assert resp.status_code == 422, (
-                f"New goal over 500 chars should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"New goal over 500 chars should return 422, got {resp.status_code}"
 
             ok_resp = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"goal": "New Valid Goal"}
             )
-            assert ok_resp.status_code == 200, (
-                f"Expected 200, got {ok_resp.status_code}"
-            )
-            assert ok_resp.json()["data"]["goal"] == "New Valid Goal", (
-                "goal should be updated to the new value"
-            )
+            assert (
+                ok_resp.status_code == 200
+            ), f"Expected 200, got {ok_resp.status_code}"
+            assert (
+                ok_resp.json()["data"]["goal"] == "New Valid Goal"
+            ), "goal should be updated to the new value"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1021,12 +1028,12 @@ class TestUpdateSession:
                 f"{SESSIONS_URL}/{session['id']}",
                 json={"participant_role": OTHER_VALID_ROLE},
             )
-            assert ok_resp.status_code == 200, (
-                f"Expected 200, got {ok_resp.status_code}"
-            )
-            assert ok_resp.json()["data"]["participant_role"] == OTHER_VALID_ROLE, (
-                "participant_role should be updated to the new valid value"
-            )
+            assert (
+                ok_resp.status_code == 200
+            ), f"Expected 200, got {ok_resp.status_code}"
+            assert (
+                ok_resp.json()["data"]["participant_role"] == OTHER_VALID_ROLE
+            ), "participant_role should be updated to the new valid value"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1044,9 +1051,9 @@ class TestUpdateSession:
                     f"Setting status to {target_status!r} should return 200, "
                     f"got {resp.status_code} — {resp.text}"
                 )
-                assert resp.json()["data"]["status"] == target_status, (
-                    f"status should be updated to {target_status!r}"
-                )
+                assert (
+                    resp.json()["data"]["status"] == target_status
+                ), f"status should be updated to {target_status!r}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1062,9 +1069,9 @@ class TestUpdateSession:
             to_finished = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"status": "finished"}
             )
-            assert to_finished.status_code == 200, (
-                f"Expected 200, got {to_finished.status_code}"
-            )
+            assert (
+                to_finished.status_code == 200
+            ), f"Expected 200, got {to_finished.status_code}"
             assert to_finished.json()["data"]["status"] == "finished"
 
             back_to_in_progress = await client.put(
@@ -1074,9 +1081,9 @@ class TestUpdateSession:
                 f"Moving finished -> in-progress should be allowed, "
                 f"got {back_to_in_progress.status_code}"
             )
-            assert back_to_in_progress.json()["data"]["status"] == "in-progress", (
-                "status should move back to in-progress with no blocked transition"
-            )
+            assert (
+                back_to_in_progress.json()["data"]["status"] == "in-progress"
+            ), "status should move back to in-progress with no blocked transition"
 
             back_to_pending = await client.put(
                 f"{SESSIONS_URL}/{session['id']}", json={"status": "pending"}
@@ -1085,9 +1092,9 @@ class TestUpdateSession:
                 f"Moving in-progress -> pending should be allowed, "
                 f"got {back_to_pending.status_code}"
             )
-            assert back_to_pending.json()["data"]["status"] == "pending", (
-                "status should move back to pending with no blocked transition"
-            )
+            assert (
+                back_to_pending.json()["data"]["status"] == "pending"
+            ), "status should move back to pending with no blocked transition"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1117,12 +1124,10 @@ class TestUpdateSession:
 
     async def test_update_unknown_id_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
-        resp = await client.put(
-            f"{SESSIONS_URL}/{fake_id}", json={"status": "pending"}
-        )
-        assert resp.status_code == 404, (
-            f"Updating unknown session should return 404, got {resp.status_code}"
-        )
+        resp = await client.put(f"{SESSIONS_URL}/{fake_id}", json={"status": "pending"})
+        assert (
+            resp.status_code == 404
+        ), f"Updating unknown session should return 404, got {resp.status_code}"
 
 
 # ===========================================================================
@@ -1138,9 +1143,9 @@ class TestArchiveSession:
             resp = await client.post(f"{SESSIONS_URL}/{session['id']}/archive")
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             body = resp.json()["data"]
-            assert body["archived_at"] is not None, (
-                "archived_at should be set after archiving"
-            )
+            assert (
+                body["archived_at"] is not None
+            ), "archived_at should be set after archiving"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1149,23 +1154,21 @@ class TestArchiveSession:
         try:
             session = await _create_session(client, proj["id"])
             first = await client.post(f"{SESSIONS_URL}/{session['id']}/archive")
-            assert first.status_code == 200, (
-                f"First archive should return 200, got {first.status_code}"
-            )
+            assert (
+                first.status_code == 200
+            ), f"First archive should return 200, got {first.status_code}"
 
             second = await client.post(f"{SESSIONS_URL}/{session['id']}/archive")
-            assert second.status_code == 400, (
-                f"Second archive should return 400, got {second.status_code}"
-            )
-            assert "Session is already archived." in second.text, (
-                f"Expected exact already-archived message, got: {second.text}"
-            )
+            assert (
+                second.status_code == 400
+            ), f"Second archive should return 400, got {second.status_code}"
+            assert (
+                "Session is already archived." in second.text
+            ), f"Expected exact already-archived message, got: {second.text}"
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_archived_session_still_updatable(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_archived_session_still_updatable(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Archive Session Still Updatable Project")
         try:
             session = await _create_session(client, proj["id"])
@@ -1175,12 +1178,12 @@ class TestArchiveSession:
                 f"{SESSIONS_URL}/{session['id']}",
                 json={"status": "finished"},
             )
-            assert resp.status_code == 200, (
-                f"Archived session should still be updatable, got {resp.status_code}"
-            )
-            assert resp.json()["data"]["status"] == "finished", (
-                "Update on an archived session should still apply"
-            )
+            assert (
+                resp.status_code == 200
+            ), f"Archived session should still be updatable, got {resp.status_code}"
+            assert (
+                resp.json()["data"]["status"] == "finished"
+            ), "Update on an archived session should still apply"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1204,15 +1207,15 @@ class TestDeleteSession:
             )
 
             rest_resp = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
-            assert rest_resp.status_code == 204, (
-                f"Expected 204, got {rest_resp.status_code} — {rest_resp.text}"
-            )
+            assert (
+                rest_resp.status_code == 204
+            ), f"Expected 204, got {rest_resp.status_code} — {rest_resp.text}"
             assert rest_resp.text == "", "204 response should carry no body"
 
             mcp_result = await _mcp_call("delete_session", {"id": mcp_session["id"]})
-            assert mcp_result.data == {"success": True}, (
-                f"Expected {{'success': True}}, got {mcp_result.data}"
-            )
+            assert mcp_result.data == {
+                "success": True
+            }, f"Expected {{'success': True}}, got {mcp_result.data}"
 
             rest_read = await client.get(f"{SESSIONS_URL}/{rest_session['id']}")
             assert rest_read.status_code == 404, (
@@ -1276,9 +1279,7 @@ class TestDeleteSession:
                     json={"status": target_status},
                 )
 
-                rest_resp = await client.delete(
-                    f"{SESSIONS_URL}/{rest_session['id']}"
-                )
+                rest_resp = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
                 assert rest_resp.status_code == 204, (
                     f"Deleting a session at status {target_status!r} via REST "
                     f"should return 204, got {rest_resp.status_code}"
@@ -1319,13 +1320,13 @@ class TestDeleteSession:
             )
 
             rest_resp = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
-            assert rest_resp.status_code == 204, (
-                f"Expected 204, got {rest_resp.status_code} — {rest_resp.text}"
-            )
+            assert (
+                rest_resp.status_code == 204
+            ), f"Expected 204, got {rest_resp.status_code} — {rest_resp.text}"
             mcp_result = await _mcp_call("delete_session", {"id": mcp_session["id"]})
-            assert mcp_result.data == {"success": True}, (
-                f"Expected {{'success': True}}, got {mcp_result.data}"
-            )
+            assert mcp_result.data == {
+                "success": True
+            }, f"Expected {{'success': True}}, got {mcp_result.data}"
 
             story_resp = await client.get(f"{STORIES_URL}/{story['id']}")
             assert story_resp.status_code == 200, (
@@ -1357,9 +1358,9 @@ class TestDeleteSession:
             )
 
             first_rest = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
-            assert first_rest.status_code == 204, (
-                f"First REST delete should return 204, got {first_rest.status_code}"
-            )
+            assert (
+                first_rest.status_code == 204
+            ), f"First REST delete should return 204, got {first_rest.status_code}"
             second_rest = await client.delete(f"{SESSIONS_URL}/{rest_session['id']}")
             assert second_rest.status_code == 404, (
                 f"Second REST delete of the same id should return 404, "
@@ -1421,9 +1422,7 @@ class TestDeleteSession:
 
 
 class TestStatusResultIndependence:
-    async def test_finished_with_null_result_fields(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_finished_with_null_result_fields(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Finished With Null Results Project")
         try:
             session = await _create_session(client, proj["id"])
@@ -1433,12 +1432,12 @@ class TestStatusResultIndependence:
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             body = resp.json()["data"]
             assert body["status"] == "finished", "Session should be marked finished"
-            assert body["result_decisions"] is None, (
-                "Reaching finished must not require result_decisions"
-            )
-            assert body["result_summary"] is None, (
-                "Reaching finished must not require result_summary"
-            )
+            assert (
+                body["result_decisions"] is None
+            ), "Reaching finished must not require result_decisions"
+            assert (
+                body["result_summary"] is None
+            ), "Reaching finished must not require result_summary"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1465,9 +1464,9 @@ class TestStatusResultIndependence:
                     f"Setting result fields must never force status away from "
                     f"{target_status!r}, got {body['status']!r}"
                 )
-                assert body["result_decisions"] == "Decided something", (
-                    "result_decisions mismatch"
-                )
+                assert (
+                    body["result_decisions"] == "Decided something"
+                ), "result_decisions mismatch"
                 assert body["result_summary"] == "A summary", "result_summary mismatch"
         finally:
             await _delete_project(client, proj["id"])
@@ -1483,9 +1482,7 @@ class TestIncompleteQueryPersistence:
         request scope, confirming the result depends only on DB rows, not
         process state kept alive across requests.
         """
-        proj = await _create_project(
-            client, "Incomplete Query Persistence Project"
-        )
+        proj = await _create_project(client, "Incomplete Query Persistence Project")
         try:
             incomplete = await _create_session(
                 client, proj["id"], topic="Persisted Incomplete"
@@ -1495,13 +1492,13 @@ class TestIncompleteQueryPersistence:
             first_resp = await client.get(
                 SESSIONS_URL, params={"project_id": proj["id"], "incomplete": "true"}
             )
-            assert first_resp.status_code == 200, (
-                f"Expected 200, got {first_resp.status_code}"
-            )
+            assert (
+                first_resp.status_code == 200
+            ), f"Expected 200, got {first_resp.status_code}"
             first_ids = [s["id"] for s in first_resp.json()["data"]]
-            assert incomplete["id"] in first_ids, (
-                "Incomplete session missing on first read"
-            )
+            assert (
+                incomplete["id"] in first_ids
+            ), "Incomplete session missing on first read"
 
             # A second, independent request — a new service/repository instance is
             # resolved per-request by the DI container, so an identical result here
@@ -1509,9 +1506,9 @@ class TestIncompleteQueryPersistence:
             second_resp = await client.get(
                 SESSIONS_URL, params={"project_id": proj["id"], "incomplete": "true"}
             )
-            assert second_resp.status_code == 200, (
-                f"Expected 200, got {second_resp.status_code}"
-            )
+            assert (
+                second_resp.status_code == 200
+            ), f"Expected 200, got {second_resp.status_code}"
             second_ids = [s["id"] for s in second_resp.json()["data"]]
             assert incomplete["id"] in second_ids, (
                 "Incomplete session missing on second, independently-resolved read — "
@@ -1526,16 +1523,16 @@ class TestSessionWithoutLinks:
         proj = await _create_project(client, "Session Without Links Project")
         try:
             session = await _create_session(client, proj["id"])
-            assert session["linked_story_id"] is None, (
-                "A session with the project link alone should be valid"
-            )
-            assert session["linked_task_id"] is None, (
-                "A session with the project link alone should be valid"
-            )
+            assert (
+                session["linked_story_id"] is None
+            ), "A session with the project link alone should be valid"
+            assert (
+                session["linked_task_id"] is None
+            ), "A session with the project link alone should be valid"
             resp = await client.get(f"{SESSIONS_URL}/{session['id']}")
-            assert resp.status_code == 200, (
-                f"Expected 200 for a linkless session, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 200
+            ), f"Expected 200 for a linkless session, got {resp.status_code}"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1557,9 +1554,9 @@ class TestReferenceClearingOnDelete:
             )
 
             del_resp = await client.delete(f"{STORIES_URL}/{story['id']}")
-            assert del_resp.status_code == 204, (
-                f"Story delete should return 204, got {del_resp.status_code}"
-            )
+            assert (
+                del_resp.status_code == 204
+            ), f"Story delete should return 204, got {del_resp.status_code}"
 
             get_resp = await client.get(f"{SESSIONS_URL}/{session['id']}")
             assert get_resp.status_code == 200, (
@@ -1585,9 +1582,9 @@ class TestReferenceClearingOnDelete:
             )
 
             del_resp = await client.delete(f"{TASKS_URL}/{task['id']}")
-            assert del_resp.status_code == 204, (
-                f"Task delete should return 204, got {del_resp.status_code}"
-            )
+            assert (
+                del_resp.status_code == 204
+            ), f"Task delete should return 204, got {del_resp.status_code}"
 
             get_resp = await client.get(f"{SESSIONS_URL}/{session['id']}")
             assert get_resp.status_code == 200, (
@@ -1619,17 +1616,15 @@ class TestProjectCascadeDelete:
         ),
         strict=True,
     )
-    async def test_deleting_project_removes_sessions(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_deleting_project_removes_sessions(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Cascade Delete Session Project")
         session = await _create_session(client, proj["id"])
         session_id = session["id"]
 
         del_resp = await client.delete(f"{PROJECTS_ID_URL}/{proj['id']}")
-        assert del_resp.status_code == 204, (
-            f"Project delete should return 204, got {del_resp.status_code}"
-        )
+        assert (
+            del_resp.status_code == 204
+        ), f"Project delete should return 204, got {del_resp.status_code}"
 
         session_resp = await client.get(f"{SESSIONS_URL}/{session_id}")
         assert session_resp.status_code == 404, (
@@ -1648,9 +1643,7 @@ class TestProjectCascadeDelete:
 
 
 class TestMcpParity:
-    async def test_mcp_create_session_matches_rest(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_mcp_create_session_matches_rest(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "MCP Create Session Parity Project")
         try:
             result = await _mcp_call(
@@ -1664,23 +1657,23 @@ class TestMcpParity:
                     }
                 },
             )
-            assert result.data["data"]["topic"] == "MCP Created Session", (
-                "MCP create_session should return the created session"
-            )
-            assert result.data["data"]["status"] == "pending", (
-                "MCP create_session should default status to pending, same as REST"
-            )
-            assert "is_complete" not in result.data["data"], (
-                "is_complete has been retired in favor of the status enum"
-            )
+            assert (
+                result.data["data"]["topic"] == "MCP Created Session"
+            ), "MCP create_session should return the created session"
+            assert (
+                result.data["data"]["status"] == "pending"
+            ), "MCP create_session should default status to pending, same as REST"
+            assert (
+                "is_complete" not in result.data["data"]
+            ), "is_complete has been retired in favor of the status enum"
 
             rest_resp = await client.get(f"{SESSIONS_URL}/{result.data['data']['id']}")
-            assert rest_resp.status_code == 200, (
-                "The MCP-created session should be readable over REST"
-            )
-            assert rest_resp.json()["data"]["topic"] == "MCP Created Session", (
-                "REST read of an MCP-created session should match"
-            )
+            assert (
+                rest_resp.status_code == 200
+            ), "The MCP-created session should be readable over REST"
+            assert (
+                rest_resp.json()["data"]["topic"] == "MCP Created Session"
+            ), "REST read of an MCP-created session should match"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1729,9 +1722,9 @@ class TestMcpParity:
         try:
             session = await _create_session(client, proj["id"])
             result = await _mcp_call("get_session", {"id": session["id"]})
-            assert result.data["data"]["id"] == session["id"], (
-                "MCP get_session should return the same session REST created"
-            )
+            assert (
+                result.data["data"]["id"] == session["id"]
+            ), "MCP get_session should return the same session REST created"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1747,30 +1740,28 @@ class TestMcpParity:
         )
 
         rest_resp = await client.get(f"{SESSIONS_URL}/{fake_id}")
-        assert rest_resp.status_code == 404, (
-            f"REST should also 404 for the same unknown id, got {rest_resp.status_code}"
-        )
+        assert (
+            rest_resp.status_code == 404
+        ), f"REST should also 404 for the same unknown id, got {rest_resp.status_code}"
 
     async def test_mcp_list_sessions_matches_rest(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "MCP List Sessions Parity Project")
         try:
             session = await _create_session(client, proj["id"], topic="Listed via MCP")
 
-            result = await _mcp_call(
-                "list_sessions", {"project_id": proj["id"]}
-            )
+            result = await _mcp_call("list_sessions", {"project_id": proj["id"]})
             mcp_ids = [s["id"] for s in result.data["data"]]
-            assert session["id"] in mcp_ids, (
-                "MCP list_sessions should include the session REST created"
-            )
+            assert (
+                session["id"] in mcp_ids
+            ), "MCP list_sessions should include the session REST created"
 
             rest_resp = await client.get(
                 SESSIONS_URL, params={"project_id": proj["id"]}
             )
             rest_ids = [s["id"] for s in rest_resp.json()["data"]]
-            assert set(mcp_ids) == set(rest_ids), (
-                "MCP and REST session lists for the same project should match"
-            )
+            assert set(mcp_ids) == set(
+                rest_ids
+            ), "MCP and REST session lists for the same project should match"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1782,14 +1773,14 @@ class TestMcpParity:
                 "update_session",
                 {"id": session["id"], "body": {"status": "in-progress"}},
             )
-            assert result.data["data"]["status"] == "in-progress", (
-                "MCP update_session should apply the update"
-            )
+            assert (
+                result.data["data"]["status"] == "in-progress"
+            ), "MCP update_session should apply the update"
 
             rest_resp = await client.get(f"{SESSIONS_URL}/{session['id']}")
-            assert rest_resp.json()["data"]["status"] == "in-progress", (
-                "REST read after an MCP update should reflect the change"
-            )
+            assert (
+                rest_resp.json()["data"]["status"] == "in-progress"
+            ), "REST read after an MCP update should reflect the change"
         finally:
             await _delete_project(client, proj["id"])
 
@@ -1798,9 +1789,9 @@ class TestMcpParity:
         try:
             session = await _create_session(client, proj["id"])
             result = await _mcp_call("archive_session", {"id": session["id"]})
-            assert result.data["data"]["archived_at"] is not None, (
-                "MCP archive_session should set archived_at"
-            )
+            assert (
+                result.data["data"]["archived_at"] is not None
+            ), "MCP archive_session should set archived_at"
 
             second_result = _mcp_call("archive_session", {"id": session["id"]})
             with pytest.raises(Exception) as exc_info:

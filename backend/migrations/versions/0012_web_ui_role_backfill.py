@@ -59,7 +59,9 @@ _OPERATOR_ROLE = "operator"
 def _fetch_row(connection: sa.engine.Connection, key: str) -> tuple | None:
     # Quote `values` — reserved word in SQLite/PostgreSQL.
     return connection.execute(
-        sa.text('SELECT key, "values" FROM system_settings WHERE key = :key'),  # noqa: S608
+        sa.text(
+            'SELECT key, "values" FROM system_settings WHERE key = :key'
+        ),  # noqa: S608
         {"key": key},
     ).fetchone()
 
@@ -71,7 +73,9 @@ def upgrade() -> None:
     participant_roles_row = _fetch_row(bind, _PARTICIPANT_ROLES_KEY)
     if participant_roles_row is not None:
         raw_values = participant_roles_row[1]
-        values: list = raw_values if isinstance(raw_values, list) else json.loads(raw_values)
+        values: list = (
+            raw_values if isinstance(raw_values, list) else json.loads(raw_values)
+        )
         if _OPERATOR_ROLE not in values:
             bind.execute(
                 sa.text(
@@ -107,7 +111,9 @@ def downgrade() -> None:
     participant_roles_row = _fetch_row(bind, _PARTICIPANT_ROLES_KEY)
     if participant_roles_row is not None:
         raw_values = participant_roles_row[1]
-        values: list = raw_values if isinstance(raw_values, list) else json.loads(raw_values)
+        values: list = (
+            raw_values if isinstance(raw_values, list) else json.loads(raw_values)
+        )
         if _OPERATOR_ROLE in values:
             bind.execute(
                 sa.text(

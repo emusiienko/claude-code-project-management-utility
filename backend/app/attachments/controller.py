@@ -262,9 +262,7 @@ async def list_task_attachments(
     _db: Session = Depends(Closing[Provide[AppContainer.db_session]]),
     service: AttachmentService = Depends(Provide[AppContainer.attachment_service]),
 ) -> dict:
-    return _list_attachments(
-        CONTAINER_TASK, task_id, page, limit, kind_filter, service
-    )
+    return _list_attachments(CONTAINER_TASK, task_id, page, limit, kind_filter, service)
 
 
 # ---------------------------------------------------------------------------

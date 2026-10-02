@@ -45,9 +45,7 @@ class StoryRepository(BaseRepository[Story]):
             base_stmt = base_stmt.where(Story.status == status_filter)
 
         if milestone_id_filter is not None:
-            base_stmt = base_stmt.where(
-                Story.milestone_id == milestone_id_filter
-            )
+            base_stmt = base_stmt.where(Story.milestone_id == milestone_id_filter)
 
         if label_key_filter is not None or label_value_filter is not None:
             base_stmt = apply_json_array_filter(
@@ -62,10 +60,7 @@ class StoryRepository(BaseRepository[Story]):
         total = self._session.execute(count_stmt).scalar_one()
 
         rows_stmt = (
-            base_stmt
-            .order_by(Story.created_at.desc())
-            .limit(limit)
-            .offset(offset)
+            base_stmt.order_by(Story.created_at.desc()).limit(limit).offset(offset)
         )
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total
@@ -93,10 +88,7 @@ class StoryRepository(BaseRepository[Story]):
         total = self._session.execute(count_stmt).scalar_one()
 
         rows_stmt = (
-            base_stmt
-            .order_by(Story.created_at.desc())
-            .limit(limit)
-            .offset(offset)
+            base_stmt.order_by(Story.created_at.desc()).limit(limit).offset(offset)
         )
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total

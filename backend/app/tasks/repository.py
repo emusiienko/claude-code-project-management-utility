@@ -50,14 +50,10 @@ class TaskRepository(BaseRepository[Task]):
             base_stmt = base_stmt.where(Task.type == type_filter)
 
         if assignee_role_filter is not None:
-            base_stmt = base_stmt.where(
-                Task.assignee_role == assignee_role_filter
-            )
+            base_stmt = base_stmt.where(Task.assignee_role == assignee_role_filter)
 
         if creator_role_filter is not None:
-            base_stmt = base_stmt.where(
-                Task.creator_role == creator_role_filter
-            )
+            base_stmt = base_stmt.where(Task.creator_role == creator_role_filter)
 
         if label_key_filter is not None or label_value_filter is not None:
             base_stmt = apply_json_array_filter(
@@ -72,10 +68,7 @@ class TaskRepository(BaseRepository[Task]):
         total = self._session.execute(count_stmt).scalar_one()
 
         rows_stmt = (
-            base_stmt
-            .order_by(Task.created_at.asc())
-            .limit(limit)
-            .offset(offset)
+            base_stmt.order_by(Task.created_at.asc()).limit(limit).offset(offset)
         )
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total

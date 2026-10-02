@@ -29,9 +29,7 @@ class ProjectSettingsRepository(BaseRepository[ProjectSettings]):
             raise NotFoundError(f"Project '{project_id}' not found.")
 
     def get_all_for_project(self, project_id: uuid.UUID) -> list[ProjectSettings]:
-        stmt = select(ProjectSettings).where(
-            ProjectSettings.project_id == project_id
-        )
+        stmt = select(ProjectSettings).where(ProjectSettings.project_id == project_id)
         return list(self._session.scalars(stmt).all())
 
     def get_by_project_and_key(

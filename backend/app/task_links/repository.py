@@ -89,9 +89,7 @@ class TaskLinkRepository(BaseRepository[TaskLink]):
         if links:
             self._session.flush()
 
-    def list_all_for_task(
-        self, task_id: uuid.UUID
-    ) -> list[TaskLink]:
+    def list_all_for_task(self, task_id: uuid.UUID) -> list[TaskLink]:
         stmt = select(TaskLink).where(
             or_(
                 TaskLink.source_task_id == task_id,

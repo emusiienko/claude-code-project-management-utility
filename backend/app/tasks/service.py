@@ -3,12 +3,15 @@ import uuid
 from typing import Protocol, runtime_checkable
 
 from app.attachments.schema import CONTAINER_TASK
+
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
 from app.comments.schema import CONTAINER_TASK as COMMENT_CONTAINER_TASK
+
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
+
 # Import only the Protocol, never the concrete SessionService.
 from app.sessions.service import SessionReferenceCleanerProtocol
 from app.settings.schema import (
@@ -23,9 +26,7 @@ from app.tasks.model import Task
 from app.tasks.repository import TaskRepository
 from app.tasks.schema import CreateTask, UpdateTask
 
-_TYPE_VIOLATION_MSG = (
-    "Value '{v}' is not allowed for field 'type'. Allowed: {allowed}."
-)
+_TYPE_VIOLATION_MSG = "Value '{v}' is not allowed for field 'type'. Allowed: {allowed}."
 _STATUS_VIOLATION_MSG = (
     "Value '{v}' is not allowed for field 'status'. Allowed: {allowed}."
 )
@@ -55,7 +56,7 @@ class TaskService:
         repo: TaskRepository,
         story_repo: StoryRepository,
         effective_dict: EffectiveDictionary,
-        task_link_reader: 'TaskLinkReaderProtocol | None' = None,
+        task_link_reader: "TaskLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
         session_reference_cleaner: SessionReferenceCleanerProtocol | None = None,
@@ -207,9 +208,7 @@ class TaskService:
         # no-FK polymorphic attachment container): remove the task's
         # attachments — rows and files — before the task itself is removed.
         if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(
-                CONTAINER_TASK, task.id
-            )
+            self._attachment_reader.delete_all_for_container(CONTAINER_TASK, task.id)
         # Same cascade contract, extended to comments (STORY-008 TASK-004).
         if self._comment_reader is not None:
             self._comment_reader.delete_all_for_container(
@@ -258,12 +257,8 @@ class TaskService:
                 _STATUS_VIOLATION_MSG.format(v=task_status, allowed=allowed_str)
             )
 
-    def _assert_role_valid(
-        self, project_id: str, role: str, msg_template: str
-    ) -> None:
+    def _assert_role_valid(self, project_id: str, role: str, msg_template: str) -> None:
         allowed = self._effective_dict.resolve(project_id, DICT_KEY_PARTICIPANT_ROLES)
         if role not in allowed:
             allowed_str = ", ".join(allowed)
-            raise UnprocessableError(
-                msg_template.format(v=role, allowed=allowed_str)
-            )
+            raise UnprocessableError(msg_template.format(v=role, allowed=allowed_str))

@@ -27,6 +27,7 @@ Notes:
         "devops", "spec-writer", "qa-automation", "manual-qa",
     ]
 """
+
 import uuid
 
 import pytest
@@ -56,9 +57,9 @@ INVALID_ROLE = "not-a-valid-role-xyz"
 
 async def _create_project(client: AsyncClient, name: str) -> dict:
     resp = await client.post(PROJECTS_URL, json={"name": name})
-    assert resp.status_code == 201, (
-        f"Helper _create_project: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_project: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -74,9 +75,9 @@ async def _create_story(
     resp = await client.post(
         STORIES_URL, json={"project_id": project_id, "title": title}
     )
-    assert resp.status_code == 201, (
-        f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_story: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -110,9 +111,9 @@ async def _create_task(
     if labels is not None:
         payload["labels"] = labels
     resp = await client.post(f"{STORIES_URL}/{story_id}/tasks", json=payload)
-    assert resp.status_code == 201, (
-        f"Helper _create_task: expected 201, got {resp.status_code} — {resp.text}"
-    )
+    assert (
+        resp.status_code == 201
+    ), f"Helper _create_task: expected 201, got {resp.status_code} — {resp.text}"
     return resp.json()["data"]
 
 
@@ -126,9 +127,7 @@ async def _delete_task(client: AsyncClient, task_id: str) -> None:
 
 
 class TestCreateTask:
-    async def test_happy_path_all_fields_returns_201(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_happy_path_all_fields_returns_201(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Create Task All Fields Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -145,29 +144,27 @@ class TestCreateTask:
                         "labels": [{"key": "env", "value": "prod"}],
                     },
                 )
-                assert resp.status_code == 201, (
-                    f"Expected 201, got {resp.status_code}"
-                )
+                assert resp.status_code == 201, f"Expected 201, got {resp.status_code}"
                 await _delete_task(client, resp.json()["data"]["id"])
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_required_fields_only_returns_201(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_required_fields_only_returns_201(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Create Task Required Fields Project")
         try:
             story = await _create_story(client, proj["id"])
             try:
                 resp = await client.post(
                     f"{STORIES_URL}/{story['id']}/tasks",
-                    json={"title": "Minimal Task", "type": VALID_TYPE, "status": VALID_STATUS},
+                    json={
+                        "title": "Minimal Task",
+                        "type": VALID_TYPE,
+                        "status": VALID_STATUS,
+                    },
                 )
-                assert resp.status_code == 201, (
-                    f"Expected 201, got {resp.status_code}"
-                )
+                assert resp.status_code == 201, f"Expected 201, got {resp.status_code}"
                 await _delete_task(client, resp.json()["data"]["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -181,7 +178,11 @@ class TestCreateTask:
             try:
                 resp = await client.post(
                     f"{STORIES_URL}/{story['id']}/tasks",
-                    json={"title": "Envelope Task", "type": VALID_TYPE, "status": VALID_STATUS},
+                    json={
+                        "title": "Envelope Task",
+                        "type": VALID_TYPE,
+                        "status": VALID_STATUS,
+                    },
                 )
                 assert "data" in resp.json(), "Response missing 'data' key"
                 await _delete_task(client, resp.json()["data"]["id"])
@@ -197,9 +198,17 @@ class TestCreateTask:
             try:
                 task = await _create_task(client, story["id"], "Fields Task")
                 for field in (
-                    "id", "story_id", "title", "content", "type", "status",
-                    "assignee_role", "creator_role", "labels",
-                    "created_at", "updated_at",
+                    "id",
+                    "story_id",
+                    "title",
+                    "content",
+                    "type",
+                    "status",
+                    "assignee_role",
+                    "creator_role",
+                    "labels",
+                    "created_at",
+                    "updated_at",
                 ):
                     assert field in task, f"Field '{field}' missing from task response"
                 await _delete_task(client, task["id"])
@@ -216,9 +225,9 @@ class TestCreateTask:
             story = await _create_story(client, proj["id"])
             try:
                 task = await _create_task(client, story["id"], "StoryId Task")
-                assert task["story_id"] == story["id"], (
-                    f"story_id mismatch: expected {story['id']}, got {task['story_id']}"
-                )
+                assert (
+                    task["story_id"] == story["id"]
+                ), f"story_id mismatch: expected {story['id']}, got {task['story_id']}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -234,9 +243,9 @@ class TestCreateTask:
                     f"{STORIES_URL}/{story['id']}/tasks",
                     json={"type": VALID_TYPE, "status": VALID_STATUS},
                 )
-                assert resp.status_code == 422, (
-                    f"Missing title should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Missing title should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -251,9 +260,9 @@ class TestCreateTask:
                     f"{STORIES_URL}/{story['id']}/tasks",
                     json={"title": "No Type Task", "status": VALID_STATUS},
                 )
-                assert resp.status_code == 422, (
-                    f"Missing type should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Missing type should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -268,9 +277,9 @@ class TestCreateTask:
                     f"{STORIES_URL}/{story['id']}/tasks",
                     json={"title": "No Status Task", "type": VALID_TYPE},
                 )
-                assert resp.status_code == 422, (
-                    f"Missing status should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Missing status should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -283,11 +292,15 @@ class TestCreateTask:
             try:
                 resp = await client.post(
                     f"{STORIES_URL}/{story['id']}/tasks",
-                    json={"title": "Bad Type Task", "type": INVALID_TYPE, "status": VALID_STATUS},
+                    json={
+                        "title": "Bad Type Task",
+                        "type": INVALID_TYPE,
+                        "status": VALID_STATUS,
+                    },
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid type should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid type should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -302,12 +315,16 @@ class TestCreateTask:
             try:
                 resp = await client.post(
                     f"{STORIES_URL}/{story['id']}/tasks",
-                    json={"title": "UnprocType Task", "type": INVALID_TYPE, "status": VALID_STATUS},
+                    json={
+                        "title": "UnprocType Task",
+                        "type": INVALID_TYPE,
+                        "status": VALID_STATUS,
+                    },
                 )
                 body = resp.json()
-                assert body.get("code") == "UNPROCESSABLE", (
-                    f"Expected UNPROCESSABLE error code, got '{body.get('code')}'"
-                )
+                assert (
+                    body.get("code") == "UNPROCESSABLE"
+                ), f"Expected UNPROCESSABLE error code, got '{body.get('code')}'"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -320,19 +337,21 @@ class TestCreateTask:
             try:
                 resp = await client.post(
                     f"{STORIES_URL}/{story['id']}/tasks",
-                    json={"title": "Bad Status Task", "type": VALID_TYPE, "status": INVALID_STATUS},
+                    json={
+                        "title": "Bad Status Task",
+                        "type": VALID_TYPE,
+                        "status": INVALID_STATUS,
+                    },
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid status should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid status should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_invalid_assignee_role_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_invalid_assignee_role_returns_422(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Create Task Invalid Assignee Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -346,17 +365,15 @@ class TestCreateTask:
                         "assignee_role": INVALID_ROLE,
                     },
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid assignee_role should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid assignee_role should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_invalid_creator_role_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_invalid_creator_role_returns_422(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Create Task Invalid Creator Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -370,9 +387,9 @@ class TestCreateTask:
                         "creator_role": INVALID_ROLE,
                     },
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid creator_role should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid creator_role should return 422, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -384,18 +401,22 @@ class TestCreateTask:
             f"{STORIES_URL}/{fake_story_id}/tasks",
             json={"title": "Ghost Task", "type": VALID_TYPE, "status": VALID_STATUS},
         )
-        assert resp.status_code == 404, (
-            f"Non-existent story should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Non-existent story should return 404, got {resp.status_code}"
 
     async def test_malformed_story_id_returns_404(self, client: AsyncClient) -> None:
         resp = await client.post(
             f"{STORIES_URL}/not-a-uuid/tasks",
-            json={"title": "Malformed Task", "type": VALID_TYPE, "status": VALID_STATUS},
+            json={
+                "title": "Malformed Task",
+                "type": VALID_TYPE,
+                "status": VALID_STATUS,
+            },
         )
-        assert resp.status_code == 404, (
-            f"Malformed story_id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Malformed story_id should return 404, got {resp.status_code}"
 
 
 # ===========================================================================
@@ -410,9 +431,7 @@ class TestListTasks:
             story = await _create_story(client, proj["id"])
             try:
                 resp = await client.get(f"{STORIES_URL}/{story['id']}/tasks")
-                assert resp.status_code == 200, (
-                    f"Expected 200, got {resp.status_code}"
-                )
+                assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -439,12 +458,12 @@ class TestListTasks:
             try:
                 resp = await client.get(f"{STORIES_URL}/{story['id']}/tasks")
                 body = resp.json()
-                assert body["data"] == [], (
-                    f"New story should have no tasks, got {body['data']}"
-                )
-                assert body["meta"]["total"] == 0, (
-                    f"meta.total should be 0, got {body['meta']['total']}"
-                )
+                assert (
+                    body["data"] == []
+                ), f"New story should have no tasks, got {body['data']}"
+                assert (
+                    body["meta"]["total"] == 0
+                ), f"meta.total should be 0, got {body['meta']['total']}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -458,7 +477,9 @@ class TestListTasks:
                 task = await _create_task(client, story["id"], "Appear Task")
                 resp = await client.get(f"{STORIES_URL}/{story['id']}/tasks")
                 ids = [t["id"] for t in resp.json()["data"]]
-                assert task["id"] in ids, "Newly created task not found in story task list"
+                assert (
+                    task["id"] in ids
+                ), "Newly created task not found in story task list"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -472,14 +493,20 @@ class TestListTasks:
         try:
             story = await _create_story(client, proj["id"])
             try:
-                t1 = await _create_task(client, story["id"], "Todo Task", task_status="todo")
-                t2 = await _create_task(client, story["id"], "Done Task", task_status="done")
+                t1 = await _create_task(
+                    client, story["id"], "Todo Task", task_status="todo"
+                )
+                t2 = await _create_task(
+                    client, story["id"], "Done Task", task_status="done"
+                )
                 resp = await client.get(
                     f"{STORIES_URL}/{story['id']}/tasks", params={"status": "todo"}
                 )
                 ids = [t["id"] for t in resp.json()["data"]]
                 assert t1["id"] in ids, "Task with matching status should appear"
-                assert t2["id"] not in ids, "Task with different status should not appear"
+                assert (
+                    t2["id"] not in ids
+                ), "Task with different status should not appear"
                 await _delete_task(client, t1["id"])
                 await _delete_task(client, t2["id"])
             finally:
@@ -494,7 +521,9 @@ class TestListTasks:
         try:
             story = await _create_story(client, proj["id"])
             try:
-                t1 = await _create_task(client, story["id"], "Bug Task", task_type="bug")
+                t1 = await _create_task(
+                    client, story["id"], "Bug Task", task_type="bug"
+                )
                 t2 = await _create_task(
                     client, story["id"], "Testing Task", task_type="testing-task"
                 )
@@ -519,7 +548,10 @@ class TestListTasks:
             story = await _create_story(client, proj["id"])
             try:
                 t1 = await _create_task(
-                    client, story["id"], "Assigned Task", assignee_role="backend-developer"
+                    client,
+                    story["id"],
+                    "Assigned Task",
+                    assignee_role="backend-developer",
                 )
                 t2 = await _create_task(
                     client, story["id"], "Other Assignee Task", assignee_role="devops"
@@ -530,7 +562,9 @@ class TestListTasks:
                 )
                 ids = [t["id"] for t in resp.json()["data"]]
                 assert t1["id"] in ids, "Task with matching assignee_role should appear"
-                assert t2["id"] not in ids, "Task with different assignee_role should not appear"
+                assert (
+                    t2["id"] not in ids
+                ), "Task with different assignee_role should not appear"
                 await _delete_task(client, t1["id"])
                 await _delete_task(client, t2["id"])
             finally:
@@ -557,7 +591,9 @@ class TestListTasks:
                 )
                 ids = [t["id"] for t in resp.json()["data"]]
                 assert t1["id"] in ids, "Task with matching creator_role should appear"
-                assert t2["id"] not in ids, "Task with different creator_role should not appear"
+                assert (
+                    t2["id"] not in ids
+                ), "Task with different creator_role should not appear"
                 await _delete_task(client, t1["id"])
                 await _delete_task(client, t2["id"])
             finally:
@@ -575,9 +611,9 @@ class TestListTasks:
                     t = await _create_task(client, story["id"], f"Paginated Task {i}")
                     task_ids.append(t["id"])
                 resp = await client.get(f"{STORIES_URL}/{story['id']}/tasks")
-                assert resp.json()["meta"]["total"] == 3, (
-                    f"meta.total should be 3, got {resp.json()['meta']['total']}"
-                )
+                assert (
+                    resp.json()["meta"]["total"] == 3
+                ), f"meta.total should be 3, got {resp.json()['meta']['total']}"
                 for tid in task_ids:
                     await _delete_task(client, tid)
             finally:
@@ -588,9 +624,9 @@ class TestListTasks:
     async def test_nonexistent_story_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"{STORIES_URL}/{fake_id}/tasks")
-        assert resp.status_code == 404, (
-            f"Non-existent story should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Non-existent story should return 404, got {resp.status_code}"
 
     async def test_cross_story_isolation(self, client: AsyncClient) -> None:
         """Task from story A must not appear in story B's task list."""
@@ -602,9 +638,9 @@ class TestListTasks:
                 task_a = await _create_task(client, story_a["id"], "Task In Story A")
                 resp_b = await client.get(f"{STORIES_URL}/{story_b['id']}/tasks")
                 ids_b = [t["id"] for t in resp_b.json()["data"]]
-                assert task_a["id"] not in ids_b, (
-                    "Task from story A should not appear in story B's list"
-                )
+                assert (
+                    task_a["id"] not in ids_b
+                ), "Task from story A should not appear in story B's list"
                 await _delete_task(client, task_a["id"])
             finally:
                 await _delete_story(client, story_a["id"])
@@ -626,9 +662,7 @@ class TestGetTask:
             try:
                 task = await _create_task(client, story["id"], "Get Task")
                 resp = await client.get(f"{TASKS_URL}/{task['id']}")
-                assert resp.status_code == 200, (
-                    f"Expected 200, got {resp.status_code}"
-                )
+                assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -647,21 +681,21 @@ class TestGetTask:
                 )
                 resp = await client.get(f"{TASKS_URL}/{task['id']}")
                 fetched = resp.json()["data"]
-                assert fetched["id"] == task["id"], (
-                    f"id mismatch: expected {task['id']}, got {fetched['id']}"
-                )
-                assert fetched["title"] == "Match Task", (
-                    f"title mismatch: got '{fetched['title']}'"
-                )
-                assert fetched["content"] == "some content", (
-                    f"content mismatch: got '{fetched['content']}'"
-                )
-                assert fetched["type"] == VALID_TYPE, (
-                    f"type mismatch: got '{fetched['type']}'"
-                )
-                assert fetched["status"] == VALID_STATUS, (
-                    f"status mismatch: got '{fetched['status']}'"
-                )
+                assert (
+                    fetched["id"] == task["id"]
+                ), f"id mismatch: expected {task['id']}, got {fetched['id']}"
+                assert (
+                    fetched["title"] == "Match Task"
+                ), f"title mismatch: got '{fetched['title']}'"
+                assert (
+                    fetched["content"] == "some content"
+                ), f"content mismatch: got '{fetched['content']}'"
+                assert (
+                    fetched["type"] == VALID_TYPE
+                ), f"type mismatch: got '{fetched['type']}'"
+                assert (
+                    fetched["status"] == VALID_STATUS
+                ), f"status mismatch: got '{fetched['status']}'"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -671,9 +705,9 @@ class TestGetTask:
     async def test_unknown_id_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"{TASKS_URL}/{fake_id}")
-        assert resp.status_code == 404, (
-            f"Unknown task id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Unknown task id should return 404, got {resp.status_code}"
 
     async def test_unknown_id_error_code_is_not_found(
         self, client: AsyncClient
@@ -681,16 +715,16 @@ class TestGetTask:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"{TASKS_URL}/{fake_id}")
         body = resp.json()
-        assert body.get("code") == "NOT_FOUND", (
-            f"Expected NOT_FOUND, got '{body.get('code')}'"
-        )
+        assert (
+            body.get("code") == "NOT_FOUND"
+        ), f"Expected NOT_FOUND, got '{body.get('code')}'"
 
     async def test_malformed_id_returns_404(self, client: AsyncClient) -> None:
         """Per ADR-011: malformed UUIDs must be coerced to 404, not 422."""
         resp = await client.get(f"{TASKS_URL}/not-a-valid-uuid")
-        assert resp.status_code == 404, (
-            f"Malformed task id should return 404 (ADR-011), got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Malformed task id should return 404 (ADR-011), got {resp.status_code}"
 
 
 # ===========================================================================
@@ -708,29 +742,25 @@ class TestGetTaskDetail:
             try:
                 task = await _create_task(client, story["id"], "Detail Task")
                 resp = await client.get(f"{TASKS_URL}/{task['id']}/detail")
-                assert resp.status_code == 200, (
-                    f"Expected 200, got {resp.status_code}"
-                )
+                assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
                 detail = resp.json()["data"]
                 assert detail["id"] == task["id"], "id mismatch in detail response"
-                assert detail["links"] == [], (
-                    f"links should be empty [], got {detail['links']}"
-                )
-                assert detail["attachments"] == [], (
-                    f"attachments should be empty [], got {detail['attachments']}"
-                )
-                assert detail["comments"] == [], (
-                    f"comments should be empty [], got {detail['comments']}"
-                )
+                assert (
+                    detail["links"] == []
+                ), f"links should be empty [], got {detail['links']}"
+                assert (
+                    detail["attachments"] == []
+                ), f"attachments should be empty [], got {detail['attachments']}"
+                assert (
+                    detail["comments"] == []
+                ), f"comments should be empty [], got {detail['comments']}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_detail_contains_all_task_fields(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_detail_contains_all_task_fields(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Task Detail Fields Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -739,12 +769,24 @@ class TestGetTaskDetail:
                 resp = await client.get(f"{TASKS_URL}/{task['id']}/detail")
                 detail = resp.json()["data"]
                 for field in (
-                    "id", "story_id", "title", "content", "type", "status",
-                    "assignee_role", "creator_role", "labels",
-                    "created_at", "updated_at",
-                    "links", "attachments", "comments",
+                    "id",
+                    "story_id",
+                    "title",
+                    "content",
+                    "type",
+                    "status",
+                    "assignee_role",
+                    "creator_role",
+                    "labels",
+                    "created_at",
+                    "updated_at",
+                    "links",
+                    "attachments",
+                    "comments",
                 ):
-                    assert field in detail, f"Field '{field}' missing from detail response"
+                    assert (
+                        field in detail
+                    ), f"Field '{field}' missing from detail response"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -754,15 +796,15 @@ class TestGetTaskDetail:
     async def test_detail_unknown_id_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
         resp = await client.get(f"{TASKS_URL}/{fake_id}/detail")
-        assert resp.status_code == 404, (
-            f"Unknown task detail id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Unknown task detail id should return 404, got {resp.status_code}"
 
     async def test_detail_malformed_id_returns_404(self, client: AsyncClient) -> None:
         resp = await client.get(f"{TASKS_URL}/not-a-uuid/detail")
-        assert resp.status_code == 404, (
-            f"Malformed task id should return 404 on /detail, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Malformed task id should return 404 on /detail, got {resp.status_code}"
 
 
 # ===========================================================================
@@ -780,9 +822,7 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"title": "Updated Title"}
                 )
-                assert resp.status_code == 200, (
-                    f"Expected 200, got {resp.status_code}"
-                )
+                assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -798,9 +838,9 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"title": "New Title"}
                 )
-                assert resp.json()["data"]["title"] == "New Title", (
-                    f"Title should be updated, got '{resp.json()['data']['title']}'"
-                )
+                assert (
+                    resp.json()["data"]["title"] == "New Title"
+                ), f"Title should be updated, got '{resp.json()['data']['title']}'"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -815,22 +855,25 @@ class TestUpdateTask:
             story = await _create_story(client, proj["id"])
             try:
                 task = await _create_task(
-                    client, story["id"], "Partial Task",
-                    task_type="bug", task_status="in-progress"
+                    client,
+                    story["id"],
+                    "Partial Task",
+                    task_type="bug",
+                    task_status="in-progress",
                 )
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"title": "Updated Partial Title"}
                 )
                 data = resp.json()["data"]
-                assert data["type"] == "bug", (
-                    f"type should be unchanged, got '{data['type']}'"
-                )
-                assert data["status"] == "in-progress", (
-                    f"status should be unchanged, got '{data['status']}'"
-                )
-                assert data["story_id"] == story["id"], (
-                    f"story_id should be unchanged, got '{data['story_id']}'"
-                )
+                assert (
+                    data["type"] == "bug"
+                ), f"type should be unchanged, got '{data['type']}'"
+                assert (
+                    data["status"] == "in-progress"
+                ), f"status should be unchanged, got '{data['status']}'"
+                assert (
+                    data["story_id"] == story["id"]
+                ), f"story_id should be unchanged, got '{data['story_id']}'"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -846,12 +889,12 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"status": "done"}
                 )
-                assert resp.status_code == 200, (
-                    f"Valid status update should return 200, got {resp.status_code}"
-                )
-                assert resp.json()["data"]["status"] == "done", (
-                    f"status should be 'done', got '{resp.json()['data']['status']}'"
-                )
+                assert (
+                    resp.status_code == 200
+                ), f"Valid status update should return 200, got {resp.status_code}"
+                assert (
+                    resp.json()["data"]["status"] == "done"
+                ), f"status should be 'done', got '{resp.json()['data']['status']}'"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -867,21 +910,19 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"type": "testing-task"}
                 )
-                assert resp.status_code == 200, (
-                    f"Valid type update should return 200, got {resp.status_code}"
-                )
-                assert resp.json()["data"]["type"] == "testing-task", (
-                    f"type should be 'testing-task', got '{resp.json()['data']['type']}'"
-                )
+                assert (
+                    resp.status_code == 200
+                ), f"Valid type update should return 200, got {resp.status_code}"
+                assert (
+                    resp.json()["data"]["type"] == "testing-task"
+                ), f"type should be 'testing-task', got '{resp.json()['data']['type']}'"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_invalid_type_update_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_invalid_type_update_returns_422(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Update Task Invalid Type Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -890,18 +931,16 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"type": INVALID_TYPE}
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid type update should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid type update should return 422, got {resp.status_code}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_invalid_status_update_returns_422(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_invalid_status_update_returns_422(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Update Task Invalid Status Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -910,9 +949,9 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"status": INVALID_STATUS}
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid status update should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid status update should return 422, got {resp.status_code}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -926,13 +965,15 @@ class TestUpdateTask:
         try:
             story = await _create_story(client, proj["id"])
             try:
-                task = await _create_task(client, story["id"], "Invalid Assignee Update")
+                task = await _create_task(
+                    client, story["id"], "Invalid Assignee Update"
+                )
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"assignee_role": INVALID_ROLE}
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid assignee_role update should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid assignee_role update should return 422, got {resp.status_code}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -950,9 +991,9 @@ class TestUpdateTask:
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}", json={"creator_role": INVALID_ROLE}
                 )
-                assert resp.status_code == 422, (
-                    f"Invalid creator_role update should return 422, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 422
+                ), f"Invalid creator_role update should return 422, got {resp.status_code}"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -971,31 +1012,31 @@ class TestUpdateTask:
             story_a = await _create_story(client, proj["id"], "Story A Immutable")
             story_b = await _create_story(client, proj["id"], "Story B Immutable")
             try:
-                task = await _create_task(client, story_a["id"], "Immutable StoryId Task")
+                task = await _create_task(
+                    client, story_a["id"], "Immutable StoryId Task"
+                )
                 # Attempt to change story_id — should be silently ignored
                 resp = await client.put(
                     f"{TASKS_URL}/{task['id']}",
                     json={"story_id": story_b["id"], "title": "StoryId Updated"},
                 )
-                assert resp.status_code == 200, (
-                    f"Update should succeed even with unknown field, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 200
+                ), f"Update should succeed even with unknown field, got {resp.status_code}"
                 data = resp.json()["data"]
-                assert data["story_id"] == story_a["id"], (
-                    f"story_id must remain '{story_a['id']}', got '{data['story_id']}'"
-                )
+                assert (
+                    data["story_id"] == story_a["id"]
+                ), f"story_id must remain '{story_a['id']}', got '{data['story_id']}'"
                 # The task must still appear in story_a's list
                 list_resp = await client.get(f"{STORIES_URL}/{story_a['id']}/tasks")
                 ids_a = [t["id"] for t in list_resp.json()["data"]]
-                assert task["id"] in ids_a, (
-                    "Task should still belong to story A after the PUT"
-                )
+                assert (
+                    task["id"] in ids_a
+                ), "Task should still belong to story A after the PUT"
                 # The task must NOT appear in story_b's list
                 list_resp_b = await client.get(f"{STORIES_URL}/{story_b['id']}/tasks")
                 ids_b = [t["id"] for t in list_resp_b.json()["data"]]
-                assert task["id"] not in ids_b, (
-                    "Task must not migrate to story B"
-                )
+                assert task["id"] not in ids_b, "Task must not migrate to story B"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story_a["id"])
@@ -1008,13 +1049,11 @@ class TestUpdateTask:
         resp = await client.put(
             f"{TASKS_URL}/{fake_id}", json={"title": "Ghost Update"}
         )
-        assert resp.status_code == 404, (
-            f"Unknown task id should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Unknown task id should return 404, got {resp.status_code}"
 
-    async def test_updated_at_changes_after_update(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_updated_at_changes_after_update(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Update Task Timestamp Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -1022,11 +1061,12 @@ class TestUpdateTask:
                 task = await _create_task(client, story["id"], "Timestamp Task")
                 original_updated_at = task["updated_at"]
                 resp = await client.put(
-                    f"{TASKS_URL}/{task['id']}", json={"title": "Updated Timestamp Task"}
+                    f"{TASKS_URL}/{task['id']}",
+                    json={"title": "Updated Timestamp Task"},
                 )
-                assert resp.json()["data"]["updated_at"] >= original_updated_at, (
-                    "updated_at should be >= original value after PUT"
-                )
+                assert (
+                    resp.json()["data"]["updated_at"] >= original_updated_at
+                ), "updated_at should be >= original value after PUT"
                 await _delete_task(client, task["id"])
             finally:
                 await _delete_story(client, story["id"])
@@ -1047,17 +1087,13 @@ class TestDeleteTask:
             try:
                 task = await _create_task(client, story["id"], "Delete Me")
                 resp = await client.delete(f"{TASKS_URL}/{task['id']}")
-                assert resp.status_code == 204, (
-                    f"Expected 204, got {resp.status_code}"
-                )
+                assert resp.status_code == 204, f"Expected 204, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
             await _delete_project(client, proj["id"])
 
-    async def test_deleted_task_no_longer_accessible(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_deleted_task_no_longer_accessible(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Delete Task Gone Project")
         try:
             story = await _create_story(client, proj["id"])
@@ -1065,9 +1101,9 @@ class TestDeleteTask:
                 task = await _create_task(client, story["id"], "Delete Then Get")
                 await client.delete(f"{TASKS_URL}/{task['id']}")
                 resp = await client.get(f"{TASKS_URL}/{task['id']}")
-                assert resp.status_code == 404, (
-                    f"Deleted task should return 404 on GET, got {resp.status_code}"
-                )
+                assert (
+                    resp.status_code == 404
+                ), f"Deleted task should return 404 on GET, got {resp.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -1081,9 +1117,9 @@ class TestDeleteTask:
                 task = await _create_task(client, story["id"], "Delete Twice Task")
                 await client.delete(f"{TASKS_URL}/{task['id']}")
                 resp2 = await client.delete(f"{TASKS_URL}/{task['id']}")
-                assert resp2.status_code == 404, (
-                    f"Second delete should return 404, got {resp2.status_code}"
-                )
+                assert (
+                    resp2.status_code == 404
+                ), f"Second delete should return 404, got {resp2.status_code}"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -1098,9 +1134,9 @@ class TestDeleteTask:
                 await client.delete(f"{TASKS_URL}/{task['id']}")
                 resp = await client.get(f"{STORIES_URL}/{story['id']}/tasks")
                 ids = [t["id"] for t in resp.json()["data"]]
-                assert task["id"] not in ids, (
-                    "Deleted task should not appear in story task list"
-                )
+                assert (
+                    task["id"] not in ids
+                ), "Deleted task should not appear in story task list"
             finally:
                 await _delete_story(client, story["id"])
         finally:
@@ -1109,9 +1145,9 @@ class TestDeleteTask:
     async def test_unknown_id_returns_404(self, client: AsyncClient) -> None:
         fake_id = str(uuid.uuid4())
         resp = await client.delete(f"{TASKS_URL}/{fake_id}")
-        assert resp.status_code == 404, (
-            f"Deleting unknown task should return 404, got {resp.status_code}"
-        )
+        assert (
+            resp.status_code == 404
+        ), f"Deleting unknown task should return 404, got {resp.status_code}"
 
 
 # ===========================================================================
@@ -1132,9 +1168,7 @@ class TestTaskCascadeDelete:
         ),
         strict=True,
     )
-    async def test_deleting_story_removes_its_tasks(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_deleting_story_removes_its_tasks(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Cascade Delete Task Project")
         try:
             story = await _create_story(client, proj["id"], "Cascade Story")
@@ -1143,9 +1177,9 @@ class TestTaskCascadeDelete:
 
             # Delete the parent story
             del_resp = await client.delete(f"{STORIES_URL}/{story['id']}")
-            assert del_resp.status_code == 204, (
-                f"Story delete should return 204, got {del_resp.status_code}"
-            )
+            assert (
+                del_resp.status_code == 204
+            ), f"Story delete should return 204, got {del_resp.status_code}"
 
             # The task should now be unreachable
             task_resp = await client.get(f"{TASKS_URL}/{task_id}")
@@ -1184,18 +1218,21 @@ class TestTaskDictionaryProjectOverride:
                     f"{PROJECTS_ID_URL}/{proj['id']}/settings",
                     json={"task_types": [custom_type]},
                 )
-                assert put_resp.status_code == 200, (
-                    f"Settings override should succeed, got {put_resp.status_code}"
-                )
+                assert (
+                    put_resp.status_code == 200
+                ), f"Settings override should succeed, got {put_resp.status_code}"
 
                 # Custom type must now be accepted
                 task = await _create_task(
-                    client, story["id"], "Custom Type Task",
-                    task_type=custom_type, task_status="todo"
+                    client,
+                    story["id"],
+                    "Custom Type Task",
+                    task_type=custom_type,
+                    task_status="todo",
                 )
-                assert task["type"] == custom_type, (
-                    f"Expected custom type, got '{task['type']}'"
-                )
+                assert (
+                    task["type"] == custom_type
+                ), f"Expected custom type, got '{task['type']}'"
                 await _delete_task(client, task["id"])
 
                 # Former default type must now be rejected
@@ -1227,12 +1264,15 @@ class TestTaskDictionaryProjectOverride:
                 assert put_resp.status_code == 200
 
                 task = await _create_task(
-                    client, story["id"], "Custom Status Task",
-                    task_type="task", task_status=custom_status
+                    client,
+                    story["id"],
+                    "Custom Status Task",
+                    task_type="task",
+                    task_status=custom_status,
                 )
-                assert task["status"] == custom_status, (
-                    f"Expected custom status, got '{task['status']}'"
-                )
+                assert (
+                    task["status"] == custom_status
+                ), f"Expected custom status, got '{task['status']}'"
                 await _delete_task(client, task["id"])
 
                 reject_resp = await client.post(

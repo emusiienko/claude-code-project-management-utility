@@ -10,7 +10,9 @@ from app.comments.schema import (
     CONTAINER_STORY,
     CONTAINER_TASK,
     CONTENT_MAX_LENGTH,
-    Comment as CommentSchema,
+)
+from app.comments.schema import Comment as CommentSchema
+from app.comments.schema import (
     CreateComment,
     UpdateComment,
 )
@@ -239,9 +241,7 @@ class CommentService:
                 _CONTAINER_TYPE_INVALID_MSG.format(allowed=allowed)
             )
 
-    def _resolve_container(
-        self, container_type: str, container_id: str
-    ) -> uuid.UUID:
+    def _resolve_container(self, container_type: str, container_id: str) -> uuid.UUID:
         # Validates container existence (404) and returns its UUID.
         if container_type == CONTAINER_STORY:
             story = self._story_reader.get_by_id(container_id)

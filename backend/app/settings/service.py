@@ -47,7 +47,9 @@ class SettingsService:
     def update_system_settings(self, body: UpdateSettingsBody) -> dict[str, Any]:
         for key, values in body.to_key_value_pairs():
             if key == DICT_KEY_LINK_TYPES:
-                link_entries = self._validate_link_types(cast(list[LinkTypeEntry], values))
+                link_entries = self._validate_link_types(
+                    cast(list[LinkTypeEntry], values)
+                )
                 serialized: list[Any] = [e.model_dump() for e in link_entries]
                 row = self._system_repo.get_by_key(key)
                 if row is None:
@@ -145,7 +147,9 @@ class SettingsService:
             # system default — an override can legitimately narrow or widen the set.
             allowed = self.resolve(project_id, DICT_KEY_PARTICIPANT_ROLES)
             self._validate_default_web_ui_role(body.default_web_ui_role, allowed)
-            row = self._project_repo.get_by_project_and_key(pid, KEY_DEFAULT_WEB_UI_ROLE)
+            row = self._project_repo.get_by_project_and_key(
+                pid, KEY_DEFAULT_WEB_UI_ROLE
+            )
             if row is None:
                 row = ProjectSettings(
                     project_id=pid,
@@ -201,12 +205,9 @@ class SettingsService:
         # Derived on demand — never stored.
         pid = uuid.UUID(project_id)
         overrides_by_key = {
-            row.key: row.values
-            for row in self._project_repo.get_all_for_project(pid)
+            row.key: row.values for row in self._project_repo.get_all_for_project(pid)
         }
-        system_by_key = {
-            row.key: row.values for row in self._system_repo.get_all()
-        }
+        system_by_key = {row.key: row.values for row in self._system_repo.get_all()}
         result: dict[str, Any] = {
             key: overrides_by_key.get(key, system_by_key.get(key, []))
             for key in ALL_DICT_KEYS

@@ -35,6 +35,7 @@ Notes:
   STORY-021 / TASK-002 removed it from `ALL_DICT_KEYS` entirely and migration
   0010_attachment_title deletes its seeded rows. See TestAttachmentTypesRetired.
 """
+
 from fastmcp import Client
 from httpx import AsyncClient
 
@@ -163,9 +164,9 @@ class TestGetSystemSettings:
             f"'{DEFAULT_WEB_UI_ROLE_KEY}' should be a scalar string, "
             f"got {type(data[DEFAULT_WEB_UI_ROLE_KEY])}"
         )
-        assert data[DEFAULT_WEB_UI_ROLE_KEY], (
-            f"'{DEFAULT_WEB_UI_ROLE_KEY}' should be non-empty after seeding"
-        )
+        assert data[
+            DEFAULT_WEB_UI_ROLE_KEY
+        ], f"'{DEFAULT_WEB_UI_ROLE_KEY}' should be non-empty after seeding"
 
     async def test_seed_values_match_expected_defaults(
         self, client: AsyncClient
@@ -173,9 +174,9 @@ class TestGetSystemSettings:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
         for key, expected in SEED_DEFAULTS.items():
-            assert sorted(data[key], key=_sort_key) == sorted(expected, key=_sort_key), (
-                f"Key '{key}': expected {expected}, got {data[key]}"
-            )
+            assert sorted(data[key], key=_sort_key) == sorted(
+                expected, key=_sort_key
+            ), f"Key '{key}': expected {expected}, got {data[key]}"
 
     async def test_seed_default_web_ui_role_is_operator(
         self, client: AsyncClient
@@ -230,14 +231,14 @@ class TestUpdateSystemSettings:
         data = _settings_data(response.json())
 
         # Updated key reflects new value
-        assert data["task_statuses"] == new_statuses, (
-            f"task_statuses should be {new_statuses}, got {data['task_statuses']}"
-        )
+        assert (
+            data["task_statuses"] == new_statuses
+        ), f"task_statuses should be {new_statuses}, got {data['task_statuses']}"
         # Other dictionary keys remain at seed defaults
         for key in ALL_DICT_KEYS - {"task_statuses"}:
-            assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
-                f"Unmodified key '{key}' was unexpectedly changed"
-            )
+            assert sorted(data[key], key=_sort_key) == sorted(
+                SEED_DEFAULTS[key], key=_sort_key
+            ), f"Unmodified key '{key}' was unexpectedly changed"
         # The scalar default_web_ui_role key is unaffected too
         assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
             f"Unmodified key '{DEFAULT_WEB_UI_ROLE_KEY}' was unexpectedly changed, "
@@ -252,7 +253,11 @@ class TestUpdateSystemSettings:
 
     async def test_update_returns_all_six_keys(self, client: AsyncClient) -> None:
         new_link_types = [
-            {"value": "depends-on", "outbound": "depends on", "inbound": "is depended on by"},
+            {
+                "value": "depends-on",
+                "outbound": "depends on",
+                "inbound": "is depended on by",
+            },
             {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
         ]
         response = await client.put(
@@ -274,9 +279,9 @@ class TestUpdateSystemSettings:
             "/v1/system/settings",
             json={"non_existent_key": ["a", "b"]},
         )
-        assert response.status_code == 422, (
-            f"Unknown key should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Unknown key should return 422, got {response.status_code}"
 
     async def test_unknown_key_error_code(self, client: AsyncClient) -> None:
         # Pydantic model_validator raises ValueError → FastAPI returns 422 with
@@ -288,18 +293,18 @@ class TestUpdateSystemSettings:
         )
         body = response.json()
         assert "detail" in body, "Pydantic 422 response missing 'detail'"
-        assert isinstance(body["detail"], list), (
-            f"'detail' should be a list, got {type(body['detail'])}"
-        )
+        assert isinstance(
+            body["detail"], list
+        ), f"'detail' should be a list, got {type(body['detail'])}"
 
     async def test_empty_values_returns_400(self, client: AsyncClient) -> None:
         response = await client.put(
             "/v1/system/settings",
             json={"task_statuses": []},
         )
-        assert response.status_code == 400, (
-            f"Empty values should return 400, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 400
+        ), f"Empty values should return 400, got {response.status_code}"
 
     async def test_empty_values_verbatim_error_message(
         self, client: AsyncClient
@@ -309,18 +314,18 @@ class TestUpdateSystemSettings:
             json={"task_statuses": []},
         )
         body = response.json()
-        assert body.get("error") == "Dictionary values cannot be empty.", (
-            f"Expected verbatim error message, got: {body.get('error')}"
-        )
+        assert (
+            body.get("error") == "Dictionary values cannot be empty."
+        ), f"Expected verbatim error message, got: {body.get('error')}"
 
     async def test_no_body_keys_returns_current_settings(
         self, client: AsyncClient
     ) -> None:
         # Empty body (no keys) — should return current settings without error.
         response = await client.put("/v1/system/settings", json={})
-        assert response.status_code == 200, (
-            f"Empty body should return 200, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Empty body should return 200, got {response.status_code}"
         data = _settings_data(response.json())
         for key in ALL_KEYS:
             assert key in data, f"Missing key '{key}' in empty-body PUT response"
@@ -337,12 +342,15 @@ class TestUpdateSystemSettings:
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = _settings_data(response.json())
-        assert data["task_statuses"] == ["todo", "wip", "done"], (
-            f"task_statuses not updated correctly: {data['task_statuses']}"
-        )
-        assert data["task_types"] == ["task", "spike"], (
-            f"task_types not updated correctly: {data['task_types']}"
-        )
+        assert data["task_statuses"] == [
+            "todo",
+            "wip",
+            "done",
+        ], f"task_statuses not updated correctly: {data['task_statuses']}"
+        assert data["task_types"] == [
+            "task",
+            "spike",
+        ], f"task_types not updated correctly: {data['task_types']}"
 
         # Restore both
         await client.put(
@@ -374,9 +382,9 @@ class TestGetProjectSettings:
         response = await client.get(f"/v1/projects/{project_id}/settings")
         data = _settings_data(response.json())
         # No overrides — data should be an empty dict (no keys present).
-        assert data == {}, (
-            f"New project with no overrides should return empty data, got: {data}"
-        )
+        assert (
+            data == {}
+        ), f"New project with no overrides should return empty data, got: {data}"
 
     async def test_returns_only_overridden_keys(
         self, client: AsyncClient, create_project
@@ -392,23 +400,24 @@ class TestGetProjectSettings:
         data = _settings_data(response.json())
 
         assert "task_statuses" in data, "Overridden key should appear in response"
-        assert data["task_statuses"] == ["open", "closed"], (
-            f"Expected ['open', 'closed'], got {data['task_statuses']}"
-        )
+        assert data["task_statuses"] == [
+            "open",
+            "closed",
+        ], f"Expected ['open', 'closed'], got {data['task_statuses']}"
         # Non-overridden keys should NOT appear
         for key in ALL_KEYS - {"task_statuses"}:
-            assert key not in data, (
-                f"Non-overridden key '{key}' should not appear in overrides response"
-            )
+            assert (
+                key not in data
+            ), f"Non-overridden key '{key}' should not appear in overrides response"
 
     async def test_missing_project_returns_404(self, client: AsyncClient) -> None:
         import uuid
 
         fake_id = str(uuid.uuid4())
         response = await client.get(f"/v1/projects/{fake_id}/settings")
-        assert response.status_code == 404, (
-            f"Missing project should return 404, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 404
+        ), f"Missing project should return 404, got {response.status_code}"
 
     async def test_missing_project_error_code(self, client: AsyncClient) -> None:
         import uuid
@@ -416,15 +425,15 @@ class TestGetProjectSettings:
         fake_id = str(uuid.uuid4())
         response = await client.get(f"/v1/projects/{fake_id}/settings")
         body = response.json()
-        assert body.get("code") == "NOT_FOUND", (
-            f"Expected NOT_FOUND, got {body.get('code')}"
-        )
+        assert (
+            body.get("code") == "NOT_FOUND"
+        ), f"Expected NOT_FOUND, got {body.get('code')}"
 
     async def test_invalid_uuid_returns_404(self, client: AsyncClient) -> None:
         response = await client.get("/v1/projects/not-a-uuid/settings")
-        assert response.status_code == 404, (
-            f"Invalid UUID should return 404, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 404
+        ), f"Invalid UUID should return 404, got {response.status_code}"
 
 
 # ===========================================================================
@@ -447,9 +456,7 @@ class TestGetEffectiveProjectSettings:
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         data = _settings_data(response.json())
         for key in ALL_KEYS:
-            assert key in data, (
-                f"Missing key '{key}' in effective settings response"
-            )
+            assert key in data, f"Missing key '{key}' in effective settings response"
 
     async def test_no_overrides_returns_system_defaults(
         self, client: AsyncClient, create_project
@@ -458,9 +465,9 @@ class TestGetEffectiveProjectSettings:
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         data = _settings_data(response.json())
         for key, expected in SEED_DEFAULTS.items():
-            assert sorted(data[key], key=_sort_key) == sorted(expected, key=_sort_key), (
-                f"Key '{key}': project with no overrides should return seed default"
-            )
+            assert sorted(data[key], key=_sort_key) == sorted(
+                expected, key=_sort_key
+            ), f"Key '{key}': project with no overrides should return seed default"
         assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
             f"Project with no overrides should return the system default_web_ui_role, "
             f"got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
@@ -486,9 +493,9 @@ class TestGetEffectiveProjectSettings:
         )
         # Other keys still use system defaults
         for key in ALL_DICT_KEYS - {"task_statuses"}:
-            assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
-                f"Non-overridden key '{key}' should still use system default"
-            )
+            assert sorted(data[key], key=_sort_key) == sorted(
+                SEED_DEFAULTS[key], key=_sort_key
+            ), f"Non-overridden key '{key}' should still use system default"
         assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
             f"Non-overridden key '{DEFAULT_WEB_UI_ROLE_KEY}' should still use system "
             f"default, got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
@@ -498,24 +505,20 @@ class TestGetEffectiveProjectSettings:
         import uuid
 
         fake_id = str(uuid.uuid4())
-        response = await client.get(
-            f"/v1/projects/{fake_id}/settings/effective"
-        )
-        assert response.status_code == 404, (
-            f"Missing project should return 404, got {response.status_code}"
-        )
+        response = await client.get(f"/v1/projects/{fake_id}/settings/effective")
+        assert (
+            response.status_code == 404
+        ), f"Missing project should return 404, got {response.status_code}"
 
     async def test_missing_project_error_code(self, client: AsyncClient) -> None:
         import uuid
 
         fake_id = str(uuid.uuid4())
-        response = await client.get(
-            f"/v1/projects/{fake_id}/settings/effective"
-        )
+        response = await client.get(f"/v1/projects/{fake_id}/settings/effective")
         body = response.json()
-        assert body.get("code") == "NOT_FOUND", (
-            f"Expected NOT_FOUND, got {body.get('code')}"
-        )
+        assert (
+            body.get("code") == "NOT_FOUND"
+        ), f"Expected NOT_FOUND, got {body.get('code')}"
 
     async def test_system_default_update_propagates_to_project_without_override(
         self, client: AsyncClient, create_project
@@ -525,7 +528,11 @@ class TestGetEffectiveProjectSettings:
         project_id = create_project("Propagation Project")
         new_link_types = [
             {"value": "blocks", "outbound": "blocks", "inbound": "is blocked by"},
-            {"value": "is-blocked-by", "outbound": "is blocked by", "inbound": "blocks"},
+            {
+                "value": "is-blocked-by",
+                "outbound": "is blocked by",
+                "inbound": "blocks",
+            },
             {"value": "context", "outbound": "context", "inbound": "context"},
         ]
 
@@ -534,9 +541,7 @@ class TestGetEffectiveProjectSettings:
             json={"link_types": new_link_types},
         )
         try:
-            response = await client.get(
-                f"/v1/projects/{project_id}/settings/effective"
-            )
+            response = await client.get(f"/v1/projects/{project_id}/settings/effective")
             data = _settings_data(response.json())
             assert data["link_types"] == new_link_types, (
                 f"Effective link_types should reflect updated system default, "
@@ -568,9 +573,7 @@ class TestGetEffectiveProjectSettings:
             json={"task_statuses": ["global-a", "global-b", "global-c"]},
         )
         try:
-            response = await client.get(
-                f"/v1/projects/{project_id}/settings/effective"
-            )
+            response = await client.get(f"/v1/projects/{project_id}/settings/effective")
             data = _settings_data(response.json())
             assert data["task_statuses"] == pinned_values, (
                 f"Project with override should keep pinned values, "
@@ -616,14 +619,14 @@ class TestUpdateProjectSettings:
             assert key in data, f"Response after PUT missing key '{key}'"
 
         # Overridden key is the new value
-        assert data["story_statuses"] == override, (
-            f"Overridden key should be {override}, got {data['story_statuses']}"
-        )
+        assert (
+            data["story_statuses"] == override
+        ), f"Overridden key should be {override}, got {data['story_statuses']}"
         # Other dictionary keys are system defaults
         for key in ALL_DICT_KEYS - {"story_statuses"}:
-            assert sorted(data[key], key=_sort_key) == sorted(SEED_DEFAULTS[key], key=_sort_key), (
-                f"Non-overridden key '{key}' should still be system default"
-            )
+            assert sorted(data[key], key=_sort_key) == sorted(
+                SEED_DEFAULTS[key], key=_sort_key
+            ), f"Non-overridden key '{key}' should still be system default"
         assert data[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
             f"Non-overridden key '{DEFAULT_WEB_UI_ROLE_KEY}' should still be system "
             f"default, got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
@@ -645,12 +648,12 @@ class TestUpdateProjectSettings:
 
         # The seed default values must NOT appear alongside the override
         for seed_val in seed_task_statuses:
-            assert seed_val not in data["task_statuses"], (
-                f"Seed value '{seed_val}' should be replaced, not merged"
-            )
-        assert data["task_statuses"] == override, (
-            f"Expected exact override {override}, got {data['task_statuses']}"
-        )
+            assert (
+                seed_val not in data["task_statuses"]
+            ), f"Seed value '{seed_val}' should be replaced, not merged"
+        assert (
+            data["task_statuses"] == override
+        ), f"Expected exact override {override}, got {data['task_statuses']}"
 
     async def test_unknown_key_returns_422(
         self, client: AsyncClient, create_project
@@ -660,9 +663,9 @@ class TestUpdateProjectSettings:
             f"/v1/projects/{project_id}/settings",
             json={"unknown_key": ["a", "b"]},
         )
-        assert response.status_code == 422, (
-            f"Unknown key should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Unknown key should return 422, got {response.status_code}"
 
     async def test_empty_values_returns_400(
         self, client: AsyncClient, create_project
@@ -672,9 +675,9 @@ class TestUpdateProjectSettings:
             f"/v1/projects/{project_id}/settings",
             json={"task_statuses": []},
         )
-        assert response.status_code == 400, (
-            f"Empty values should return 400, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 400
+        ), f"Empty values should return 400, got {response.status_code}"
 
     async def test_empty_values_verbatim_error_message(
         self, client: AsyncClient, create_project
@@ -685,9 +688,9 @@ class TestUpdateProjectSettings:
             json={"task_types": []},
         )
         body = response.json()
-        assert body.get("error") == "Dictionary values cannot be empty.", (
-            f"Expected verbatim error message, got: {body.get('error')}"
-        )
+        assert (
+            body.get("error") == "Dictionary values cannot be empty."
+        ), f"Expected verbatim error message, got: {body.get('error')}"
 
     async def test_missing_project_returns_404(self, client: AsyncClient) -> None:
         import uuid
@@ -697,9 +700,9 @@ class TestUpdateProjectSettings:
             f"/v1/projects/{fake_id}/settings",
             json={"task_statuses": ["todo", "done"]},
         )
-        assert response.status_code == 404, (
-            f"Missing project should return 404, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 404
+        ), f"Missing project should return 404, got {response.status_code}"
 
     async def test_missing_project_error_code(self, client: AsyncClient) -> None:
         import uuid
@@ -710,9 +713,9 @@ class TestUpdateProjectSettings:
             json={"task_statuses": ["todo", "done"]},
         )
         body = response.json()
-        assert body.get("code") == "NOT_FOUND", (
-            f"Expected NOT_FOUND, got {body.get('code')}"
-        )
+        assert (
+            body.get("code") == "NOT_FOUND"
+        ), f"Expected NOT_FOUND, got {body.get('code')}"
 
     async def test_no_keys_body_returns_effective_settings(
         self, client: AsyncClient, create_project
@@ -723,9 +726,9 @@ class TestUpdateProjectSettings:
             f"/v1/projects/{project_id}/settings",
             json={},
         )
-        assert response.status_code == 200, (
-            f"Empty body should return 200, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Empty body should return 200, got {response.status_code}"
         data = _settings_data(response.json())
         for key in ALL_KEYS:
             assert key in data, f"Missing key '{key}' in empty-body PUT response"
@@ -767,14 +770,20 @@ class TestCrossProjectIsolation:
 
         await client.put(
             f"/v1/projects/{project_a}/settings",
-            json={"link_types": [{"value": "custom-link", "outbound": "custom-link", "inbound": "custom-link"}]},
+            json={
+                "link_types": [
+                    {
+                        "value": "custom-link",
+                        "outbound": "custom-link",
+                        "inbound": "custom-link",
+                    }
+                ]
+            },
         )
 
         response = await client.get(f"/v1/projects/{project_b}/settings")
         data = _settings_data(response.json())
-        assert data == {}, (
-            f"Project B should have no overrides, got: {data}"
-        )
+        assert data == {}, f"Project B should have no overrides, got: {data}"
 
 
 # ===========================================================================
@@ -829,12 +838,13 @@ class TestPartialOverrideClearingBehavior:
 
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         data = _settings_data(response.json())
-        assert data["task_statuses"] == ["second", "third"], (
-            f"Override should be fully replaced, got {data['task_statuses']}"
-        )
-        assert "first" not in data["task_statuses"], (
-            "Old override value should not persist after replace"
-        )
+        assert data["task_statuses"] == [
+            "second",
+            "third",
+        ], f"Override should be fully replaced, got {data['task_statuses']}"
+        assert (
+            "first" not in data["task_statuses"]
+        ), "Old override value should not persist after replace"
 
 
 # ===========================================================================
@@ -856,9 +866,9 @@ class TestDefaultWebUiRole:
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = _settings_data(response.json())
-        assert data[DEFAULT_WEB_UI_ROLE_KEY] == "architect", (
-            f"Expected 'architect', got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
-        )
+        assert (
+            data[DEFAULT_WEB_UI_ROLE_KEY] == "architect"
+        ), f"Expected 'architect', got {data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
 
         # Restore
         await client.put(
@@ -878,9 +888,9 @@ class TestDefaultWebUiRole:
             f"got {response.status_code} — {response.text}"
         )
         body = response.json()
-        assert "not-a-real-role" in body.get("error", ""), (
-            f"Expected the rejected value in the error message, got: {body.get('error')}"
-        )
+        assert "not-a-real-role" in body.get(
+            "error", ""
+        ), f"Expected the rejected value in the error message, got: {body.get('error')}"
 
     async def test_put_system_default_web_ui_role_empty_string_rejected(
         self, client: AsyncClient
@@ -889,9 +899,9 @@ class TestDefaultWebUiRole:
             "/v1/system/settings",
             json={"default_web_ui_role": ""},
         )
-        assert response.status_code == 422, (
-            f"Empty default_web_ui_role should return 422, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 422
+        ), f"Empty default_web_ui_role should return 422, got {response.status_code}"
 
     async def test_put_project_override_happy_path(
         self, client: AsyncClient, create_project
@@ -926,9 +936,9 @@ class TestDefaultWebUiRole:
             f"/v1/projects/{project_id}/settings",
             json={"participant_roles": ["architect", "backend-developer"]},
         )
-        assert narrow_resp.status_code == 200, (
-            f"Expected 200 narrowing participant_roles, got {narrow_resp.status_code}"
-        )
+        assert (
+            narrow_resp.status_code == 200
+        ), f"Expected 200 narrowing participant_roles, got {narrow_resp.status_code}"
 
         response = await client.put(
             f"/v1/projects/{project_id}/settings",
@@ -951,13 +961,11 @@ class TestDefaultWebUiRole:
         )
 
         effective_before = _settings_data(
-            (
-                await client.get(f"/v1/projects/{project_id}/settings/effective")
-            ).json()
+            (await client.get(f"/v1/projects/{project_id}/settings/effective")).json()
         )
-        assert effective_before[DEFAULT_WEB_UI_ROLE_KEY] == "architect", (
-            "Precondition: override should be in effect before clearing"
-        )
+        assert (
+            effective_before[DEFAULT_WEB_UI_ROLE_KEY] == "architect"
+        ), "Precondition: override should be in effect before clearing"
 
         result = await _mcp_call(
             "clear_project_setting",
@@ -969,9 +977,7 @@ class TestDefaultWebUiRole:
         )
 
         effective_after = _settings_data(
-            (
-                await client.get(f"/v1/projects/{project_id}/settings/effective")
-            ).json()
+            (await client.get(f"/v1/projects/{project_id}/settings/effective")).json()
         )
         assert effective_after[DEFAULT_WEB_UI_ROLE_KEY] == SEED_DEFAULT_WEB_UI_ROLE, (
             f"Effective settings should reflect the system default after clearing, "
@@ -982,17 +988,18 @@ class TestDefaultWebUiRole:
         self, client: AsyncClient
     ) -> None:
         result = await _mcp_call(
-            "set_system_settings", {"body": {"default_web_ui_role": "backend-developer"}}
+            "set_system_settings",
+            {"body": {"default_web_ui_role": "backend-developer"}},
         )
-        assert result.data[DEFAULT_WEB_UI_ROLE_KEY] == "backend-developer", (
-            f"Expected 'backend-developer', got {result.data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
-        )
+        assert (
+            result.data[DEFAULT_WEB_UI_ROLE_KEY] == "backend-developer"
+        ), f"Expected 'backend-developer', got {result.data[DEFAULT_WEB_UI_ROLE_KEY]!r}"
 
         rest_resp = await client.get("/v1/system/settings")
         rest_data = _settings_data(rest_resp.json())
-        assert rest_data[DEFAULT_WEB_UI_ROLE_KEY] == "backend-developer", (
-            "MCP-set value should be visible over REST too"
-        )
+        assert (
+            rest_data[DEFAULT_WEB_UI_ROLE_KEY] == "backend-developer"
+        ), "MCP-set value should be visible over REST too"
 
         # Restore
         await client.put(
@@ -1015,18 +1022,18 @@ class TestAttachmentTypesRetired:
     ) -> None:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
-        assert "attachment_types" not in data, (
-            f"attachment_types should be retired from system settings, got keys: {list(data)}"
-        )
+        assert (
+            "attachment_types" not in data
+        ), f"attachment_types should be retired from system settings, got keys: {list(data)}"
 
     async def test_system_settings_get_returns_exactly_six_keys(
         self, client: AsyncClient
     ) -> None:
         response = await client.get("/v1/system/settings")
         data = _settings_data(response.json())
-        assert set(data.keys()) == ALL_KEYS, (
-            f"Expected exactly the six keys {ALL_KEYS}, got {set(data.keys())}"
-        )
+        assert (
+            set(data.keys()) == ALL_KEYS
+        ), f"Expected exactly the six keys {ALL_KEYS}, got {set(data.keys())}"
 
     async def test_put_system_settings_with_attachment_types_returns_422(
         self, client: AsyncClient
@@ -1059,6 +1066,6 @@ class TestAttachmentTypesRetired:
         project_id = create_project("Effective No Attachment Types Project")
         response = await client.get(f"/v1/projects/{project_id}/settings/effective")
         data = _settings_data(response.json())
-        assert "attachment_types" not in data, (
-            f"attachment_types should be retired from effective settings, got keys: {list(data)}"
-        )
+        assert (
+            "attachment_types" not in data
+        ), f"attachment_types should be retired from effective settings, got keys: {list(data)}"

@@ -15,7 +15,9 @@ from app.attachments.schema import (
     MAX_UPLOAD_SIZE_BYTES,
     MIME_ALLOW_LIST_BY_KIND,
     STORED_FILE_KINDS,
-    Attachment as AttachmentSchema,
+)
+from app.attachments.schema import Attachment as AttachmentSchema
+from app.attachments.schema import (
     AttachmentCreateInput,
 )
 from app.core.errors import NotFoundError, UnprocessableError, ValidationError
@@ -238,9 +240,7 @@ class AttachmentService:
                 _CONTAINER_TYPE_INVALID_MSG.format(allowed=allowed)
             )
 
-    def _resolve_container(
-        self, container_type: str, container_id: str
-    ) -> uuid.UUID:
+    def _resolve_container(self, container_type: str, container_id: str) -> uuid.UUID:
         # Validates container existence (404) and returns its UUID.
         if container_type == CONTAINER_STORY:
             story = self._story_reader.get_by_id(container_id)
