@@ -145,6 +145,35 @@ CORS origin); all are documented in TASK-019's Implementation Report if they eve
 earlier ones were burned precisely because nobody checked before spawning.
 
 ## Recent changes
+- 2026-10-02: **STORY-012 (Quick Fix) — `Pending Approval`.** User reported `create_story` MCP tool
+  crashing with `TypeError: StoryService.create() got an unexpected keyword argument 'project_id'`
+  (full traceback pasted) and asked for a Quick Fix directly. Eligible (1 file + 1 test file, clear
+  defect, no architecture change) — spawned coder (backend) in Quick Fix mode. Root cause: leftover
+  `project_id` param on the MCP tool, calling `service.create(project_id=..., data=body)` against a
+  `StoryService.create(self, data: CreateStory)` that only takes `data` (the REST controller already
+  called it correctly). Fixed by removing the redundant param; added an MCP↔REST parity test; full
+  backend suite green (609 passed, 3 pre-existing xfailed). PR #16 opened
+  (`fix/create-story-mcp-project-id` → `development`), awaiting user review/merge/accept. Coder flagged
+  pre-existing, unrelated `black`/`isort` formatting drift in both touched files as a Convention Gap
+  for lead-developer (backend) — not fixed here, to avoid burying the fix under ~570 unrelated lines.
+  PR #16 merged (`52fea80`), user explicitly accepted without a QA phase (flagged this gap to the user
+  at the time — no QA Tasks were created for this Quick Fix, unlike STORY-011). Reconcile ran clean,
+  no doc changes anywhere (lead-developer/architect/business-analyst all "No deviations"), so no
+  Reconcile PR was needed. **STORY-012 → `Done`, archived.**
+  Two follow-up items surfaced during Reconcile, not yet turned into stories — user asked to wait and
+  read the findings before deciding:
+  1. **Real bug** (lead-developer, TASK-002): on SQLite, `created_at`/`updated_at` lose their UTC
+     offset between a create response and a later read — affects both REST and MCP, root cause is
+     `DateTime(timezone=True)` columns + SQLite's lack of offset storage, not verified on PostgreSQL.
+     Also corrects TASK-001's own (wrong) explanation that blamed the two transports.
+  2. **Formatting drift**, backend-wide, pre-existing: `black --check .` would reformat 47/131 files
+     (~5,700 diff lines), `isort` flags 10. Proposed: one standalone `black + isort` commit for coder
+     (backend), its SHA recorded in a new `.git-blame-ignore-revs`; whether to add a pre-commit hook is
+     devops's call.
+  3. (architect, TASK-003, lower priority) `CLAUDE.md` > Key Docs is stale from STORY-011's own
+     Reconcile — still says contract v1.11 (actual v1.12) and "next id ADR-032" (ADR-032 already
+     exists, next is ADR-033). `CLAUDE.md` > Infrastructure (devops's chapter) still says `/mcp` not
+     `/mcp/v1` too.
 - 2026-09-30: **STORY-011 (Fix broken MCP HTTP mount) — `Pending Approval`.** User reported their
   external orchestrator app couldn't reach this project's MCP server on prod (`localhost:8000`);
   routed to a face-to-face session (SESSION-011, coder backend) rather than diagnosed inline. Coder
