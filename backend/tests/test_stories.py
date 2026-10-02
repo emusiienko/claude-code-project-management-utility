@@ -24,6 +24,7 @@ Notes:
   creates these defaults and they are confirmed by the settings tests.
 - The seed migration inserts a "Test Project" so the list is never completely empty.
 """
+import datetime
 import uuid
 
 import pytest
@@ -402,12 +403,20 @@ class TestCreateStoryMcpParity:
 
             rest_resp = await client.get(f"{STORIES_URL}/{mcp_data['id']}")
             rest_data = rest_resp.json()["data"]
-            # created_at/updated_at excluded: the two transports format an
-            # otherwise-identical timestamp differently (Z suffix vs. none) —
-            # a serialization cosmetic, not a parity concern.
+            # created_at/updated_at are included: STORY-013/TASK-001 fixed a SQLite
+            # offset-loss bug where a later read returned these without their UTC
+            # offset even though the create response had it — a create-vs-read gap,
+            # not a REST-vs-MCP one (both transports were always affected equally).
             compared_fields = (
-                "id", "project_id", "title", "content", "status",
-                "labels", "milestone_id",
+                "id",
+                "project_id",
+                "title",
+                "content",
+                "status",
+                "labels",
+                "milestone_id",
+                "created_at",
+                "updated_at",
             )
             assert {k: mcp_data[k] for k in compared_fields} == (
                 {k: rest_data[k] for k in compared_fields}
@@ -658,6 +667,44 @@ class TestGetStory:
             )
             assert fetched["content"] == "some content", (
                 f"content mismatch: got '{fetched['content']}'"
+            )
+            await _delete_story(client, created["id"])
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_read_keeps_utc_offset_on_created_and_updated_at(
+        self, client: AsyncClient
+    ) -> None:
+        # Regression test for STORY-013/TASK-001: on SQLite, created_at/updated_at
+        # used to come back naive (offset lost) on a read even though the create
+        # response had carried a UTC offset.
+        proj = await _create_project(client, "Get Story UTC Offset Project")
+        try:
+            created = await _create_story(client, proj["id"], "UTC Offset Story")
+            created_dt = datetime.datetime.fromisoformat(
+                created["created_at"].replace("Z", "+00:00")
+            )
+            assert (
+                created_dt.tzinfo is not None
+            ), f"create response should carry a UTC offset, got {created['created_at']!r}"
+
+            resp = await client.get(f"{STORIES_URL}/{created['id']}")
+            fetched = resp.json()["data"]
+            fetched_created_dt = datetime.datetime.fromisoformat(
+                fetched["created_at"].replace("Z", "+00:00")
+            )
+            fetched_updated_dt = datetime.datetime.fromisoformat(
+                fetched["updated_at"].replace("Z", "+00:00")
+            )
+            assert (
+                fetched_created_dt.tzinfo is not None
+            ), f"read response should keep the UTC offset, got {fetched['created_at']!r}"
+            assert (
+                fetched_updated_dt.tzinfo is not None
+            ), f"read response should keep the UTC offset, got {fetched['updated_at']!r}"
+            assert fetched_created_dt == created_dt, (
+                f"read created_at should equal the create response's value, "
+                f"got {fetched_created_dt!r} vs {created_dt!r}"
             )
             await _delete_story(client, created["id"])
         finally:

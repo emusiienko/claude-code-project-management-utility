@@ -2,11 +2,11 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, JSON, String
+from sqlalchemy import ForeignKey, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
-from app.core.database.types import UUIDType
+from app.core.database.types import UTCDateTime, UUIDType
 
 
 class SystemSettings(Base):
@@ -19,7 +19,7 @@ class SystemSettings(Base):
     # default_web_ui_role setting stores a bare string.
     values: Mapped[Any] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
 
@@ -39,6 +39,6 @@ class ProjectSettings(Base):
     # default_web_ui_role setting stores a bare string.
     values: Mapped[Any] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )

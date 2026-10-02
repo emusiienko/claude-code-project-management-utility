@@ -1,11 +1,11 @@
 import datetime
 import uuid
 
-from sqlalchemy import DateTime, Index, JSON, String, Text
+from sqlalchemy import Index, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
-from app.core.database.types import UUIDType
+from app.core.database.types import UTCDateTime, UUIDType
 
 
 class Comment(Base):
@@ -28,11 +28,11 @@ class Comment(Base):
     # benignly and readers degrade gracefully.
     ancestors: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime(),
         nullable=False,
     )
 
