@@ -27,7 +27,10 @@ Notes:
 import uuid
 
 import pytest
+from fastmcp import Client
 from httpx import AsyncClient
+
+from app.mcp.server import mcp_server_v1
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -89,6 +92,11 @@ async def _create_story(
 async def _delete_story(client: AsyncClient, story_id: str) -> None:
     """DELETE /v1/stories/:id — cleanup helper."""
     await client.delete(f"{STORIES_URL}/{story_id}")
+
+
+async def _mcp_call(tool_name: str, args: dict):
+    async with Client(mcp_server_v1) as mcp_client:
+        return await mcp_client.call_tool(tool_name, args)
 
 
 # ===========================================================================
@@ -368,6 +376,68 @@ class TestCreateStory:
             )
         finally:
             await _delete_project(client, proj["id"])
+
+
+class TestCreateStoryMcpParity:
+    async def test_mcp_create_story_matches_rest(self, client: AsyncClient) -> None:
+        proj = await _create_project(client, "MCP Create Story Parity Project")
+        try:
+            result = await _mcp_call(
+                "create_story",
+                {
+                    "body": {
+                        "project_id": proj["id"],
+                        "title": "MCP Created Story",
+                    },
+                },
+            )
+            mcp_data = result.data["data"]
+            assert mcp_data["title"] == "MCP Created Story", (
+                f"MCP create_story should persist the given title, got {mcp_data!r}"
+            )
+            assert mcp_data["project_id"] == proj["id"], (
+                f"MCP create_story should scope the story to the given project, "
+                f"got {mcp_data!r}"
+            )
+
+            rest_resp = await client.get(f"{STORIES_URL}/{mcp_data['id']}")
+            rest_data = rest_resp.json()["data"]
+            # created_at/updated_at excluded: the two transports format an
+            # otherwise-identical timestamp differently (Z suffix vs. none) —
+            # a serialization cosmetic, not a parity concern.
+            compared_fields = (
+                "id", "project_id", "title", "content", "status",
+                "labels", "milestone_id",
+            )
+            assert {k: mcp_data[k] for k in compared_fields} == (
+                {k: rest_data[k] for k in compared_fields}
+            ), (
+                f"MCP-created story should be readable and identical via REST, "
+                f"got MCP={mcp_data!r} REST={rest_data!r}"
+            )
+
+            await _delete_story(client, mcp_data["id"])
+        finally:
+            await _delete_project(client, proj["id"])
+
+    async def test_mcp_create_story_unknown_project_raises(
+        self, client: AsyncClient
+    ) -> None:
+        fake_project_id = str(uuid.uuid4())
+        with pytest.raises(Exception) as exc_info:
+            await _mcp_call(
+                "create_story",
+                {
+                    "body": {
+                        "project_id": fake_project_id,
+                        "title": "Orphan Story",
+                    },
+                },
+            )
+        assert "not found" in str(exc_info.value).lower(), (
+            f"MCP not-found error should mirror REST's 404 semantics, "
+            f"got: {exc_info.value}"
+        )
 
 
 # ===========================================================================

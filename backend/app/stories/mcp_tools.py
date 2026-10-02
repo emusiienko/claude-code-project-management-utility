@@ -22,12 +22,11 @@ logger = logging.getLogger(__name__)
 
 @mcp_server_v1.tool()
 async def create_story(
-    project_id: str,
     body: CreateStory,
     service: StoryService = Depends(provide_story_service),
 ) -> dict:
     try:
-        story = service.create(project_id=project_id, data=body)
+        story = service.create(data=body)
         return {"data": Story.model_validate(story).model_dump()}
     except DomainError as exc:
         raise exc.to_tool_error() from exc
