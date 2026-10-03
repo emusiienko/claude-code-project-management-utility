@@ -361,6 +361,12 @@ JSON-array (`labels`) filters are not B-tree indexable — acceptable at the ≤
   controllers see one neutral `label_key` / `label_value` interface. A `label_key` no row carries
   yields an empty page (never an error); `label_key` and `label_value` narrow independently. See
   ADR-012.
+- **Timestamps (`created_at`, `updated_at`, `session.archived_at`)** — declared timezone-aware on
+  both dialects, but SQLite does not persist the offset. A portable timestamp type in the ORM layer
+  normalizes every value to UTC on write and re-attaches UTC on read when the dialect returns it
+  without an offset, so every timestamp carries its UTC offset on both dialects, on create and on
+  every later read. The column DDL is unchanged; no migration involved. No visible effect on
+  PostgreSQL, which already preserved the offset.
 - **Case-insensitive uniqueness** (project / milestone name) — implemented dialect-aware via `LOWER()`
   functional uniqueness. The functional `LOWER(name)` unique index is created via
   `op.create_index(..., sa.text("LOWER(name)"))` in the migration (not `__table_args__`), for
