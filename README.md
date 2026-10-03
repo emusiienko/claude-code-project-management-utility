@@ -60,6 +60,8 @@ networks:
 
 Start this prod stack (`./deploy.sh up`) before that devcontainer. The dev stack never creates this network. Requires Docker Compose 2.24.4 or later.
 
+Start a dev checkout only with `./deploy.sh`, never with a bare `docker compose up`. Without `deploy.sh`, the dev backend joins this network under the same `aiacu-backend` name, and other projects' calls get split between the prod and dev backends.
+
 ---
 
 ## Local backend development

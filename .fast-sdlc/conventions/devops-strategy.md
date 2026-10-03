@@ -2,7 +2,8 @@
 
 > **Status:** Adopted — as-built (branch model updated 2026-08-27, STORY-001/TASK-005)
 > **Date:** 2026-06-29 · **Last updated:** 2026-10-03 — new § Containerisation & Stack Topology >
-> External-access network (prod stack only) (STORY-014/TASK-001)
+> External-access network (prod stack only) (STORY-014/TASK-001); dev checkouts start only via
+> `deploy.sh` (STORY-014/TASK-002)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -160,6 +161,12 @@ project's prod stack. It is distinct from, and unrelated to, the dev-only `aiacu
 - **Exposure.** Containers on this network reach `backend:8000` directly, bypassing the
   `127.0.0.1` host-port binding. Reach stays confined to containers on this machine's Docker
   daemon that explicitly join the network, and nothing is published off-host.
+- **Start a dev checkout only via `deploy.sh`.** Only `deploy.sh` layers in `docker-compose.dev.yml`
+  (when `STACK_NAME=dev`). A bare `docker compose up` in a dev checkout loads `docker-compose.yml`
+  alone, so the dev backend joins `aiacu-external-access` under the same `aiacu-backend` alias as
+  prod. Docker DNS answers an alias held by two containers with both addresses, so other projects'
+  calls would be split between the prod and dev backends, against different data, without any error.
+  A bare `docker compose up` is acceptable in the prod checkout only.
 
 ---
 
@@ -176,7 +183,8 @@ project's prod stack. It is distinct from, and unrelated to, the dev-only `aiacu
   volume in **WAL mode** (required to meet the ≥5 concurrent-request target — ADR-002), with no `db`
   container and no profile.
 - **Migrations:** `alembic upgrade head` runs automatically — both inside the backend container's
-  entrypoint (so a bare `docker compose up` is correct) and explicitly in `deploy.sh` *after* the
+  entrypoint (so a bare `docker compose up` is correct in the prod checkout; a dev checkout must use
+  `deploy.sh` — see § External-access network) and explicitly in `deploy.sh` *after* the
   database is reachable and *before* the `backend` service starts serving. The same Alembic scripts
   run on both dialects (dialect-aware where unavoidable — ADR-002). The `system_settings` seed ships
   as an Alembic data migration, so a fresh install needs no manual configuration.

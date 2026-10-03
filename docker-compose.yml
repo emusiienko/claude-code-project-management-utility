@@ -87,7 +87,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # web —nginx serving the static React (Vite) build. Single web entry.
+  # web — nginx serving the static React (Vite) build. Single web entry.
   # The browser calls the backend directly at VITE_API_BASE_URL.
   # ---------------------------------------------------------------------------
   web:
