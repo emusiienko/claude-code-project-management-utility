@@ -44,6 +44,22 @@ Then run `./deploy.sh up` in each. See `.fast-sdlc/conventions/devops-strategy.m
 
 Ports above are the defaults; a second concurrent stack uses its own `BACKEND_PORT` / `WEB_PORT` / `POSTGRES_PORT` (see "Running two stacks concurrently").
 
+### Access from other projects' devcontainers (prod stack)
+
+The prod stack creates the Docker network `aiacu-external-access` and attaches only the backend to it, as `aiacu-backend`. In another project's Compose file, join it and call `http://aiacu-backend:8000` (REST under `/v1`, MCP at `/mcp/v1`):
+
+```yaml
+services:
+  <your-service>:
+    networks: [default, aiacu]
+networks:
+  aiacu:
+    external: true
+    name: aiacu-external-access
+```
+
+Start this prod stack (`./deploy.sh up`) before that devcontainer. The dev stack never creates this network. Requires Docker Compose 2.24.4 or later.
+
 ---
 
 ## Local backend development

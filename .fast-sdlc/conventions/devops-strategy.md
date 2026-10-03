@@ -1,9 +1,8 @@
 1# DevOps Strategy — AI Agent Coordination Utility
 
 > **Status:** Adopted — as-built (branch model updated 2026-08-27, STORY-001/TASK-005)
-> **Date:** 2026-06-29 · **Last updated:** 2026-09-09 — new § Infrastructure Decisions —
-> Escalation vs. devops-local (STORY-005/TASK-004); § Ownership and stale doc paths refreshed to
-> current roles/locations (STORY-005/TASK-007)
+> **Date:** 2026-06-29 · **Last updated:** 2026-10-03 — new § Containerisation & Stack Topology >
+> External-access network (prod stack only) (STORY-014/TASK-001)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -126,6 +125,41 @@ REST and MCP run in the **same container, same image, same process** — MCP is 
 mounted on a path of the REST app, sharing the service layer in-process (ADR-003). There is no
 separate `mcp` service or port. This is acceptable — indeed preferable — for a single-machine tool:
 one build, one process, one port to reason about.
+
+### External-access network (prod stack only)
+
+`docker-compose.yml` declares a stack-owned (not `external`) network with the fixed name
+**`aiacu-external-access`**, for devcontainers of *other* projects on the same machine to reach this
+project's prod stack. It is distinct from, and unrelated to, the dev-only `aiacu-agent-access-dev`
+(see § Running Two Stacks Concurrently).
+
+- **Members:** `backend` only, aliased **`aiacu-backend`** on that network. `web` and `db` are not
+  attached. The alias is project-unique so it cannot clash with another project's own `backend`
+  service on the shared network.
+- **Consumer side** — another project's Compose file:
+  ```yaml
+  services:
+    <its-service>:
+      networks: [default, aiacu]
+  networks:
+    aiacu:
+      external: true
+      name: aiacu-external-access
+  ```
+  and calls `http://aiacu-backend:8000` (REST under `/v1`, MCP at `/mcp/v1`). No host port is involved.
+- **Prod only.** `docker-compose.dev.yml` replaces `backend`'s network list with `!override`; Compose
+  then prunes the unused network, so the dev stack never creates or claims the name. `!override`
+  requires Compose ≥ 2.24.4.
+- **Lifecycle.** Created by the prod stack's `up`. The name is not project-scoped, so it stays stable
+  across `down`/`up` and consumers never change their config. `down` leaves the network in place,
+  with a "Resource is still in use" warning, while a consumer container is still attached. The prod
+  stack must be up before a consumer devcontainer starts, or that devcontainer fails with "network
+  not found". A *stopped* consumer does not hold the network, so `down` can remove it; after the
+  prod stack recreates it, recreate the consumer (its `docker compose up` / devcontainer rebuild)
+  rather than just restarting the old container, which still references the removed network.
+- **Exposure.** Containers on this network reach `backend:8000` directly, bypassing the
+  `127.0.0.1` host-port binding. Reach stays confined to containers on this machine's Docker
+  daemon that explicitly join the network, and nothing is published off-host.
 
 ---
 

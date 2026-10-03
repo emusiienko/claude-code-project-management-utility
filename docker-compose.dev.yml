@@ -5,9 +5,14 @@
 # Adds the narrow bridge the devcontainer's `dev` service joins (as `external: true`,
 # see .devcontainer/docker-compose.yml) to reach `backend`/`web` over HTTP only — `db`
 # is deliberately left off this network, so it stays unreachable from the devcontainer.
+#
+# Also strips `backend` off the prod-only `external-access` network that
+# docker-compose.yml declares (STORY-014): `!override` REPLACES the base list instead
+# of merging into it, and Compose then prunes the now-unused network, so the dev stack
+# never creates or claims `aiacu-external-access`. Requires Compose >= 2.24.4.
 services:
   backend:
-    networks:
+    networks: !override
       - default
       - agent-access
 

@@ -73,10 +73,21 @@ services:
         # part of the active profile (i.e. the SQLite opt-in). When the
         # postgres profile is active (the default), the healthy condition is enforced.
         required: false
+    networks:
+      default: {}
+      # Prod-stack bridge for OTHER projects' devcontainers (STORY-014). They join
+      # it as `external: true`, name `aiacu-external-access`, and reach this
+      # service at http://aiacu-backend:8000 — a project-unique alias, so it cannot
+      # collide with another project's own `backend` service on the same network.
+      # The dev stack strips this attachment (docker-compose.dev.yml), so only the
+      # prod stack ever creates or joins the network.
+      external-access:
+        aliases:
+          - aiacu-backend
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # web — nginx serving the static React (Vite) build. Single web entry.
+  # web —nginx serving the static React (Vite) build. Single web entry.
   # The browser calls the backend directly at VITE_API_BASE_URL.
   # ---------------------------------------------------------------------------
   web:
@@ -146,3 +157,12 @@ volumes:
   pg_data:
   # Attachment files + version snapshots.
   attachments:
+
+networks:
+  # Owned (created/removed) by this stack — NOT `external` here. Fixed `name:`, not
+  # project-scoped, so other projects can reference it by a stable name across
+  # down/up. `down` leaves it in place (with a "Resource is still in use" warning)
+  # while another project's container is still attached. Only `backend` joins it —
+  # `web` and `db` stay unreachable from other projects.
+  external-access:
+    name: aiacu-external-access

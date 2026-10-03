@@ -126,6 +126,13 @@ separate service in `docker-compose.dev.yml`, same source/Dockerfile as `web`, b
 devcontainer. `db` is deliberately off `agent-access`. The dev stack creates this network, so
 `./deploy.sh up` must run before the devcontainer starts or rebuilds.
 
+**Other projects reach the prod stack over `aiacu-external-access`.** `docker-compose.yml` defines this
+fixed-name network and attaches only `backend` to it, under the alias `aiacu-backend`. Another
+project's devcontainer joins it as `external: true` by that name and calls `http://aiacu-backend:8000`
+(REST `/v1`, MCP `/mcp/v1`). `web` and `db` are not on it. The prod stack owns it — it must be up
+before such a devcontainer starts. `docker-compose.dev.yml` removes `backend` from it (`!override`,
+Compose ≥ 2.24.4), so the dev stack never creates it. Unrelated to `aiacu-agent-access-dev`.
+
 **Run** — single entry point, **always user-run, never agent-run**:
 
 | Command | Description |
@@ -150,6 +157,9 @@ secrets; the only credential is the local Postgres password, used between contai
 
 **Volumes** (survive `down`; wiped only by an explicit `docker compose down -v`, never scripted):
 `pg_data`, `sqlite_data`, `attachments`.
+
+**Networks**: per-stack `default`; `aiacu-agent-access-dev` (dev stack only, this project's own
+devcontainer); `aiacu-external-access` (prod stack only, other projects' devcontainers).
 
 **Infrastructure files**: `docker-compose.yml`, `docker-compose.dev.yml`, `deploy.sh`, `backend/Dockerfile` +
 `backend/docker-entrypoint.sh`, `frontend/Dockerfile` + `frontend/nginx.conf`, `.env.example`,
