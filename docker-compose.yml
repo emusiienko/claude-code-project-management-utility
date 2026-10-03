@@ -47,7 +47,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://app:app@db:5432/app}
       ATTACHMENTS_DIR: ${ATTACHMENTS_DIR:-/data/attachments}
       # Space-separated. Both prod page origins: `web` (host browser) and
-      # `web-external` (browsers in other projects' devcontainers — STORY-014).
+      # `web-docker` (browsers in other projects' devcontainers — STORY-014).
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000 http://aiacu-web:3000}
     ports:
       # REST + MCP share this host port. localhost-only. Host side is BACKEND_PORT
@@ -120,7 +120,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # web-external — prod-stack Web UI for browsers in OTHER projects' devcontainers
+  # web-docker — prod-stack Web UI for browsers in OTHER projects' devcontainers
   # (e.g. Playwright), reached over `aiacu-external-access` at http://aiacu-web:3000
   # (STORY-014). Same source and Dockerfile as `web`; the only difference is the
   # baked VITE_API_BASE_URL — the backend's network alias, which resolves inside
@@ -129,13 +129,13 @@ services:
   # no other service. The dev stack never builds or starts it (docker-compose.dev.yml
   # assigns it a profile deploy.sh never activates).
   # ---------------------------------------------------------------------------
-  web-external:
+  web-docker:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: http://aiacu-backend:8000
-    image: aiacu-web-external:${STACK_NAME:-prod}
+    image: aiacu-web-docker:${STACK_NAME:-prod}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
       interval: 10s
@@ -196,6 +196,6 @@ networks:
   # project-scoped, so other projects can reference it by a stable name across
   # down/up. `down` leaves it in place (with a "Resource is still in use" warning)
   # while another project's container is still attached. Only `backend` and
-  # `web-external` join it — `web` and `db` stay unreachable from other projects.
+  # `web-docker` join it — `web` and `db` stay unreachable from other projects.
   external-access:
     name: aiacu-external-access

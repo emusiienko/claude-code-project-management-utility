@@ -46,7 +46,7 @@ Ports above are the defaults; a second concurrent stack uses its own `BACKEND_PO
 
 ### Access from other projects' devcontainers (prod stack)
 
-The prod stack creates the Docker network `aiacu-external-access` and attaches two services to it: the backend, as `aiacu-backend`, and a second Web UI instance (`web-external`), as `aiacu-web`. In another project's Compose file, join the network, then call `http://aiacu-backend:8000` (REST under `/v1`, MCP at `/mcp/v1`) and open the Web UI in a browser such as Playwright at `http://aiacu-web:3000`:
+The prod stack creates the Docker network `aiacu-external-access` and attaches two services to it: the backend, as `aiacu-backend`, and a second Web UI instance (`web-docker`), as `aiacu-web`. In another project's Compose file, join the network, then call `http://aiacu-backend:8000` (REST under `/v1`, MCP at `/mcp/v1`) and open the Web UI in a browser such as Playwright at `http://aiacu-web:3000`:
 
 ```yaml
 services:
@@ -58,7 +58,7 @@ networks:
     name: aiacu-external-access
 ```
 
-Start this prod stack (`./deploy.sh up`) before that devcontainer. The dev stack never creates this network or the `web-external` instance. Requires Docker Compose 2.24.4 or later.
+Start this prod stack (`./deploy.sh up`) before that devcontainer. The dev stack never creates this network or the `web-docker` instance. Requires Docker Compose 2.24.4 or later.
 
 The backend accepts browser calls from both `http://localhost:3000` and `http://aiacu-web:3000`. An existing prod `.env` created before this change must list both in `CORS_ALLOWED_ORIGINS`, space-separated, as `.env.example` does.
 

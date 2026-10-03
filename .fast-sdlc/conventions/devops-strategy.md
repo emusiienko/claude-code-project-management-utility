@@ -4,7 +4,8 @@
 > **Date:** 2026-06-29 · **Last updated:** 2026-10-03 — new § Containerisation & Stack Topology >
 > External-access network (prod stack only) (STORY-014/TASK-001); dev checkouts start only via
 > `deploy.sh` (STORY-014/TASK-002); that section compacted (STORY-014/TASK-003); second web
-> instance `web-external` + its backend origin (STORY-014/TASK-005)
+> instance `web-docker` + its backend origin (STORY-014/TASK-005; renamed from `web-external`
+> in TASK-006)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -134,9 +135,9 @@ one build, one process, one port to reason about.
 `external`), so devcontainers of *other* projects on this machine can reach the prod backend and
 Web UI. Unrelated to the dev-only `aiacu-agent-access-dev`.
 
-- **Members** (project-unique aliases): `backend` as **`aiacu-backend`**, and **`web-external`** as
+- **Members** (project-unique aliases): `backend` as **`aiacu-backend`**, and **`web-docker`** as
   **`aiacu-web`**. `web` and `db` stay off.
-- **`web-external`** is a second prod Web UI instance — same source and Dockerfile as `web`, bundle
+- **`web-docker`** is a second prod Web UI instance — same source and Dockerfile as `web`, bundle
   built with `VITE_API_BASE_URL=http://aiacu-backend:8000`, on this network only, no host port. It
   mirrors the dev stack's `web-agent`. `web` stays the host-facing instance (`127.0.0.1:3000`).
 - **CORS:** the backend allows both page origins, `http://localhost:3000` and `http://aiacu-web:3000`
@@ -145,7 +146,7 @@ Web UI. Unrelated to the dev-only `aiacu-agent-access-dev`.
   `http://aiacu-backend:8000` (REST `/v1`, MCP `/mcp/v1`); a browser (Playwright) opens
   `http://aiacu-web:3000`. Snippet in `README.md`.
 - **Prod only:** `docker-compose.dev.yml` replaces `backend`'s networks via `!override`
-  (Compose ≥ 2.24.4) and puts `web-external` under the `prod-only` profile, which nothing
+  (Compose ≥ 2.24.4) and puts `web-docker` under the `prod-only` profile, which nothing
   activates, so the dev stack never builds or starts it and never creates the network.
 - **Lifecycle:** the name is stable across `down`/`up`. Prod must be up before a consumer starts
   ("network not found" otherwise). `down` keeps the network while a running consumer is attached;
@@ -288,7 +289,7 @@ configurable, are:
   `BACKEND_PORT` / `WEB_PORT` / `POSTGRES_PORT` (prod `8000` / `3000` / `5432`; dev `8100` / `3100` /
   `5433`). Only the host side is variable; container-internal ports stay fixed, so nothing inside the
   stack changes.
-- **Built image tags** — `aiacu-backend` / `aiacu-web` (prod also builds `aiacu-web-external`). The **web** image bakes `VITE_API_BASE_URL`
+- **Built image tags** — `aiacu-backend` / `aiacu-web` (prod also builds `aiacu-web-docker`). The **web** image bakes `VITE_API_BASE_URL`
   at build time, so a shared tag would let the two stacks overwrite each other's web image. Now
   namespaced by `STACK_NAME` (prod `prod`, dev `dev`), so each stack owns its images.
 

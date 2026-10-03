@@ -127,15 +127,15 @@ devcontainer. `db` is deliberately off `agent-access`. The dev stack creates thi
 `./deploy.sh up` must run before the devcontainer starts or rebuilds.
 
 **Other projects reach the prod stack over `aiacu-external-access`.** `docker-compose.yml` defines this
-fixed-name network and attaches `backend` (alias `aiacu-backend`) and `web-external` (alias
+fixed-name network and attaches `backend` (alias `aiacu-backend`) and `web-docker` (alias
 `aiacu-web`) to it. Another project's devcontainer joins it as `external: true` by that name, calls
 `http://aiacu-backend:8000` (REST `/v1`, MCP `/mcp/v1`), and opens `http://aiacu-web:3000` in a
-browser (Playwright). `web-external` is a second prod web instance — same source/Dockerfile as `web`,
+browser (Playwright). `web-docker` is a second prod web instance — same source/Dockerfile as `web`,
 built with `VITE_API_BASE_URL=http://aiacu-backend:8000`, no host port; the prod-stack counterpart of
 `web-agent`. The backend's `CORS_ALLOWED_ORIGINS` lists both `http://localhost:3000` and
 `http://aiacu-web:3000`. `web` and `db` are not on the network. The prod stack owns it — it must be up
 before such a devcontainer starts. `docker-compose.dev.yml` removes `backend` from it (`!override`,
-Compose ≥ 2.24.4) and puts `web-external` under a never-activated `prod-only` profile, so the dev
+Compose ≥ 2.24.4) and puts `web-docker` under a never-activated `prod-only` profile, so the dev
 stack never creates the network or the instance. Unrelated to `aiacu-agent-access-dev`.
 
 **Run** — single entry point, **always user-run, never agent-run**:
