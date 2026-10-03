@@ -27,6 +27,8 @@
   - Types: feat, fix, chore, refactor, docs, test
 - No direct commits to main/develop — PRs only
 - No `--no-verify`, no force-push to main
+- A repo-wide mechanical change (formatter or import-sort pass) is its own commit with nothing else
+  in it; its full SHA goes into the root `.git-blame-ignore-revs`
 
 ---
 
@@ -582,6 +584,9 @@ Commands: see § Local Development Environment > Running Tests.
   is isolated in `core/database/` or behind abstractions in `model.py`
 - Services and routers never contain dialect-specific SQL or conditions
 - SQLite runs in WAL mode — enable via `PRAGMA journal_mode=WAL` on connection in `core/database/`
+- Timestamp columns use `UTCDateTime` from `core/database/types.py`, never a bare
+  `DateTime(timezone=True)` — SQLite drops the UTC offset on read, `UTCDateTime` restores it.
+  Writers pass timezone-aware datetimes only; a naive value is rejected at bind time
 - Case-insensitive uniqueness for project/milestone names: implemented via a functional unique index
   (`LOWER(name)`) — dialect-aware DDL in the migration, transparent to the service layer
 - **SQL dialect differences**: All logic that differs between SQLite and PostgreSQL (JSON operators,
