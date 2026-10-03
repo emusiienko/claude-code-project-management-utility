@@ -51,7 +51,7 @@ is stored outside git but git is not a runtime dependency.
 - **DB-agnostic persistence**: SQLAlchemy 2.0 + Alembic run identically on PostgreSQL (deployment
   default) and SQLite (opt-in) — ADR-002, ADR-031.
 - **React SPA** for the operator surface, justified by rich interactivity — ADR-006.
-- **No authentication, by design**: the only access boundary is Docker localhost port mapping.
+- **No authentication, by design**: the access boundary is this machine: the localhost port binding, plus Docker networks the stack deliberately exposes to other containers on the same Docker daemon — ADR-033.
 
 Full decision list in [`adr-log/`](adr-log/) (referenced by ID throughout — never restated here).
 
@@ -96,8 +96,9 @@ surfaces traverse the identical service path.
 ## Deployment View
 
 See [`deployment/deployment-infrastructure-view.md`](deployment/deployment-infrastructure-view.md) —
-single environment (developer's local machine), Docker Compose, localhost-only, with the prod/dev
-concurrent-stack model (ADR-030) and PostgreSQL/SQLite selection (ADR-031). Concrete IaC is owned by
+single environment (developer's local machine), Docker Compose, published ports localhost-only, with
+the prod/dev concurrent-stack model (ADR-030), PostgreSQL/SQLite selection (ADR-031), and the prod
+stack's fixed-name network for other local projects (ADR-033). Concrete IaC is owned by
 devops and is not described here.
 
 ## Quality Requirements
@@ -117,11 +118,11 @@ Summary only — full detail, Source, and Notes live in [`nfr.md`](nfr.md).
 | Supported platform | Desktop-only, min viewport 1,024 px |
 | Rate limit | 1,000 req/min, all endpoints |
 | Attachment upload size | ≤ 10 MB |
-| Security posture | No auth by design — localhost-only access boundary |
+| Security posture | No auth by design — local-machine access boundary (localhost ports + deliberately exposed Docker networks) |
 
 ## Architecture Decisions
 
-Full records in [`adr-log/`](adr-log/). Next id: **ADR-033**.
+Full records in [`adr-log/`](adr-log/). Next id: **ADR-034**.
 
 > **Reading note.** Some ADR bodies cite document paths that no longer exist (in ADR-001, ADR-007,
 > ADR-011, ADR-015, ADR-026). Those references are **deliberately not corrected**: an ADR body is
@@ -164,6 +165,7 @@ Full records in [`adr-log/`](adr-log/). Next id: **ADR-033**.
 | [ADR-030](adr-log/ADR-030-concurrent-local-stacks-env-ports-image-tags.md) | Concurrent local stacks via env-configurable ports + image tags | Accepted |
 | [ADR-031](adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md) | PostgreSQL as the deployment default + two-file env templates | Accepted |
 | [ADR-032](adr-log/ADR-032-mcp-path-versioned-mount.md) | MCP surface path-versioned under `/mcp/<version>` (served at `/mcp/v1`) | Accepted |
+| [ADR-033](adr-log/ADR-033-prod-external-access-network.md) | Prod stack exposed to other local projects over a fixed-name Docker network | Accepted |
 
 ## Risks & Technical Debt
 
@@ -186,3 +188,8 @@ documentation migration):
   that does not re-send the body on redirect silently drops a `POST` payload. A one-line router fix
   (declare `""` like every sibling domain) would remove the inconsistency; until then the contract
   documents it explicitly.
+- **Dev/prod isolation on the shared network rests on convention.** A dev checkout started without the
+  deploy entry point would join the prod-only external-access network under the same aliases, and
+  other projects' calls would split between the two backends (see the
+  [Deployment/Infrastructure View](deployment/deployment-infrastructure-view.md) § Networks). Making
+  the dev stack's own configuration enforce its override would remove the reliance.
