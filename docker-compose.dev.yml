@@ -7,9 +7,15 @@
 # is deliberately left off this network, so it stays unreachable from the devcontainer.
 services:
   backend:
-    networks:
+    # !override (Compose >= 2.24.4) replaces the base list; a plain list would merge
+    # and keep the dev stack on the prod-only external-access network.
+    networks: !override
       - default
       - agent-access
+
+  web-docker:
+    profiles:
+      - prod-only
 
   web:
     networks:

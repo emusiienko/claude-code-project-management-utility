@@ -126,6 +126,18 @@ separate service in `docker-compose.dev.yml`, same source/Dockerfile as `web`, b
 devcontainer. `db` is deliberately off `agent-access`. The dev stack creates this network, so
 `./deploy.sh up` must run before the devcontainer starts or rebuilds.
 
+**Other projects reach the prod stack over `aiacu-external-access`.** `docker-compose.yml` defines this
+fixed-name network and attaches `backend` (alias `aiacu-backend`) and `web-docker` (alias
+`aiacu-web`) to it. Another project's devcontainer joins it as `external: true` by that name, calls
+`http://aiacu-backend:8000` (REST `/v1`, MCP `/mcp/v1`), and opens `http://aiacu-web:3000` in a
+browser (Playwright). `web-docker` is a second prod web instance — same source/Dockerfile as `web`,
+built with `VITE_API_BASE_URL=http://aiacu-backend:8000`, no host port; the prod-stack counterpart of
+`web-agent`. The backend's `CORS_ALLOWED_ORIGINS` lists both `http://localhost:3000` and
+`http://aiacu-web:3000`. `web` and `db` are not on the network. The prod stack owns it — it must be up
+before such a devcontainer starts. `docker-compose.dev.yml` removes `backend` from it (`!override`,
+Compose ≥ 2.24.4) and puts `web-docker` under a never-activated `prod-only` profile, so the dev
+stack never creates the network or the instance. Unrelated to `aiacu-agent-access-dev`.
+
 **Run** — single entry point, **always user-run, never agent-run**:
 
 | Command | Description |
@@ -138,7 +150,11 @@ devcontainer. `db` is deliberately off `agent-access`. The dev stack creates thi
 
 `deploy.sh` activates the `postgres` Compose profile whenever `DATABASE_URL` targets Postgres, and
 waits for the `db` healthcheck before migrating. Migrations also run in the backend container's
-entrypoint, so a bare `docker compose up` is correct too.
+entrypoint. `./deploy.sh` is the entry point for **both** checkouts; in the prod checkout a bare
+`docker compose up` also works. A **dev** checkout must only be started via `deploy.sh`: without it
+the dev override is not layered in, so the dev stack joins `aiacu-external-access` under the same
+`aiacu-backend`/`aiacu-web` aliases as prod, and other projects' calls get split between the two
+stacks.
 
 **Database**: PostgreSQL is the deployment default (`.env.example`, and the Compose/`deploy.sh`
 fallback); SQLite (`sqlite:///data/app.db`, WAL) is the opt-in and the `.env.dev.example` default.
@@ -150,6 +166,9 @@ secrets; the only credential is the local Postgres password, used between contai
 
 **Volumes** (survive `down`; wiped only by an explicit `docker compose down -v`, never scripted):
 `pg_data`, `sqlite_data`, `attachments`.
+
+**Networks**: per-stack `default`; `aiacu-agent-access-dev` (dev stack only, this project's own
+devcontainer); `aiacu-external-access` (prod stack only, other projects' devcontainers).
 
 **Infrastructure files**: `docker-compose.yml`, `docker-compose.dev.yml`, `deploy.sh`, `backend/Dockerfile` +
 `backend/docker-entrypoint.sh`, `frontend/Dockerfile` + `frontend/nginx.conf`, `.env.example`,

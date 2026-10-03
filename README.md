@@ -44,6 +44,26 @@ Then run `./deploy.sh up` in each. See `.fast-sdlc/conventions/devops-strategy.m
 
 Ports above are the defaults; a second concurrent stack uses its own `BACKEND_PORT` / `WEB_PORT` / `POSTGRES_PORT` (see "Running two stacks concurrently").
 
+### Access from other projects' devcontainers (prod stack)
+
+The prod stack creates the Docker network `aiacu-external-access` and attaches two services to it: the backend, as `aiacu-backend`, and a second Web UI instance (`web-docker`), as `aiacu-web`. In another project's Compose file, join the network, then call `http://aiacu-backend:8000` (REST under `/v1`, MCP at `/mcp/v1`) and open the Web UI in a browser such as Playwright at `http://aiacu-web:3000`:
+
+```yaml
+services:
+  <your-service>:
+    networks: [default, aiacu]
+networks:
+  aiacu:
+    external: true
+    name: aiacu-external-access
+```
+
+Start this prod stack (`./deploy.sh up`) before that devcontainer. The dev stack never creates this network or the `web-docker` instance. Requires Docker Compose 2.24.4 or later.
+
+The backend accepts browser calls from both `http://localhost:3000` and `http://aiacu-web:3000`. An existing prod `.env` created before this change must list both in `CORS_ALLOWED_ORIGINS`, space-separated, as `.env.example` does.
+
+Start a dev checkout only with `./deploy.sh`, never with a bare `docker compose up`. Without `deploy.sh`, the dev stack joins this network under the same `aiacu-backend` and `aiacu-web` names, and other projects' calls get split between the prod and dev stacks.
+
 ---
 
 ## Local backend development

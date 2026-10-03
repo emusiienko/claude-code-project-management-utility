@@ -1,9 +1,11 @@
 1# DevOps Strategy — AI Agent Coordination Utility
 
 > **Status:** Adopted — as-built (branch model updated 2026-08-27, STORY-001/TASK-005)
-> **Date:** 2026-06-29 · **Last updated:** 2026-09-09 — new § Infrastructure Decisions —
-> Escalation vs. devops-local (STORY-005/TASK-004); § Ownership and stale doc paths refreshed to
-> current roles/locations (STORY-005/TASK-007)
+> **Date:** 2026-06-29 · **Last updated:** 2026-10-03 — new § Containerisation & Stack Topology >
+> External-access network (prod stack only) (STORY-014/TASK-001); dev checkouts start only via
+> `deploy.sh` (STORY-014/TASK-002); that section compacted (STORY-014/TASK-003); second web
+> instance `web-docker` + its backend origin (STORY-014/TASK-005; renamed from `web-external`
+> in TASK-006); comment trim + `deploy.sh`-for-both-stacks wording (STORY-014/TASK-007)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -127,6 +129,35 @@ mounted on a path of the REST app, sharing the service layer in-process (ADR-003
 separate `mcp` service or port. This is acceptable — indeed preferable — for a single-machine tool:
 one build, one process, one port to reason about.
 
+### External-access network (prod stack only)
+
+`docker-compose.yml` declares the stack-owned network **`aiacu-external-access`** (fixed `name:`, not
+`external`), so devcontainers of *other* projects on this machine can reach the prod backend and
+Web UI. Unrelated to the dev-only `aiacu-agent-access-dev`.
+
+- **Members** (project-unique aliases): `backend` as **`aiacu-backend`**, and **`web-docker`** as
+  **`aiacu-web`**. `web` and `db` stay off.
+- **`web-docker`** is a second prod Web UI instance — same source and Dockerfile as `web`, bundle
+  built with `VITE_API_BASE_URL=http://aiacu-backend:8000`, on this network only, no host port. It
+  mirrors the dev stack's `web-agent`. `web` stays the host-facing instance (`127.0.0.1:3000`).
+- **CORS:** the backend allows both page origins, `http://localhost:3000` and `http://aiacu-web:3000`
+  (`.env.example` and the Compose default).
+- **Consumers** join it with `external: true` + `name: aiacu-external-access` and call
+  `http://aiacu-backend:8000` (REST `/v1`, MCP `/mcp/v1`); a browser (Playwright) opens
+  `http://aiacu-web:3000`. Snippet in `README.md`.
+- **Prod only:** `docker-compose.dev.yml` replaces `backend`'s networks via `!override`
+  (Compose ≥ 2.24.4) and puts `web-docker` under the `prod-only` profile, which nothing
+  activates, so the dev stack never builds or starts it and never creates the network.
+- **Lifecycle:** the name is stable across `down`/`up`. Prod must be up before a consumer starts
+  ("network not found" otherwise). `down` keeps the network while a running consumer is attached;
+  once it's removed and recreated, recreate the consumer rather than restart it.
+- **Exposure:** joined containers reach `backend:8000` directly, bypassing the `127.0.0.1` binding.
+  Reach stays on this machine's Docker daemon.
+- **Dev checkouts start only via `deploy.sh`.** A bare `docker compose up` there skips the dev
+  override, so the dev stack also claims `aiacu-backend` and `aiacu-web`, and Docker DNS silently
+  splits other projects' calls between prod and dev. `./deploy.sh` is the entry point for the prod
+  checkout too; a bare `docker compose up` there also works, but is never required.
+
 ---
 
 ## Database & Migrations
@@ -142,7 +173,7 @@ one build, one process, one port to reason about.
   volume in **WAL mode** (required to meet the ≥5 concurrent-request target — ADR-002), with no `db`
   container and no profile.
 - **Migrations:** `alembic upgrade head` runs automatically — both inside the backend container's
-  entrypoint (so a bare `docker compose up` is correct) and explicitly in `deploy.sh` *after* the
+  entrypoint and explicitly in `deploy.sh` *after* the
   database is reachable and *before* the `backend` service starts serving. The same Alembic scripts
   run on both dialects (dialect-aware where unavoidable — ADR-002). The `system_settings` seed ships
   as an Alembic data migration, so a fresh install needs no manual configuration.
@@ -258,7 +289,7 @@ configurable, are:
   `BACKEND_PORT` / `WEB_PORT` / `POSTGRES_PORT` (prod `8000` / `3000` / `5432`; dev `8100` / `3100` /
   `5433`). Only the host side is variable; container-internal ports stay fixed, so nothing inside the
   stack changes.
-- **Built image tags** — `aiacu-backend` / `aiacu-web`. The **web** image bakes `VITE_API_BASE_URL`
+- **Built image tags** — `aiacu-backend` / `aiacu-web` (prod also builds `aiacu-web-docker`). The **web** image bakes `VITE_API_BASE_URL`
   at build time, so a shared tag would let the two stacks overwrite each other's web image. Now
   namespaced by `STACK_NAME` (prod `prod`, dev `dev`), so each stack owns its images.
 

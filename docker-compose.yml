@@ -46,7 +46,7 @@ services:
       # mount below.
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://app:app@db:5432/app}
       ATTACHMENTS_DIR: ${ATTACHMENTS_DIR:-/data/attachments}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000 http://aiacu-web:3000}
     ports:
       # REST + MCP share this host port. localhost-only. Host side is BACKEND_PORT
       # (default 8000); the container port stays 8000. The dev stack sets a
@@ -73,6 +73,11 @@ services:
         # part of the active profile (i.e. the SQLite opt-in). When the
         # postgres profile is active (the default), the healthy condition is enforced.
         required: false
+    networks:
+      default: {}
+      external-access:
+        aliases:
+          - aiacu-backend
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -104,6 +109,27 @@ services:
       start_period: 5s
     depends_on:
       - backend
+    restart: unless-stopped
+
+  web-docker:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://aiacu-backend:8000
+    image: aiacu-web-docker:${STACK_NAME:-prod}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      - backend
+    networks:
+      external-access:
+        aliases:
+          - aiacu-web
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -146,3 +172,7 @@ volumes:
   pg_data:
   # Attachment files + version snapshots.
   attachments:
+
+networks:
+  external-access:
+    name: aiacu-external-access
