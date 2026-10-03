@@ -17,7 +17,7 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 | `core/database/base.py` | Shared ORM base | `Base` | Every model inherits this declarative base. |
 | `core/database/engine.py` | Dialect-agnostic engine factory | `build_engine`, `_enable_wal_mode` | `_enable_wal_mode` is a SQLite-only `connect` listener; no-op on PostgreSQL. |
 | `core/database/session.py` | Request-scoped DB session | `build_session_factory`, `init_db_session` | `init_db_session` is wired into the DI container as `db_session`. |
-| `core/database/types.py` | DB-agnostic UUID column type | `UUIDType` | Native `UUID` on PostgreSQL, `CHAR(32)` hex on SQLite. |
+| `core/database/types.py` | DB-agnostic column types | `UUIDType`, `UTCDateTime` | `UUIDType`: native `UUID` on PostgreSQL, `CHAR(32)` hex on SQLite. `UTCDateTime` (STORY-013): wraps `DateTime(timezone=True)` (no DDL change); bind rejects naive input and normalizes to UTC, result reattaches UTC to naive values (SQLite drops the offset). Every `created_at`/`updated_at`/`archived_at` column in every domain `model.py` uses it. |
 | `core/database/json_utils.py` | Dialect-branching JSON-array filters | `apply_json_array_filter`, `apply_json_scalar_array_contains_filter` | Private `_apply_sqlite*`/`_apply_postgresql*` halves; the one place JSON-query dialect differences live. |
 | `core/database/repository.py` | Generic CRUD base | `BaseRepository[ModelT]` (`get_all`, `get_by_id`, `exists`, `count`, `save`, `delete`, `_coerce_uuid`) | Every domain repository subclasses this; `_coerce_uuid` backs every domain's own `coerce_*_id`. |
 | `core/storage/filesystem.py` | Attachment byte storage | `FilesystemStorage` (`write`/`read`/`delete`/`snapshot`) | Rooted at `settings.attachments_dir`; the `file_path` it manages is server-internal, never returned in an API response. |
@@ -187,8 +187,9 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 
 One `test_<domain>.py` per domain package (listed inline in each domain's table above), exercising
 REST and MCP through the same assertions via `tests/conftest.py`'s `client` fixture / `_mcp_call`
-helper. No `tests/unit/` yet — all coverage today is integration-level through the two surfaces.
+helper. `tests/unit/` (STORY-013) holds isolated, non-HTTP tests; everything else is integration-level through the two surfaces.
 
 | Module/File | Purpose | Notes |
 |---|---|---|
+| `unit/test_types.py` | Unit tests for `UTCDateTime` (STORY-013) | `TestUTCDateTimeResultValue`, `TestUTCDateTimeBindParam`; first file in the `tests/unit/` package. The create-vs-read offset regression lives in `test_stories.py` (`TestGetStory::test_read_keeps_utc_offset_on_created_and_updated_at`; `TestCreateStoryMcpParity` compares `created_at`/`updated_at`). |
 | `test_mcp_mount.py` | Verifies the MCP server's actual HTTP mount (STORY-011) | The only MCP test that goes over the wire: boots a real Uvicorn server + real `fastmcp.Client` (streamable-HTTP) against `app.main.application`, so it exercises `application.mount(...)` and the ASGI lifespan protocol. Every other MCP test uses `_mcp_call`/`fastmcp.Client(mcp_server_v1)` in-process and never touches the mount or lifespan. |
