@@ -127,11 +127,16 @@ devcontainer. `db` is deliberately off `agent-access`. The dev stack creates thi
 `./deploy.sh up` must run before the devcontainer starts or rebuilds.
 
 **Other projects reach the prod stack over `aiacu-external-access`.** `docker-compose.yml` defines this
-fixed-name network and attaches only `backend` to it, under the alias `aiacu-backend`. Another
-project's devcontainer joins it as `external: true` by that name and calls `http://aiacu-backend:8000`
-(REST `/v1`, MCP `/mcp/v1`). `web` and `db` are not on it. The prod stack owns it — it must be up
+fixed-name network and attaches `backend` (alias `aiacu-backend`) and `web-external` (alias
+`aiacu-web`) to it. Another project's devcontainer joins it as `external: true` by that name, calls
+`http://aiacu-backend:8000` (REST `/v1`, MCP `/mcp/v1`), and opens `http://aiacu-web:3000` in a
+browser (Playwright). `web-external` is a second prod web instance — same source/Dockerfile as `web`,
+built with `VITE_API_BASE_URL=http://aiacu-backend:8000`, no host port; the prod-stack counterpart of
+`web-agent`. The backend's `CORS_ALLOWED_ORIGINS` lists both `http://localhost:3000` and
+`http://aiacu-web:3000`. `web` and `db` are not on the network. The prod stack owns it — it must be up
 before such a devcontainer starts. `docker-compose.dev.yml` removes `backend` from it (`!override`,
-Compose ≥ 2.24.4), so the dev stack never creates it. Unrelated to `aiacu-agent-access-dev`.
+Compose ≥ 2.24.4) and puts `web-external` under a never-activated `prod-only` profile, so the dev
+stack never creates the network or the instance. Unrelated to `aiacu-agent-access-dev`.
 
 **Run** — single entry point, **always user-run, never agent-run**:
 
@@ -147,8 +152,8 @@ Compose ≥ 2.24.4), so the dev stack never creates it. Unrelated to `aiacu-agen
 waits for the `db` healthcheck before migrating. Migrations also run in the backend container's
 entrypoint, so in the **prod** checkout a bare `docker compose up` is correct too. A **dev** checkout
 must only be started via `deploy.sh`: without it the dev override is not layered in, so the dev
-backend joins `aiacu-external-access` under the same `aiacu-backend` alias as prod, and other
-projects' calls get split between the two backends.
+stack joins `aiacu-external-access` under the same `aiacu-backend`/`aiacu-web` aliases as prod, and
+other projects' calls get split between the two stacks.
 
 **Database**: PostgreSQL is the deployment default (`.env.example`, and the Compose/`deploy.sh`
 fallback); SQLite (`sqlite:///data/app.db`, WAL) is the opt-in and the `.env.dev.example` default.

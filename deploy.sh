@@ -110,6 +110,11 @@ case "$cmd" in
     echo "[deploy] Done. Services (localhost only):"
     echo "          REST + MCP : http://localhost:8000  (MCP at /mcp/v1, docs at /v1/docs)"
     echo "          Web UI      : http://localhost:3000"
+    if [[ "$STACK_NAME" != "dev" ]]; then
+      echo "        Other projects' devcontainers (network aiacu-external-access):"
+      echo "          REST + MCP : http://aiacu-backend:8000"
+      echo "          Web UI      : http://aiacu-web:3000"
+    fi
     ;;
 
   down)

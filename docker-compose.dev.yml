@@ -10,11 +10,17 @@
 # docker-compose.yml declares (STORY-014): `!override` REPLACES the base list instead
 # of merging into it, and Compose then prunes the now-unused network, so the dev stack
 # never creates or claims `aiacu-external-access`. Requires Compose >= 2.24.4.
+# Likewise puts the prod-only `web-external` under a profile deploy.sh never activates,
+# so the dev stack neither builds nor starts it (and never claims `aiacu-web`).
 services:
   backend:
     networks: !override
       - default
       - agent-access
+
+  web-external:
+    profiles:
+      - prod-only
 
   web:
     networks:
