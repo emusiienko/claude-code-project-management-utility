@@ -3,7 +3,7 @@
 > **Status:** Adopted — as-built (branch model updated 2026-08-27, STORY-001/TASK-005)
 > **Date:** 2026-06-29 · **Last updated:** 2026-10-03 — new § Containerisation & Stack Topology >
 > External-access network (prod stack only) (STORY-014/TASK-001); dev checkouts start only via
-> `deploy.sh` (STORY-014/TASK-002)
+> `deploy.sh` (STORY-014/TASK-002); that section compacted (STORY-014/TASK-003)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -129,44 +129,23 @@ one build, one process, one port to reason about.
 
 ### External-access network (prod stack only)
 
-`docker-compose.yml` declares a stack-owned (not `external`) network with the fixed name
-**`aiacu-external-access`**, for devcontainers of *other* projects on the same machine to reach this
-project's prod stack. It is distinct from, and unrelated to, the dev-only `aiacu-agent-access-dev`
-(see § Running Two Stacks Concurrently).
+`docker-compose.yml` declares the stack-owned network **`aiacu-external-access`** (fixed `name:`, not
+`external`), so devcontainers of *other* projects on this machine can reach the prod backend.
+Unrelated to the dev-only `aiacu-agent-access-dev`.
 
-- **Members:** `backend` only, aliased **`aiacu-backend`** on that network. `web` and `db` are not
-  attached. The alias is project-unique so it cannot clash with another project's own `backend`
-  service on the shared network.
-- **Consumer side** — another project's Compose file:
-  ```yaml
-  services:
-    <its-service>:
-      networks: [default, aiacu]
-  networks:
-    aiacu:
-      external: true
-      name: aiacu-external-access
-  ```
-  and calls `http://aiacu-backend:8000` (REST under `/v1`, MCP at `/mcp/v1`). No host port is involved.
-- **Prod only.** `docker-compose.dev.yml` replaces `backend`'s network list with `!override`; Compose
-  then prunes the unused network, so the dev stack never creates or claims the name. `!override`
-  requires Compose ≥ 2.24.4.
-- **Lifecycle.** Created by the prod stack's `up`. The name is not project-scoped, so it stays stable
-  across `down`/`up` and consumers never change their config. `down` leaves the network in place,
-  with a "Resource is still in use" warning, while a consumer container is still attached. The prod
-  stack must be up before a consumer devcontainer starts, or that devcontainer fails with "network
-  not found". A *stopped* consumer does not hold the network, so `down` can remove it; after the
-  prod stack recreates it, recreate the consumer (its `docker compose up` / devcontainer rebuild)
-  rather than just restarting the old container, which still references the removed network.
-- **Exposure.** Containers on this network reach `backend:8000` directly, bypassing the
-  `127.0.0.1` host-port binding. Reach stays confined to containers on this machine's Docker
-  daemon that explicitly join the network, and nothing is published off-host.
-- **Start a dev checkout only via `deploy.sh`.** Only `deploy.sh` layers in `docker-compose.dev.yml`
-  (when `STACK_NAME=dev`). A bare `docker compose up` in a dev checkout loads `docker-compose.yml`
-  alone, so the dev backend joins `aiacu-external-access` under the same `aiacu-backend` alias as
-  prod. Docker DNS answers an alias held by two containers with both addresses, so other projects'
-  calls would be split between the prod and dev backends, against different data, without any error.
-  A bare `docker compose up` is acceptable in the prod checkout only.
+- **Members:** `backend` only, alias **`aiacu-backend`** (project-unique). `web` and `db` stay off.
+- **Consumers** join it with `external: true` + `name: aiacu-external-access` and call
+  `http://aiacu-backend:8000` (REST `/v1`, MCP `/mcp/v1`). Snippet in `README.md`.
+- **Prod only:** `docker-compose.dev.yml` replaces `backend`'s networks via `!override`
+  (Compose ≥ 2.24.4), so the dev stack never creates the network.
+- **Lifecycle:** the name is stable across `down`/`up`. Prod must be up before a consumer starts
+  ("network not found" otherwise). `down` keeps the network while a running consumer is attached;
+  once it's removed and recreated, recreate the consumer rather than restart it.
+- **Exposure:** joined containers reach `backend:8000` directly, bypassing the `127.0.0.1` binding.
+  Reach stays on this machine's Docker daemon.
+- **Dev checkouts start only via `deploy.sh`.** A bare `docker compose up` there skips the dev
+  override, so the dev backend also claims `aiacu-backend` and Docker DNS silently splits other
+  projects' calls between prod and dev. Bare `up` is fine in the prod checkout only.
 
 ---
 
