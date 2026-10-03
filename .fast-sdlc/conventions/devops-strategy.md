@@ -5,7 +5,7 @@
 > External-access network (prod stack only) (STORY-014/TASK-001); dev checkouts start only via
 > `deploy.sh` (STORY-014/TASK-002); that section compacted (STORY-014/TASK-003); second web
 > instance `web-docker` + its backend origin (STORY-014/TASK-005; renamed from `web-external`
-> in TASK-006)
+> in TASK-006); comment trim + `deploy.sh`-for-both-stacks wording (STORY-014/TASK-007)
 > **Owner:** devops
 > **Location:** `.fast-sdlc/conventions/devops-strategy.md` — the shared conventions folder (alongside
 > `coding-conventions-backend.md` / `coding-conventions-frontend.md`), so any role can read it without
@@ -155,7 +155,8 @@ Web UI. Unrelated to the dev-only `aiacu-agent-access-dev`.
   Reach stays on this machine's Docker daemon.
 - **Dev checkouts start only via `deploy.sh`.** A bare `docker compose up` there skips the dev
   override, so the dev stack also claims `aiacu-backend` and `aiacu-web`, and Docker DNS silently
-  splits other projects' calls between prod and dev. Bare `up` is fine in the prod checkout only.
+  splits other projects' calls between prod and dev. `./deploy.sh` is the entry point for the prod
+  checkout too; a bare `docker compose up` there also works, but is never required.
 
 ---
 
@@ -172,8 +173,7 @@ Web UI. Unrelated to the dev-only `aiacu-agent-access-dev`.
   volume in **WAL mode** (required to meet the ≥5 concurrent-request target — ADR-002), with no `db`
   container and no profile.
 - **Migrations:** `alembic upgrade head` runs automatically — both inside the backend container's
-  entrypoint (so a bare `docker compose up` is correct in the prod checkout; a dev checkout must use
-  `deploy.sh` — see § External-access network) and explicitly in `deploy.sh` *after* the
+  entrypoint and explicitly in `deploy.sh` *after* the
   database is reachable and *before* the `backend` service starts serving. The same Alembic scripts
   run on both dialects (dialect-aware where unavoidable — ADR-002). The `system_settings` seed ships
   as an Alembic data migration, so a fresh install needs no manual configuration.

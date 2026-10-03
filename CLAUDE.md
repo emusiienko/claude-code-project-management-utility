@@ -150,10 +150,11 @@ stack never creates the network or the instance. Unrelated to `aiacu-agent-acces
 
 `deploy.sh` activates the `postgres` Compose profile whenever `DATABASE_URL` targets Postgres, and
 waits for the `db` healthcheck before migrating. Migrations also run in the backend container's
-entrypoint, so in the **prod** checkout a bare `docker compose up` is correct too. A **dev** checkout
-must only be started via `deploy.sh`: without it the dev override is not layered in, so the dev
-stack joins `aiacu-external-access` under the same `aiacu-backend`/`aiacu-web` aliases as prod, and
-other projects' calls get split between the two stacks.
+entrypoint. `./deploy.sh` is the entry point for **both** checkouts; in the prod checkout a bare
+`docker compose up` also works. A **dev** checkout must only be started via `deploy.sh`: without it
+the dev override is not layered in, so the dev stack joins `aiacu-external-access` under the same
+`aiacu-backend`/`aiacu-web` aliases as prod, and other projects' calls get split between the two
+stacks.
 
 **Database**: PostgreSQL is the deployment default (`.env.example`, and the Compose/`deploy.sh`
 fallback); SQLite (`sqlite:///data/app.db`, WAL) is the opt-in and the `.env.dev.example` default.
