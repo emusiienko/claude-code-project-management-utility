@@ -1137,18 +1137,6 @@ class TestStoryAggregate:
 
 
 class TestCascadeDelete:
-    @pytest.mark.xfail(
-        reason=(
-            "SQLite FK CASCADE requires 'PRAGMA foreign_keys = ON' at runtime. "
-            "The test conftest.py creates its own engine without this pragma, so "
-            "the ON DELETE CASCADE defined in migration 0003_story is not enforced. "
-            "The story row survives the project DELETE in the test environment "
-            "even though the constraint is correctly declared in the DDL. "
-            "Fix: add PRAGMA foreign_keys = ON to the conftest engine setup — "
-            "assign to backend-developer."
-        ),
-        strict=True,
-    )
     async def test_deleting_project_removes_stories(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Cascade Delete Story Project")
         data = await _create_story(client, proj["id"], "Cascade Story")
@@ -1166,8 +1154,3 @@ class TestCascadeDelete:
             f"Story should 404 after parent project is deleted, "
             f"got {story_resp.status_code}"
         )
-
-        # Cleanup for when the pragma is eventually enabled and the test passes.
-        # (Once xfail is removed the story is gone and this is a no-op.)
-        if story_resp.status_code == 200:
-            await _delete_story(client, story_id)
