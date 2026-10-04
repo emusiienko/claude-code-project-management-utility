@@ -191,5 +191,6 @@ helper. `tests/unit/` (STORY-013) holds isolated, non-HTTP tests; everything els
 
 | Module/File | Purpose | Notes |
 |---|---|---|
+| `conftest.py` | Shared fixtures: `engine`, `client`, `_mcp_call` | The `engine` fixture's `connect` listener `_enable_foreign_keys` issues `PRAGMA foreign_keys=ON` on every test-engine connection (STORY-015), so declared FK actions (cascade/SET NULL) are enforced in tests. Test engine only — the application engine (`core/database/engine.py`) does not set it. |
 | `unit/test_types.py` | Unit tests for `UTCDateTime` (STORY-013) | `TestUTCDateTimeResultValue`, `TestUTCDateTimeBindParam`; first file in the `tests/unit/` package. The create-vs-read offset regression lives in `test_stories.py` (`TestGetStory::test_read_keeps_utc_offset_on_created_and_updated_at`; `TestCreateStoryMcpParity` compares `created_at`/`updated_at`). |
 | `test_mcp_mount.py` | Verifies the MCP server's actual HTTP mount (STORY-011) | The only MCP test that goes over the wire: boots a real Uvicorn server + real `fastmcp.Client` (streamable-HTTP) against `app.main.application`, so it exercises `application.mount(...)` and the ASGI lifespan protocol. Every other MCP test uses `_mcp_call`/`fastmcp.Client(mcp_server_v1)` in-process and never touches the mount or lifespan. |
