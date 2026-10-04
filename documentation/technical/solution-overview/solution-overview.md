@@ -243,5 +243,6 @@ system-level shape — services, exposure, networks, concurrent stacks, and volu
 - **[ADR-033](../adr-log/ADR-033-prod-external-access-network.md)** — Prod stack exposes the backend and an in-network Web UI instance to other local projects over a fixed-name Docker network (refines, not supersedes, ADR-030).
 
 Open items carried in the reconcile log (not yet ADR-backed): enabling SQLite `PRAGMA foreign_keys = ON`
-so declared `CASCADE`/`SET NULL` actions become enforced, and adding an end-to-end clear-project-override
+in the application engine (the test engine already enables it) so declared `CASCADE`/`SET NULL` actions
+become enforced on a SQLite deployment, and adding an end-to-end clear-project-override
 operation (service method exists; no REST route/MCP tool exposes it, and the contract has no clear operation).
