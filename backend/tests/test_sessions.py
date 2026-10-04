@@ -43,10 +43,8 @@ Coverage zones (per TASK-007, revised by TASK-010 for the status-enum rework):
                                 involved); a session with no linked story/task is valid
 - Edge cases                    deleting a linked story/task nulls the session reference
                                 (application-level, holds on SQLite); deleting a project
-                                deletes its sessions (relies on the FK CASCADE, xfail on
-                                SQLite per the project's standing PRAGMA divergence,
-                                mirroring TestCascadeDelete in test_stories.py /
-                                test_tasks.py)
+                                deletes its sessions (relies on the FK CASCADE, enforced
+                                on the SQLite test engine via PRAGMA foreign_keys)
 - REST/MCP parity                REST and MCP produce equivalent results and equivalent
                                 error codes for the same operation (a representative
                                 subset, per this project's MCP-is-a-thin-wrapper
@@ -1602,20 +1600,6 @@ class TestReferenceClearingOnDelete:
 
 
 class TestProjectCascadeDelete:
-    @pytest.mark.xfail(
-        reason=(
-            "SQLite FK CASCADE requires 'PRAGMA foreign_keys = ON' at runtime. "
-            "The test conftest.py creates its own engine without this pragma, so "
-            "the ON DELETE CASCADE defined in migration 0013_session is not "
-            "enforced. The session row survives the project DELETE in the test "
-            "environment even though the constraint is correctly declared in the "
-            "DDL — identical to TestCascadeDelete in test_stories.py / "
-            "TestTaskCascadeDelete in test_tasks.py. "
-            "Fix: add PRAGMA foreign_keys = ON to the conftest engine setup — "
-            "assign to backend-developer."
-        ),
-        strict=True,
-    )
     async def test_deleting_project_removes_sessions(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Cascade Delete Session Project")
         session = await _create_session(client, proj["id"])

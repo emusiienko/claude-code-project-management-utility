@@ -1156,18 +1156,6 @@ class TestDeleteTask:
 
 
 class TestTaskCascadeDelete:
-    @pytest.mark.xfail(
-        reason=(
-            "SQLite FK CASCADE requires 'PRAGMA foreign_keys = ON' at runtime. "
-            "The test conftest.py creates its own engine without this pragma, so "
-            "the ON DELETE CASCADE defined in migration 0005_task is not enforced. "
-            "The task row survives the story DELETE in the test environment "
-            "even though the constraint is correctly declared in the DDL. "
-            "Fix: add PRAGMA foreign_keys = ON to the conftest engine setup — "
-            "assign to backend-developer."
-        ),
-        strict=True,
-    )
     async def test_deleting_story_removes_its_tasks(self, client: AsyncClient) -> None:
         proj = await _create_project(client, "Cascade Delete Task Project")
         try:
