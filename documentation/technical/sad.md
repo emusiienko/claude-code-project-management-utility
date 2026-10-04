@@ -176,10 +176,13 @@ documentation migration):
   REST route or MCP tool exposes it (only the MCP `clear_project_setting` path works end to end; the
   SPA calls a non-existent `DELETE /projects/:id/settings/:key`). Needs a contract revision off LOCKED
   plus a backend route.
-- **SQLite FK actions are inert as built.** `PRAGMA foreign_keys = ON` is not enabled, so
-  `ON DELETE CASCADE` / `SET NULL` are inert on SQLite (enforced on PostgreSQL). Built cases are
-  covered by application-level cleanups (ADR-018); resolution is to enable the PRAGMA and restore the
-  cascade tests that were downgraded once the PRAGMA was found inert.
+- **SQLite FK actions are inert in the application engine.** The application's SQLite connection
+  enables only WAL, not `PRAGMA foreign_keys = ON`, so `ON DELETE CASCADE` / `SET NULL` are inert on a
+  SQLite deployment (enforced on PostgreSQL). Most cases are covered by application-level cleanups
+  (ADR-018); deleting a project is not, and leaves its child rows in place on SQLite. The test engine
+  does enable the PRAGMA, so the backend suite exercises enforced FK actions: it no longer surfaces
+  this gap, and it no longer proves the application-level cleanups work on their own. Resolution is to
+  enable the PRAGMA in the application engine, then remove the cleanups that become redundant.
 - **`link_types` duplicate-value returns 400, not the story-specified 422.** Status-code-only
   divergence — the rejection behavior and message are correct; the check lives in the service
   (domain `ValidationError` → 400) rather than the schema.

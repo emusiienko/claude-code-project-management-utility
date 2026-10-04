@@ -306,9 +306,10 @@ name uniqueness within a project).
 | session → story (link) | `session.linked_story_id` | SET NULL | **application-level** in the stories delete cascade (SQLite FK inert — ADR-018 pattern) |
 | session → task (link) | `session.linked_task_id` | SET NULL | **application-level** in the tasks delete cascade |
 
-**Application-level vs FK-enforced.** `PRAGMA foreign_keys = ON` is **not** set on the SQLite
-connection, so every declared `ON DELETE CASCADE` / `ON DELETE SET NULL` is **inert on SQLite**
-(enforced on PostgreSQL). The application therefore performs the equivalent cleanup itself where
+**Application-level vs FK-enforced.** `PRAGMA foreign_keys = ON` is **not** set on the application's
+SQLite connection, so every declared `ON DELETE CASCADE` / `ON DELETE SET NULL` is **inert on a SQLite
+deployment** (enforced on PostgreSQL). "Inert on SQLite" in the table above means the application
+engine; the backend test engine does enable the PRAGMA, so FK actions fire under test. The application therefore performs the equivalent cleanup itself where
 correctness on both dialects is required (ADR-018 pattern):
 
 - **Milestone delete** bulk-clears `story.milestone_id` in the service (an explicit `UPDATE`), so
@@ -321,8 +322,10 @@ correctness on both dialects is required (ADR-018 pattern):
   depending on the SQLite PRAGMA gap.
 
 The residual exposure of the SQLite FK gap is where cleanup relies purely on the FK cascade (e.g.
-deleting a project to remove child rows on SQLite). Resolution — enabling `PRAGMA foreign_keys = ON`
-in the engine and test setup — is tracked as follow-up, out of scope here.
+deleting a project to remove child rows on a SQLite deployment). Because the test engine enforces FK
+actions, the test suite does not reveal this exposure. Resolution — enabling `PRAGMA foreign_keys = ON`
+in the application engine, after which the application-level cleanups above become redundant — is
+tracked as follow-up, out of scope here.
 
 `0004_milestone` also adds the deferred `story.milestone_id` FK (`ON DELETE SET NULL`) at the point
 the `milestone` table is created (ADR-013). On SQLite this uses `batch_alter_table` (table rebuild,
