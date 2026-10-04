@@ -41,7 +41,7 @@ and the participants decide what to do with it.
     not access control.
 
 - **Constraints**:
-  - Localhost-only: Docker port mapping to `127.0.0.1` is the sole access boundary — no auth by design.
+  - Local-machine-only: the access boundary is this machine: the localhost port binding, plus Docker networks the stack deliberately exposes to other containers on the same Docker daemon (ADR-033) — no auth by design.
   - DB-agnostic: identical schema and migrations must run on both PostgreSQL (default) and SQLite
     (opt-in, WAL); dialect-specific logic stays inside the data layer.
   - The API contract is LOCKED at v1.0 (revised incrementally through v1.12); shapes do not change
@@ -63,7 +63,7 @@ context boundary. See:
 
 ## Key Components (C4 Level 2)
 
-Four containers, all running on the developer's local machine under Docker Compose (localhost-only):
+Four containers, all running on the developer's local machine under Docker Compose (local-machine-only):
 the React/nginx **Web UI**; the **Backend** — one FastAPI process serving both the REST API and the
 path-mounted MCP server over a shared per-domain service layer; the **Application Database**
 (PostgreSQL default / SQLite opt-in, DB-agnostic via SQLAlchemy); and the **Attachments Storage**
@@ -160,7 +160,7 @@ a service reads another app's *data layer*, never another app's service, avoidin
 ## Authentication Flow
 
 **None — by deliberate design.** This is a single-developer personal tool. The access boundary is
-Docker port mapping to `localhost` only; no service is exposed to the network. There is no login, no
+this machine: the localhost port binding, plus Docker networks the stack deliberately exposes to other containers on the same Docker daemon (ADR-033); no service is exposed off the machine. There is no login, no
 session token, no roles, and no authorization checks. Human and agents are structurally equal
 participants, and `participant_role` / `author_role` / `assignee_role` are descriptive metadata,
 never access-control mechanisms.
@@ -195,14 +195,15 @@ single `DomainError.to_tool_error()` method returning a `ToolError` with a `[COD
 Logging is level-driven per the error table above: 4xx domain errors log at DEBUG; 500s log a full
 stack trace server-side only while returning a generic message to the client. Log verbosity is an
 env-only difference between the prod and dev stacks (same image). Being a single-process,
-single-machine, localhost-only tool with no network exposure, the system has no cross-service
+single-machine tool with no exposure off the machine, the system has no cross-service
 correlation IDs or distributed tracing.
 
 ## Deployment Topology
 
-The whole stack runs on the developer's local machine under Docker Compose, bound to `localhost`
-only. For the system-level shape — services, exposure, shared infrastructure, concurrent stacks, and
-volumes — see the sibling Deployment/Infrastructure View:
+The whole stack runs on the developer's local machine under Docker Compose, with published ports bound
+to `localhost` only; the prod stack additionally exposes the backend and an in-network Web UI instance
+to other projects' containers on the same machine over a fixed-name Docker network (ADR-033). For the
+system-level shape — services, exposure, networks, concurrent stacks, and volumes — see the sibling Deployment/Infrastructure View:
 [`../deployment/deployment-infrastructure-view.md`](../deployment/deployment-infrastructure-view.md).
 
 ## Key Decisions
@@ -239,6 +240,7 @@ volumes — see the sibling Deployment/Infrastructure View:
 - **[ADR-030](../adr-log/ADR-030-concurrent-local-stacks-env-ports-image-tags.md)** — Concurrent local stacks via env-configurable host ports and per-stack image tags.
 - **[ADR-031](../adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md)** — PostgreSQL as the deployment default with a prod/dev env-template split (refines, not supersedes, ADR-002).
 - **[ADR-032](../adr-log/ADR-032-mcp-path-versioned-mount.md)** — MCP surface path-versioned under `/mcp/<version>`, one server instance per version, served at `/mcp/v1` (refines, not supersedes, ADR-007).
+- **[ADR-033](../adr-log/ADR-033-prod-external-access-network.md)** — Prod stack exposes the backend and an in-network Web UI instance to other local projects over a fixed-name Docker network (refines, not supersedes, ADR-030).
 
 Open items carried in the reconcile log (not yet ADR-backed): enabling SQLite `PRAGMA foreign_keys = ON`
 so declared `CASCADE`/`SET NULL` actions become enforced, and adding an end-to-end clear-project-override

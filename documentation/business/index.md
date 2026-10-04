@@ -33,6 +33,10 @@ utility is deliberately participant-neutral (human and agents are structurally e
 authentication or role-based access control, by design (personal, single-developer tool; see the
 Validated Idea).
 
+Both surfaces are reachable by other projects' agents and browsers running on the same machine, in
+addition to this project's own — still with no authentication, since the machine itself is the access
+boundary.
+
 See also [`conceptual-data-model/`](conceptual-data-model/) (entities + relationships, business
 language) and [`logical-data-model/`](logical-data-model/) (complete attributes, identifiers, foreign
 keys, normalized) — every entity and relationship, as built, split by subject area: Project & Work
