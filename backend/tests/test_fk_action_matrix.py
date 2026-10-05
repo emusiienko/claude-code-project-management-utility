@@ -1,5 +1,5 @@
-"""FK-action matrix — every declared FK action and every polymorphic container cleanup,
-proven on SQLite through the real application path (STORY-016 / TASK-006).
+"""FK-action matrix — every declared FK action and every container cleanup, proven on
+SQLite through the real application path (STORY-016 / TASK-006, TASK-018).
 
 The test engine is the application engine (`build_engine`), so FK enforcement is on.
 Each test deletes a parent through REST or through the MCP delete tool (the `delete`
@@ -7,17 +7,19 @@ fixture is parametrized over both entry points) and then reads database state
 directly through `db_session` — a follow-up 404 from the API is never the assertion.
 
 Coverage:
-- All 11 FK columns, each through REST and MCP: CASCADE -> project (story, milestone,
+- All 17 FK columns, each through REST and MCP: CASCADE -> project (story, milestone,
   session, project_settings), CASCADE -> story (task.story_id, story_link source and
-  target), CASCADE -> task (task_link source and target), and SET NULL
-  (story.milestone_id, session.linked_story_id, session.linked_task_id). Each SET NULL
-  case also asserts the referencing row still exists.
-- Polymorphic containers (attachments + stored files, comments — real container FKs with a CHECK, ADR-034):
-  direct (story, task, milestone) and transitive (story -> its tasks; project -> its
-  stories, their tasks, its milestones). A bystander container's attachment and
-  comment must survive.
-- Multi-level: one project carrying every table, deleted in one call; nothing remains
-  and `PRAGMA foreign_key_check` is clean.
+  target, attachment.story_id, comment.story_id), CASCADE -> task (task_link source and
+  target, attachment.task_id, comment.task_id), CASCADE -> milestone
+  (attachment.milestone_id, comment.milestone_id), and SET NULL (story.milestone_id,
+  session.linked_story_id, session.linked_task_id). Each SET NULL case also asserts the
+  referencing row still exists. Each attachment case also asserts the stored file is
+  gone once the orphan sweep has run; a bystander container's rows and file survive.
+- Transitive containers (ADR-034): story -> its tasks' attachments, comments and files;
+  project -> those of its stories, their tasks, and its milestones.
+- Multi-level: one project carrying every table, attachments and comments on every
+  container kind, deleted in one call; nothing remains and `PRAGMA foreign_key_check`
+  is clean.
 """
 
 from __future__ import annotations
@@ -424,35 +426,58 @@ async def test_task_delete_nulls_session_linked_task_id(
 
 
 # ===========================================================================
-# Polymorphic containers — direct
+# Attachment and comment container keys — direct
 # ===========================================================================
 
 
-@pytest.mark.parametrize("container_type", ["story", "task", "milestone"])
-async def test_container_delete_removes_its_attachments_and_comments(
-    client: AsyncClient, delete: Delete, probe: Probe, container_type: str
+CONTAINER_KEY_CASES = [
+    pytest.param(table, f"{container}_id", container, id=f"{table}.{container}_id")
+    for table in ("attachment", "comment")
+    for container in ("story", "task", "milestone")
+]
+
+
+async def _make_container(
+    client: AsyncClient, project_id: str, story_id: str, container_type: str, name: str
+) -> str:
+    if container_type == "story":
+        return await _story(client, project_id, name)
+    if container_type == "task":
+        return await _task(client, story_id, name)
+    return await _milestone(client, project_id, name)
+
+
+@pytest.mark.parametrize(("table", "column", "container_type"), CONTAINER_KEY_CASES)
+async def test_container_delete_cascades_attachment_and_comment_keys(
+    client: AsyncClient,
+    delete: Delete,
+    probe: Probe,
+    table: str,
+    column: str,
+    container_type: str,
 ) -> None:
-    async with _project(client, f"Polymorphic {container_type}") as pid:
-        story_id = await _story(client, pid)
-        ids = {
-            "story": story_id,
-            "task": await _task(client, story_id),
-            "milestone": await _milestone(client, pid),
-        }
+    async with _project(client, f"FK {table}.{column}") as pid:
+        story_id = await _story(client, pid, "host")
+        container_id = await _make_container(
+            client, pid, story_id, container_type, "mine"
+        )
+        sibling_id = await _make_container(
+            client, pid, story_id, container_type, "sibling"
+        )
         mine, bystander = Decorations(probe), Decorations(probe)
-        await mine.add(client, container_type, ids[container_type])
-        # A sibling of the same type keeps its own attachment and comment.
-        sibling = {
-            "story": await _story(client, pid, "sibling"),
-            "task": await _task(client, story_id, "sibling"),
-            "milestone": await _milestone(client, pid, "sibling"),
-        }[container_type]
-        await bystander.add(client, container_type, sibling)
+        await mine.add(client, container_type, container_id)
+        await bystander.add(client, container_type, sibling_id)
+        row_id = (mine.attachment_ids if table == "attachment" else mine.comment_ids)[0]
+        assert probe.value(table, column, row_id) == container_id
         mine.assert_present()
 
-        await delete(container_type, ids[container_type])
+        await delete(container_type, container_id)
 
-        mine.assert_gone()
+        assert probe.count(table, column, [container_id]) == 0
+        if table == "attachment":
+            assert not any(f.exists() for f in mine.files), "stored file must be swept"
+        else:
+            mine.assert_gone()
         bystander.assert_present()
 
 
