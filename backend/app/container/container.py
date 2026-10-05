@@ -78,8 +78,8 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    # project_service itself is declared further below, after attachment_service
-    # and comment_service (it takes them as Protocol readers).
+    # project_service itself is declared further below, after
+    # file_cleanup_requester.
 
     # --------------------------------------------------------------------------
     # Settings domain — Factories (resolved per injection)
@@ -155,10 +155,9 @@ class AppContainer(containers.DeclarativeContainer):
     # --------------------------------------------------------------------------
     # Attachments domain — Factories
     # --------------------------------------------------------------------------
-    # Declared before milestone_service/story_service/task_service (STORY-007
-    # TASK-003 injects attachment_service into all three as the AttachmentReader
-    # Protocol for cascade delete + detail composition); needs story/task/
-    # milestone repositories, which are all declared above this point.
+    # Declared before milestone_service/story_service/task_service, which take
+    # attachment_service as the AttachmentReader Protocol for detail composition;
+    # needs story/task/milestone repositories, all declared above this point.
 
     attachment_repository = providers.Factory(
         AttachmentRepository,
@@ -201,8 +200,7 @@ class AppContainer(containers.DeclarativeContainer):
     # --------------------------------------------------------------------------
     # Declared before milestone_service/story_service/task_service, mirroring the
     # attachments domain above: comment_service is wired into all three as the
-    # CommentReaderProtocol dependency for cascade delete + detail composition
-    # (STORY-008 TASK-004).
+    # CommentReaderProtocol dependency for detail composition.
 
     comment_repository = providers.Factory(
         CommentRepository,
@@ -218,12 +216,10 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
-    # Projects domain — service (declared after attachment_service and
-    # comment_service, STORY-016 TASK-004: project delete cascades the
-    # FK-less attachments and comments of its stories, tasks and milestones
-    # through them as Protocol readers; it also takes story, task and milestone
-    # repositories as readers for the work-state aggregate read — STORY-010
-    # TASK-002 — and for collecting those container ids).
+    # Projects domain — service (declared after file_cleanup_requester: project
+    # delete requests the orphan sweep; the database cascade removes every
+    # attachment and comment row beneath it). Story and task repositories are
+    # the readers for the work-state aggregate read (STORY-010 TASK-002).
     # --------------------------------------------------------------------------
 
     project_service = providers.Factory(
@@ -231,9 +227,7 @@ class AppContainer(containers.DeclarativeContainer):
         repo=project_repository,
         story_reader=story_repository,
         task_reader=task_repository,
-        milestone_reader=milestone_repository,
-        attachment_reader=attachment_service,
-        comment_reader=comment_service,
+        file_cleanup=file_cleanup_requester,
     )
 
     # --------------------------------------------------------------------------
@@ -245,12 +239,11 @@ class AppContainer(containers.DeclarativeContainer):
         repo=milestone_repository,
         project_repo=project_repository,
         story_repo=story_repository,
-        # Cross-domain: milestones service cascades and composes attachments
-        # via Protocol (STORY-007, TASK-003).
+        # Cross-domain: milestones service composes attachments and comments
+        # into its detail view via Protocol.
         attachment_reader=attachment_service,
-        # Cross-domain: milestones service cascades and composes comments
-        # via Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
+        file_cleanup=file_cleanup_requester,
     )
 
     # --------------------------------------------------------------------------
@@ -305,15 +298,11 @@ class AppContainer(containers.DeclarativeContainer):
         task_counter=task_repository,
         # Cross-domain: stories service reads story links via Protocol (STORY-006).
         story_link_reader=story_link_service,
-        # Cross-domain: stories service cascades and composes attachments via
-        # Protocol (STORY-007, TASK-003).
+        # Cross-domain: stories service composes attachments and comments into
+        # its detail view via Protocol.
         attachment_reader=attachment_service,
-        # Cross-domain: stories service cascades and composes comments via
-        # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
-        # Cross-domain: stories service lists its tasks' ids ahead of delete so
-        # their FK-less attachments and comments can be removed (STORY-016).
-        task_reader=task_repository,
+        file_cleanup=file_cleanup_requester,
     )
 
     task_service = providers.Factory(
@@ -323,10 +312,9 @@ class AppContainer(containers.DeclarativeContainer):
         effective_dict=settings_service,
         # Cross-domain: tasks service reads task links via Protocol (STORY-006).
         task_link_reader=task_link_service,
-        # Cross-domain: tasks service cascades and composes attachments via
-        # Protocol (STORY-007, TASK-003).
+        # Cross-domain: tasks service composes attachments and comments into
+        # its detail view via Protocol.
         attachment_reader=attachment_service,
-        # Cross-domain: tasks service cascades and composes comments via
-        # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
+        file_cleanup=file_cleanup_requester,
     )

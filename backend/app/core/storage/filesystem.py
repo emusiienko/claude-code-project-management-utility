@@ -40,7 +40,7 @@ class FilesystemStorage:
             raise InternalError(f"Failed to read file: {exc}") from exc
 
     def delete(self, relative_path: str) -> None:
-        # Permanent removal for attachment delete / container-cascade delete.
+        # Permanent removal of one stored file, after a commit that removed its row.
         # missing_ok tolerates a file already absent (e.g. a retried delete).
         path = self._resolve(relative_path)
         try:

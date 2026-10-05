@@ -62,11 +62,6 @@ class MilestoneRepository(BaseRepository[Milestone]):
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total
 
-    def list_all_for_project(self, project_id: str | uuid.UUID) -> list[Milestone]:
-        project_uuid = self.coerce_project_id(project_id)
-        stmt = select(Milestone).where(Milestone.project_id == project_uuid)
-        return list(self._session.scalars(stmt).all())
-
     def get_story_counts(self, milestone_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
         # Resolves story counts for a batch of milestones in a single grouped
         # query — avoids an N+1 per-milestone query on the list endpoint.

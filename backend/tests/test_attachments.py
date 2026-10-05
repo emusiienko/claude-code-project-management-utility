@@ -1543,7 +1543,10 @@ async def test_mcp_delete_attachment_matches_rest(
 
 
 async def test_delete_story_cascades_attachments_and_files(
-    client: AsyncClient, create_project, attachments_dir: Path
+    client: AsyncClient,
+    create_project,
+    attachments_dir: Path,
+    immediate_orphan_sweep: None,
 ) -> None:
     project_id = create_project("Cascade Story")
     story = await _create_story(client, project_id)
@@ -1569,7 +1572,10 @@ async def test_delete_story_cascades_attachments_and_files(
 
 
 async def test_delete_task_cascades_attachments_and_files(
-    client: AsyncClient, create_project, attachments_dir: Path
+    client: AsyncClient,
+    create_project,
+    attachments_dir: Path,
+    immediate_orphan_sweep: None,
 ) -> None:
     project_id = create_project("Cascade Task")
     story = await _create_story(client, project_id)
@@ -1594,7 +1600,10 @@ async def test_delete_task_cascades_attachments_and_files(
 
 
 async def test_delete_milestone_cascades_attachments_and_files(
-    client: AsyncClient, create_project, attachments_dir: Path
+    client: AsyncClient,
+    create_project,
+    attachments_dir: Path,
+    immediate_orphan_sweep: None,
 ) -> None:
     project_id = create_project("Cascade Milestone")
     milestone = await _create_milestone(client, project_id)
@@ -1620,7 +1629,10 @@ async def test_delete_milestone_cascades_attachments_and_files(
 
 
 async def test_delete_story_cascades_its_tasks_attachments_and_files(
-    client: AsyncClient, create_project, attachments_dir: Path
+    client: AsyncClient,
+    create_project,
+    attachments_dir: Path,
+    immediate_orphan_sweep: None,
 ) -> None:
     project_id = create_project("Cascade Story Tasks")
     story = await _create_story(client, project_id)
@@ -1662,7 +1674,10 @@ async def test_delete_story_cascades_its_tasks_attachments_and_files(
 
 
 async def test_delete_project_cascades_story_task_milestone_attachments_and_files(
-    client: AsyncClient, create_project, attachments_dir: Path
+    client: AsyncClient,
+    create_project,
+    attachments_dir: Path,
+    immediate_orphan_sweep: None,
 ) -> None:
     project_id = create_project("Cascade Project Attachments")
     story = await _create_story(client, project_id)

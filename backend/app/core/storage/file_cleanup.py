@@ -1,8 +1,16 @@
+from typing import Protocol
+
 from sqlalchemy.orm import Session
 
 from app.core.database import run_after_commit
 from app.core.storage.filesystem import FilesystemStorage
 from app.core.storage.orphan_sweeper import OrphanFileSweeper
+
+
+class FileCleanupProtocol(Protocol):
+    def request_sweep(self) -> None: ...
+
+    def request_delete(self, relative_path: str) -> None: ...
 
 
 class FileCleanupRequester:

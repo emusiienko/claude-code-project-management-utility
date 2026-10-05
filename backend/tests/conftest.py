@@ -150,6 +150,30 @@ async def client(session_factory) -> AsyncGenerator[AsyncClient, None]:
             yield ac
 
 
+@pytest.fixture()
+def immediate_orphan_sweep() -> Generator[None, None, None]:
+    """Make the post-delete sweep remove files regardless of age.
+
+    A cascaded file is young when a test asserts on it, and the production sweep
+    keeps young files (grace window). Tests that assert a cascaded file is gone use
+    this fixture; the production default is untouched.
+    """
+    from dependency_injector import providers as di_providers
+
+    from app.container import container
+    from app.core.storage import OrphanFileSweeper
+
+    with container.orphan_file_sweeper.override(
+        di_providers.Singleton(
+            OrphanFileSweeper,
+            storage=container.storage,
+            referenced_paths=container.referenced_file_paths_reader,
+            grace_window_seconds=0.0,
+        )
+    ):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # Helper: insert a project row directly (needed for project-scoped tests)
 # ---------------------------------------------------------------------------

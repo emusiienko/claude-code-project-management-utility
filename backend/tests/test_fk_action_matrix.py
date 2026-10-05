@@ -12,7 +12,7 @@ Coverage:
   target), CASCADE -> task (task_link source and target), and SET NULL
   (story.milestone_id, session.linked_story_id, session.linked_task_id). Each SET NULL
   case also asserts the referencing row still exists.
-- Polymorphic containers (attachments + stored files, comments — no FK, ADR-020):
+- Polymorphic containers (attachments + stored files, comments — real container FKs with a CHECK, ADR-034):
   direct (story, task, milestone) and transitive (story -> its tasks; project -> its
   stories, their tasks, its milestones). A bystander container's attachment and
   comment must survive.
@@ -51,6 +51,9 @@ LINK_TYPE = "depends-on"
 SESSION_ROLE = "operator"
 
 Delete = Callable[[str, str], Awaitable[None]]
+
+# A cascaded file is young when asserted on; sweep it without the grace window.
+pytestmark = pytest.mark.usefixtures("immediate_orphan_sweep")
 
 
 # ---------------------------------------------------------------------------

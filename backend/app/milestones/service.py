@@ -10,6 +10,7 @@ from app.comments.schema import CONTAINER_MILESTONE as COMMENT_CONTAINER_MILESTO
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import ConflictError, NotFoundError
+from app.core.storage import FileCleanupProtocol
 from app.milestones.model import Milestone
 from app.milestones.repository import MilestoneRepository
 from app.milestones.schema import (
@@ -38,12 +39,14 @@ class MilestoneService:
         story_repo: StoryRepository,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
         self._story_repo = story_repo
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
+        self._file_cleanup = file_cleanup
 
     def create(self, data: CreateMilestone) -> Milestone:
         self._assert_project_exists(data.project_id)
@@ -131,18 +134,9 @@ class MilestoneService:
 
     def delete(self, milestone_id: str) -> None:
         milestone = self.get(milestone_id)
-        mid = milestone.id
-        # Application-level cascade (ADR-020: the polymorphic container has no
-        # FK, so the database cannot cascade it): remove the milestone's
-        # attachments — rows and files — before the milestone itself is removed.
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(CONTAINER_MILESTONE, mid)
-        # Same cascade contract, extended to comments (STORY-008 TASK-004).
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_container(
-                COMMENT_CONTAINER_MILESTONE, mid
-            )
         self._repo.delete(milestone)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     def activate(self, milestone_id: str) -> Milestone:
         milestone = self.get(milestone_id)

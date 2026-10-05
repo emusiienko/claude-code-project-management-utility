@@ -2,16 +2,16 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from app.attachments.schema import CONTAINER_STORY, CONTAINER_TASK
+from app.attachments.schema import CONTAINER_STORY
 
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
 from app.comments.schema import CONTAINER_STORY as COMMENT_CONTAINER_STORY
-from app.comments.schema import CONTAINER_TASK as COMMENT_CONTAINER_TASK
 
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
+from app.core.storage import FileCleanupProtocol
 from app.projects.repository import ProjectRepository
 
 # Import only the Protocol, never the concrete SessionService.
@@ -46,7 +46,7 @@ class StoryService:
         story_link_reader: "StoryLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
-        task_reader: "TaskReaderProtocol | None" = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
@@ -56,7 +56,7 @@ class StoryService:
         self._story_link_reader = story_link_reader
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
-        self._task_reader = task_reader
+        self._file_cleanup = file_cleanup
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -196,27 +196,9 @@ class StoryService:
 
     def delete(self, story_id: str, project_id: str) -> None:
         story = self.get(story_id, project_id)
-        # Application-level cascade (ADR-020: the polymorphic container has no
-        # FK, so the database cannot cascade it): remove the story's
-        # attachments — rows and files — before the story itself is removed.
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(CONTAINER_STORY, story.id)
-        # Same cascade contract, extended to comments (STORY-008 TASK-004).
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_container(
-                COMMENT_CONTAINER_STORY, story.id
-            )
-        # The story's tasks are removed by the database cascade, which leaves
-        # their FK-less attachments and comments behind. Their ids must be read
-        # now: once the story row is deleted the tasks can no longer be listed.
-        task_ids = self._collect_task_ids(story.id)
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_containers(CONTAINER_TASK, task_ids)
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_containers(
-                COMMENT_CONTAINER_TASK, task_ids
-            )
         self._repo.delete(story)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     def get_aggregate(self, story_id: str) -> StoryAggregate:
         story = self.get_by_id(story_id)
@@ -239,11 +221,6 @@ class StoryService:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
-
-    def _collect_task_ids(self, story_id: uuid.UUID) -> list[uuid.UUID]:
-        if self._task_reader is None:
-            return []
-        return [task.id for task in self._task_reader.list_all_for_stories([story_id])]
 
     def _assert_project_exists(self, project_id: str) -> None:
         if not self._project_repo.exists(project_id):
@@ -271,11 +248,6 @@ class StoryService:
             raise UnprocessableError(_MILESTONE_WRONG_PROJECT_MSG)
 
         return milestone.id
-
-
-@runtime_checkable
-class TaskReaderProtocol(Protocol):
-    def list_all_for_stories(self, story_ids: list[uuid.UUID]) -> list["TaskModel"]: ...
 
 
 @runtime_checkable

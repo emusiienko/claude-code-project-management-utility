@@ -11,6 +11,7 @@ from app.comments.schema import CONTAINER_TASK as COMMENT_CONTAINER_TASK
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
+from app.core.storage import FileCleanupProtocol
 
 # Import only the Protocol, never the concrete SessionService.
 from app.settings.schema import (
@@ -56,6 +57,7 @@ class TaskService:
         task_link_reader: "TaskLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._story_repo = story_repo
@@ -63,6 +65,7 @@ class TaskService:
         self._task_link_reader = task_link_reader
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
+        self._file_cleanup = file_cleanup
 
     def create(self, story_id: str, data: CreateTask) -> Task:
         story = self._assert_story_exists(story_id)
@@ -194,17 +197,9 @@ class TaskService:
 
     def delete(self, task_id: str) -> None:
         task = self.get_by_id(task_id)
-        # Application-level cascade (ADR-020: the polymorphic container has no
-        # FK, so the database cannot cascade it): remove the task's
-        # attachments — rows and files — before the task itself is removed.
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(CONTAINER_TASK, task.id)
-        # Same cascade contract, extended to comments (STORY-008 TASK-004).
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_container(
-                COMMENT_CONTAINER_TASK, task.id
-            )
         self._repo.delete(task)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     # ------------------------------------------------------------------
     # Private helpers

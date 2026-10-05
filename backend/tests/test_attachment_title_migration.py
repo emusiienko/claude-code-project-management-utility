@@ -37,6 +37,10 @@ from sqlalchemy import create_engine, text
 
 ALEMBIC_INI = Path(__file__).parent.parent / "alembic.ini"
 
+# The last revision before attachment moved to container FKs (0015): these tests
+# insert rows in the container_type/container_id shape, so they stop there.
+_PRE_CONTAINER_FK_REVISION = "0014_session_status_backfill"
+
 _ATTACHMENT_TYPES_SEED_VALUES = [
     "plan",
     "document",
@@ -236,7 +240,7 @@ class TestUpgradeFreshDatabase:
         cfg = _alembic_config(migration_db_url)
         # Straight to head on a brand-new DB — 0010 runs immediately after
         # 0009_attachment creates an empty table.
-        alembic_command.upgrade(cfg, "head")
+        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
 
         engine = create_engine(migration_db_url)
         with engine.connect() as conn:
@@ -326,7 +330,7 @@ class TestDowngrade:
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
-        alembic_command.upgrade(cfg, "head")
+        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
 
         engine = create_engine(migration_db_url)
         attachment_id = str(uuid.uuid4())
@@ -385,7 +389,7 @@ class TestDowngrade:
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
-        alembic_command.upgrade(cfg, "head")
+        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
 
         engine = create_engine(migration_db_url)
         attachment_id = str(uuid.uuid4())
@@ -437,7 +441,7 @@ class TestDowngrade:
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
-        alembic_command.upgrade(cfg, "head")
+        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
 
         engine = create_engine(migration_db_url)
         keys_before = _dictionary_keys(engine, "system_settings")

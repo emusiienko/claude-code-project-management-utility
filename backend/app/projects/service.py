@@ -2,21 +2,13 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from app.attachments import schema as attachment_schema
-
-# Import only the Protocol, never the concrete AttachmentService.
-from app.attachments.service import AttachmentReaderProtocol
-from app.comments import schema as comment_schema
-
-# Import only the Protocol, never the concrete CommentService.
-from app.comments.service import CommentReaderProtocol
 from app.core.errors import ConflictError, NotFoundError
+from app.core.storage import FileCleanupProtocol
 from app.projects.model import Project
 from app.projects.repository import ProjectRepository
 from app.projects.schema import ProjectWorkState, WorkStateStory, WorkStateTask
 
 if TYPE_CHECKING:
-    from app.milestones.model import Milestone as MilestoneModel
     from app.stories.model import Story as StoryModel
     from app.tasks.model import Task as TaskModel
 
@@ -33,16 +25,12 @@ class ProjectService:
         repo: ProjectRepository,
         story_reader: "StoryReaderProtocol | None" = None,
         task_reader: "TaskReaderProtocol | None" = None,
-        milestone_reader: "MilestoneReaderProtocol | None" = None,
-        attachment_reader: AttachmentReaderProtocol | None = None,
-        comment_reader: CommentReaderProtocol | None = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._story_reader = story_reader
         self._task_reader = task_reader
-        self._milestone_reader = milestone_reader
-        self._attachment_reader = attachment_reader
-        self._comment_reader = comment_reader
+        self._file_cleanup = file_cleanup
 
     def create(
         self,
@@ -100,28 +88,9 @@ class ProjectService:
 
     def delete(self, project_id: str) -> None:
         project = self.get(project_id)
-        # Attachments and comments have no FK to their container, so the database
-        # cascade leaves them behind. The ids of every story, task and milestone
-        # the cascade will remove must be read now, before the project row goes.
-        story_ids = self._collect_story_ids(project.id)
-        task_ids = self._collect_task_ids(story_ids)
-        milestone_ids = self._collect_milestone_ids(project.id)
-        self._delete_container_children(
-            attachment_schema.CONTAINER_STORY,
-            comment_schema.CONTAINER_STORY,
-            story_ids,
-        )
-        self._delete_container_children(
-            attachment_schema.CONTAINER_TASK,
-            comment_schema.CONTAINER_TASK,
-            task_ids,
-        )
-        self._delete_container_children(
-            attachment_schema.CONTAINER_MILESTONE,
-            comment_schema.CONTAINER_MILESTONE,
-            milestone_ids,
-        )
         self._repo.delete(project)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     def get_work_state(self, project_id: str) -> ProjectWorkState:
         project = self.get(project_id)
@@ -161,36 +130,6 @@ class ProjectService:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _collect_story_ids(self, project_id: uuid.UUID) -> list[uuid.UUID]:
-        if self._story_reader is None:
-            return []
-        return [s.id for s in self._story_reader.list_all_for_project(project_id)]
-
-    def _collect_task_ids(self, story_ids: list[uuid.UUID]) -> list[uuid.UUID]:
-        if self._task_reader is None or not story_ids:
-            return []
-        return [t.id for t in self._task_reader.list_all_for_stories(story_ids)]
-
-    def _collect_milestone_ids(self, project_id: uuid.UUID) -> list[uuid.UUID]:
-        if self._milestone_reader is None:
-            return []
-        return [m.id for m in self._milestone_reader.list_all_for_project(project_id)]
-
-    def _delete_container_children(
-        self,
-        attachment_container_type: str,
-        comment_container_type: str,
-        container_ids: list[uuid.UUID],
-    ) -> None:
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_containers(
-                attachment_container_type, container_ids
-            )
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_containers(
-                comment_container_type, container_ids
-            )
-
     def _assert_name_unique(
         self,
         name: str,
@@ -215,10 +154,3 @@ class TaskReaderProtocol(Protocol):
     def get_status_counts_for_stories(
         self, story_ids: list[uuid.UUID]
     ) -> dict[uuid.UUID, dict[str, int]]: ...
-
-
-@runtime_checkable
-class MilestoneReaderProtocol(Protocol):
-    def list_all_for_project(
-        self, project_id: str | uuid.UUID
-    ) -> list["MilestoneModel"]: ...

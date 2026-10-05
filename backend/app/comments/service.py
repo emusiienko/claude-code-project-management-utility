@@ -58,20 +58,12 @@ class MilestoneReaderProtocol(Protocol):
 class CommentReaderProtocol(Protocol):
     """Satisfied structurally by CommentService; injected into the story,
     task, and milestone services (never the concrete class) so those domains
-    can compose comments into their detail responses and cascade-remove
-    them on container delete without depending on the comments package."""
+    can compose comments into their detail responses without depending on
+    the comments package."""
 
     def list_all_for_container(
         self, container_type: str, container_id: uuid.UUID
     ) -> list[CommentSchema]: ...
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None: ...
-
-    def delete_all_for_containers(
-        self, container_type: str, container_ids: list[uuid.UUID]
-    ) -> None: ...
 
 
 class CommentService:
@@ -120,8 +112,7 @@ class CommentService:
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         comment = Comment(
             id=uuid.uuid4(),
-            container_type=container_type,
-            container_id=container_uuid,
+            **{self._repo.container_column(container_type).key: container_uuid},
             content=data.content,
             author_role=data.author_role,
             labels=[label.model_dump() for label in data.labels],
@@ -227,16 +218,6 @@ class CommentService:
     ) -> list[CommentSchema]:
         rows = self._repo.list_all_for_container(container_type, container_id)
         return [CommentSchema.model_validate(row) for row in rows]
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None:
-        self._repo.delete_all_for_container(container_type, container_id)
-
-    def delete_all_for_containers(
-        self, container_type: str, container_ids: list[uuid.UUID]
-    ) -> None:
-        self._repo.delete_all_for_containers(container_type, container_ids)
 
     # ------------------------------------------------------------------
     # Private helpers
