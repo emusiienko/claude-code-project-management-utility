@@ -2,9 +2,13 @@
 
 > Owned by **lead-developer** (backend stack). Update only at the user's explicit request.
 > Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · fastmcp
-> Last updated: 2026-10-05 (rev 13 — § DB Portability: SQLite FK enforcement on every application
-> connection; § SQLAlchemy 2.0: database owns FK cascades, service owns transitive polymorphic
-> cleanup; § Alembic: SQLite migrations run with enforcement off, no orphans. STORY-016/TASK-007)
+> Last updated: 2026-10-05 (rev 14 — § SQLAlchemy 2.0: database owns every row removal, attachments
+> and comments included; stored files removed only after commit, via `core/storage/` and
+> `core/database/`. STORY-016/TASK-019)
+>
+> rev 13 (2026-10-05) — § DB Portability: SQLite FK enforcement on every application
+> connection; § SQLAlchemy 2.0: database owns FK cascades; § Alembic: SQLite migrations run with
+> enforcement off, no orphans. STORY-016/TASK-007
 >
 > rev 12 (2026-09-30) — § MCP Tools Layer: MCP mount requires `path="/"` on
 > `http_app()` and `lifespan=mcp_app_v1.lifespan` on `FastAPI()`; § Testing: MCP mount/lifespan
@@ -173,11 +177,14 @@
   on SQLite — abstracted via a custom `UUIDType` in `core/database/`
 - JSON columns (`labels`): use `JSON` type; dialect-aware filtering (SQLite `json_each` /
   `json_extract`, PostgreSQL `jsonb` operators) stays inside the data layer
-- The database owns FK cascades (`ON DELETE CASCADE` / `SET NULL`). Never write a service-level
-  cleanup that duplicates a declared FK action; every FK in the database is declared on the model
-- The service owns cleanup of FK-less polymorphic children (attachments, comments — rows and stored
-  files), for the deleted container and every container its delete removes transitively. Collect
-  those container ids before deleting the parent row
+- The database owns every row removal on a delete (`ON DELETE CASCADE` / `SET NULL`), attachments
+  and comments included. Never write a service-level cleanup that duplicates a declared FK action;
+  every FK in the database is declared on the model
+- Stored files are removed only after the commit, by two paths: the orphan sweep, and a
+  single-attachment delete removing its own file. A delete never removes a file before the commit
+- File I/O and the orphan sweep live in `core/storage/`; the after-commit mechanism lives in
+  `core/database/`. Services only request file removal and a sweep — they never touch the session
+  for it
 
 ---
 
