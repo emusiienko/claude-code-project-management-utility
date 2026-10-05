@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 # ---------------------------------------------------------------------------
@@ -45,20 +45,12 @@ def engine():
     if TEST_DB_PATH.exists():
         TEST_DB_PATH.unlink()
 
-    _engine = create_engine(TEST_DB_URL, echo=False)
+    # build_engine enables WAL and FK enforcement on every SQLite connection,
+    # exactly as the application engine does. Migrations run through
+    # migrations/env.py with their own engine, which has enforcement off.
+    from app.core.database import build_engine
 
-    # SQLite ignores declared FK actions (ON DELETE CASCADE / SET NULL) unless
-    # this is issued on every connection. Test-engine only: migrations build
-    # their own engine in migrations/env.py, so table rebuilds are unaffected.
-    @event.listens_for(_engine, "connect")
-    def _enable_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-    # Enable WAL mode (mirrors production SQLite config).
-    with _engine.connect() as conn:
-        conn.execute(text("PRAGMA journal_mode=WAL"))
+    _engine = build_engine(TEST_DB_URL)
 
     yield _engine
 
