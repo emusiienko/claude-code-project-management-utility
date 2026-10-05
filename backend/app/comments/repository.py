@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 
 from app.comments.model import Comment
 from app.core.database.json_utils import (
@@ -137,3 +137,29 @@ class CommentRepository(BaseRepository[Comment]):
             self._session.delete(row)
         if rows:
             self._session.flush()
+
+    def list_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> list[Comment]:
+        if not container_ids:
+            return []
+        stmt = select(Comment).where(
+            Comment.container_type == container_type,
+            Comment.container_id.in_(container_ids),
+        )
+        return list(self._session.scalars(stmt).all())
+
+    def delete_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> None:
+        # Bulk sibling of delete_all_for_container: one IN statement for a whole
+        # set of containers, so a transitive cascade never deletes per container.
+        if not container_ids:
+            return
+        self._session.execute(
+            delete(Comment).where(
+                Comment.container_type == container_type,
+                Comment.container_id.in_(container_ids),
+            )
+        )
+        self._session.flush()

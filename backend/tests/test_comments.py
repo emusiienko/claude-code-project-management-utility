@@ -958,6 +958,71 @@ async def test_deleting_container_cascades_comment_removal(
         )
 
 
+async def test_delete_story_cascades_its_tasks_comments(
+    client: AsyncClient, create_project
+) -> None:
+    project_id = create_project("Cascade Story Task Comments")
+    story = await _create_story(client, project_id)
+    task_a = await _create_task(client, story["id"], "Task A")
+    task_b = await _create_task(client, story["id"], "Task B")
+    other_story = await _create_story(client, project_id, "Untouched Story")
+    other_task = await _create_task(client, other_story["id"], "Untouched Task")
+
+    doomed: list[dict] = []
+    for container_type, container in (
+        ("story", story),
+        ("task", task_a),
+        ("task", task_b),
+    ):
+        url = _comments_url(container_type, container["id"])
+        doomed.append((await _create_comment(client, url)).json()["data"])
+    survivor = (
+        await _create_comment(client, _comments_url("task", other_task["id"]))
+    ).json()["data"]
+
+    delete_resp = await client.delete(f"{STORIES_URL}/{story['id']}")
+    assert delete_resp.status_code == 204
+
+    for comment in doomed:
+        get_resp = await client.get(f"{COMMENTS_URL}/{comment['id']}")
+        assert get_resp.status_code == 404, (
+            f"Comment {comment['id']} on the deleted story or one of its tasks "
+            f"remains, got {get_resp.status_code}"
+        )
+    survivor_resp = await client.get(f"{COMMENTS_URL}/{survivor['id']}")
+    assert (
+        survivor_resp.status_code == 200
+    ), "A comment on a task in another story must survive"
+
+
+async def test_delete_project_cascades_story_task_milestone_comments(
+    client: AsyncClient, create_project
+) -> None:
+    project_id = create_project("Cascade Project Comments")
+    story = await _create_story(client, project_id)
+    task = await _create_task(client, story["id"])
+    milestone = await _create_milestone(client, project_id)
+
+    comments: list[dict] = []
+    for container_type, container in (
+        ("story", story),
+        ("task", task),
+        ("milestone", milestone),
+    ):
+        url = _comments_url(container_type, container["id"])
+        comments.append((await _create_comment(client, url)).json()["data"])
+
+    delete_resp = await client.delete(f"/v1/projects/{project_id}")
+    assert delete_resp.status_code == 204
+
+    for comment in comments:
+        get_resp = await client.get(f"{COMMENTS_URL}/{comment['id']}")
+        assert get_resp.status_code == 404, (
+            f"Comment {comment['id']} in the deleted project remains, "
+            f"got {get_resp.status_code}"
+        )
+
+
 # ===========================================================================
 # Detail composition — story/task/milestone detail return comments newest-first
 # ===========================================================================

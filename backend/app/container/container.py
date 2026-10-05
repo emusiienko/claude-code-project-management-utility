@@ -77,10 +77,8 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    # project_service itself is declared further below, after story_repository
-    # and task_repository (STORY-010 TASK-002: it takes both as the
-    # StoryReaderProtocol/TaskReaderProtocol dependencies for the work-state
-    # aggregate read).
+    # project_service itself is declared further below, after attachment_service
+    # and comment_service (it takes them as Protocol readers).
 
     # --------------------------------------------------------------------------
     # Settings domain — Factories (resolved per injection)
@@ -129,20 +127,6 @@ class AppContainer(containers.DeclarativeContainer):
     task_repository = providers.Factory(
         TaskRepository,
         session=db_session,
-    )
-
-    # --------------------------------------------------------------------------
-    # Projects domain — service (declared here, after story_repository and
-    # task_repository, so it can receive them as its cross-domain
-    # StoryReaderProtocol/TaskReaderProtocol dependencies for the work-state
-    # aggregate read — STORY-010 TASK-002).
-    # --------------------------------------------------------------------------
-
-    project_service = providers.Factory(
-        ProjectService,
-        repo=project_repository,
-        story_reader=story_repository,
-        task_reader=task_repository,
     )
 
     # --------------------------------------------------------------------------
@@ -211,6 +195,25 @@ class AppContainer(containers.DeclarativeContainer):
         story_reader=story_repository,
         task_reader=task_repository,
         milestone_reader=milestone_repository,
+    )
+
+    # --------------------------------------------------------------------------
+    # Projects domain — service (declared after attachment_service and
+    # comment_service, STORY-016 TASK-004: project delete cascades the
+    # FK-less attachments and comments of its stories, tasks and milestones
+    # through them as Protocol readers; it also takes story, task and milestone
+    # repositories as readers for the work-state aggregate read — STORY-010
+    # TASK-002 — and for collecting those container ids).
+    # --------------------------------------------------------------------------
+
+    project_service = providers.Factory(
+        ProjectService,
+        repo=project_repository,
+        story_reader=story_repository,
+        task_reader=task_repository,
+        milestone_reader=milestone_repository,
+        attachment_reader=attachment_service,
+        comment_reader=comment_service,
     )
 
     # --------------------------------------------------------------------------
@@ -291,6 +294,9 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain, reverse direction: stories service nulls session
         # references to a deleted story via Protocol (STORY-009, TASK-004).
         session_reference_cleaner=session_service,
+        # Cross-domain: stories service lists its tasks' ids ahead of delete so
+        # their FK-less attachments and comments can be removed (STORY-016).
+        task_reader=task_repository,
     )
 
     task_service = providers.Factory(

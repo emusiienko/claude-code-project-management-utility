@@ -2,11 +2,12 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from app.attachments.schema import CONTAINER_STORY
+from app.attachments.schema import CONTAINER_STORY, CONTAINER_TASK
 
 # Import only the Protocol, never the concrete AttachmentService.
 from app.attachments.service import AttachmentReaderProtocol
 from app.comments.schema import CONTAINER_STORY as COMMENT_CONTAINER_STORY
+from app.comments.schema import CONTAINER_TASK as COMMENT_CONTAINER_TASK
 
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
@@ -25,6 +26,7 @@ from app.stories.schema import CreateStory, StoryAggregate, StoryDetail, UpdateS
 
 if TYPE_CHECKING:
     from app.milestones.model import Milestone as MilestoneModel
+    from app.tasks.model import Task as TaskModel
 
 _STATUS_VIOLATION_MSG = "Status value '{v}' is not allowed. Allowed: {allowed}."
 _MILESTONE_WRONG_PROJECT_MSG = "This milestone does not belong to the story's project."
@@ -46,6 +48,7 @@ class StoryService:
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
         session_reference_cleaner: SessionReferenceCleanerProtocol | None = None,
+        task_reader: "TaskReaderProtocol | None" = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
@@ -56,6 +59,7 @@ class StoryService:
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
         self._session_reference_cleaner = session_reference_cleaner
+        self._task_reader = task_reader
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -210,6 +214,16 @@ class StoryService:
             self._comment_reader.delete_all_for_container(
                 COMMENT_CONTAINER_STORY, story.id
             )
+        # The story's tasks are removed by the database cascade, which leaves
+        # their FK-less attachments and comments behind. Their ids must be read
+        # now: once the story row is deleted the tasks can no longer be listed.
+        task_ids = self._collect_task_ids(story.id)
+        if self._attachment_reader is not None:
+            self._attachment_reader.delete_all_for_containers(CONTAINER_TASK, task_ids)
+        if self._comment_reader is not None:
+            self._comment_reader.delete_all_for_containers(
+                COMMENT_CONTAINER_TASK, task_ids
+            )
         # Same cascade contract, reverse direction (STORY-009 TASK-004): null
         # linked_story_id on every session referencing this story. Holds on
         # both dialects since SQLite's SET NULL FK action is inert.
@@ -239,6 +253,11 @@ class StoryService:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _collect_task_ids(self, story_id: uuid.UUID) -> list[uuid.UUID]:
+        if self._task_reader is None:
+            return []
+        return [task.id for task in self._task_reader.list_all_for_stories([story_id])]
+
     def _assert_project_exists(self, project_id: str) -> None:
         if not self._project_repo.exists(project_id):
             raise NotFoundError(f"Project '{project_id}' not found.")
@@ -265,6 +284,11 @@ class StoryService:
             raise UnprocessableError(_MILESTONE_WRONG_PROJECT_MSG)
 
         return milestone.id
+
+
+@runtime_checkable
+class TaskReaderProtocol(Protocol):
+    def list_all_for_stories(self, story_ids: list[uuid.UUID]) -> list["TaskModel"]: ...
 
 
 @runtime_checkable

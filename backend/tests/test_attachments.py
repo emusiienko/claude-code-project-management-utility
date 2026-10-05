@@ -1614,6 +1614,80 @@ async def test_delete_milestone_cascades_attachments_and_files(
     ), "Deleting the milestone must remove its attachment row"
 
 
+async def test_delete_story_cascades_its_tasks_attachments_and_files(
+    client: AsyncClient, create_project, attachments_dir: Path
+) -> None:
+    project_id = create_project("Cascade Story Tasks")
+    story = await _create_story(client, project_id)
+    task_a = await _create_task(client, story["id"], "Task A")
+    task_b = await _create_task(client, story["id"], "Task B")
+    other_story = await _create_story(client, project_id, "Untouched Story")
+    other_task = await _create_task(client, other_story["id"], "Untouched Task")
+
+    created: list[tuple[str, str, str]] = []
+    for container_type, container in (
+        ("story", story),
+        ("task", task_a),
+        ("task", task_b),
+        ("task", other_task),
+    ):
+        resp = await _create_document_json(
+            client, _attachments_url(container_type, container["id"])
+        )
+        created.append((container_type, container["id"], resp.json()["data"]["id"]))
+
+    delete_resp = await client.delete(f"{STORIES_URL}/{story['id']}")
+    assert delete_resp.status_code == 204
+
+    for container_type, container_id, attachment_id in created[:3]:
+        assert not _attachment_file_path(
+            attachments_dir, container_type, container_id, attachment_id
+        ).exists(), f"Stored file of a {container_type} under the deleted story remains"
+        get_resp = await client.get(f"{ATTACHMENTS_URL}/{attachment_id}")
+        assert (
+            get_resp.status_code == 404
+        ), f"Attachment row of a {container_type} under the deleted story remains"
+
+    survivor_type, survivor_container, survivor_id = created[3]
+    assert _attachment_file_path(
+        attachments_dir, survivor_type, survivor_container, survivor_id
+    ).exists(), "A task in another story must keep its attachment file"
+    survivor_resp = await client.get(f"{ATTACHMENTS_URL}/{survivor_id}")
+    assert survivor_resp.status_code == 200
+
+
+async def test_delete_project_cascades_story_task_milestone_attachments_and_files(
+    client: AsyncClient, create_project, attachments_dir: Path
+) -> None:
+    project_id = create_project("Cascade Project Attachments")
+    story = await _create_story(client, project_id)
+    task = await _create_task(client, story["id"])
+    milestone = await _create_milestone(client, project_id)
+
+    created: list[tuple[str, str, str]] = []
+    for container_type, container in (
+        ("story", story),
+        ("task", task),
+        ("milestone", milestone),
+    ):
+        resp = await _create_document_json(
+            client, _attachments_url(container_type, container["id"])
+        )
+        created.append((container_type, container["id"], resp.json()["data"]["id"]))
+
+    delete_resp = await client.delete(f"{PROJECTS_ID_URL}/{project_id}")
+    assert delete_resp.status_code == 204
+
+    for container_type, container_id, attachment_id in created:
+        assert not _attachment_file_path(
+            attachments_dir, container_type, container_id, attachment_id
+        ).exists(), f"Stored file of a {container_type} in the deleted project remains"
+        get_resp = await client.get(f"{ATTACHMENTS_URL}/{attachment_id}")
+        assert (
+            get_resp.status_code == 404
+        ), f"Attachment row of a {container_type} in the deleted project remains"
+
+
 # ===========================================================================
 # Detail composition
 # ===========================================================================

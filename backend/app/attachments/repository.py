@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.attachments.model import Attachment
 from app.core.database.repository import BaseRepository
@@ -65,3 +65,29 @@ class AttachmentRepository(BaseRepository[Attachment]):
             self._session.delete(row)
         if rows:
             self._session.flush()
+
+    def list_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> list[Attachment]:
+        # Bulk sibling of list_all_for_container: one IN query for a whole set
+        # of containers, so a transitive cascade never queries per container.
+        if not container_ids:
+            return []
+        stmt = select(Attachment).where(
+            Attachment.container_type == container_type,
+            Attachment.container_id.in_(container_ids),
+        )
+        return list(self._session.scalars(stmt).all())
+
+    def delete_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> None:
+        if not container_ids:
+            return
+        self._session.execute(
+            delete(Attachment).where(
+                Attachment.container_type == container_type,
+                Attachment.container_id.in_(container_ids),
+            )
+        )
+        self._session.flush()

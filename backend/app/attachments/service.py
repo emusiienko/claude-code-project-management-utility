@@ -71,6 +71,10 @@ class AttachmentReaderProtocol(Protocol):
         self, container_type: str, container_id: uuid.UUID
     ) -> None: ...
 
+    def delete_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> None: ...
+
 
 class AttachmentService:
     def __init__(
@@ -227,6 +231,17 @@ class AttachmentService:
             if row.file_path is not None:
                 self._storage.delete(row.file_path)
         self._repo.delete_all_for_container(container_type, container_id)
+
+    def delete_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> None:
+        # Same file-then-row order as delete_all_for_container, in two queries
+        # regardless of how many containers are removed.
+        rows = self._repo.list_all_for_containers(container_type, container_ids)
+        for row in rows:
+            if row.file_path is not None:
+                self._storage.delete(row.file_path)
+        self._repo.delete_all_for_containers(container_type, container_ids)
 
     # ------------------------------------------------------------------
     # Private helpers

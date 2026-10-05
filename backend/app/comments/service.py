@@ -69,6 +69,10 @@ class CommentReaderProtocol(Protocol):
         self, container_type: str, container_id: uuid.UUID
     ) -> None: ...
 
+    def delete_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> None: ...
+
 
 class CommentService:
     def __init__(
@@ -228,6 +232,11 @@ class CommentService:
         self, container_type: str, container_id: uuid.UUID
     ) -> None:
         self._repo.delete_all_for_container(container_type, container_id)
+
+    def delete_all_for_containers(
+        self, container_type: str, container_ids: list[uuid.UUID]
+    ) -> None:
+        self._repo.delete_all_for_containers(container_type, container_ids)
 
     # ------------------------------------------------------------------
     # Private helpers
