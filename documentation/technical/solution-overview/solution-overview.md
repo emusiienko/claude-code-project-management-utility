@@ -156,6 +156,10 @@ a service reads another app's *data layer*, never another app's service, avoidin
 3. Attachments are immutable — written once at create, never overwritten; there is no update endpoint
    and no version history. To change content, delete and re-create (no archive; delete works for
    every kind).
+4. Deleting an attachment removes its row, commits, then removes its file. Rows removed by a
+   container cascade (task, story, milestone, project delete) leave their files to the storage
+   layer's orphan file sweep, which runs after each such delete commits and once at startup and
+   removes every stored file no attachment row points to (ADR-034).
 
 ## Authentication Flow
 
@@ -227,7 +231,7 @@ system-level shape — services, exposure, networks, concurrent stacks, and volu
 - **[ADR-017](../adr-log/ADR-017-two-separate-link-domains.md)** — Separate `task_links` / `story_links` packages (not one polymorphic table); task-link scope narrowed to same-story.
 - **[ADR-018](../adr-log/ADR-018-application-level-link-cascade-cleanup.md)** — Application-level cascade delete for links (SQLite FK actions are inert as built).
 - **[ADR-019](../adr-log/ADR-019-structured-link-types-dictionary.md)** — Structured `link_types` dictionary (`{value, outbound, inbound}`); other dictionaries stay plain-string arrays.
-- **[ADR-020](../adr-log/ADR-020-polymorphic-fkless-attachment-container.md)** — Polymorphic, FK-less `container_id` for attachments and comments across story/task/milestone.
+- **[ADR-020](../adr-log/ADR-020-polymorphic-fkless-attachment-container.md)** — Polymorphic, FK-less `container_id` for attachments and comments (superseded by ADR-034).
 - **[ADR-021](../adr-log/ADR-021-attachment-immutability-no-versioning.md)** — Attachment immutability: one file per attachment, create + delete only, no versioning (supersedes ADR-005).
 - **[ADR-022](../adr-log/ADR-022-scalar-setting-in-shared-store.md)** — Scalar `default_web_ui_role` settings key.
 - **[ADR-023](../adr-log/ADR-023-persisted-materialized-ancestor-path-for-replies.md)** — Replies as an immutable, materialized `ancestors` id-path.
@@ -241,6 +245,7 @@ system-level shape — services, exposure, networks, concurrent stacks, and volu
 - **[ADR-031](../adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md)** — PostgreSQL as the deployment default with a prod/dev env-template split (refines, not supersedes, ADR-002).
 - **[ADR-032](../adr-log/ADR-032-mcp-path-versioned-mount.md)** — MCP surface path-versioned under `/mcp/<version>`, one server instance per version, served at `/mcp/v1` (refines, not supersedes, ADR-007).
 - **[ADR-033](../adr-log/ADR-033-prod-external-access-network.md)** — Prod stack exposes the backend and an in-network Web UI instance to other local projects over a fixed-name Docker network (refines, not supersedes, ADR-030).
+- **[ADR-034](../adr-log/ADR-034-attachment-comment-container-fks-orphan-file-sweep.md)** — Attachments and comments reference story/task/milestone through real FKs with an exactly-one CHECK; stored files removed by an orphan file sweep (supersedes ADR-020).
 
 Open items carried in the reconcile log (not yet ADR-backed): enabling SQLite `PRAGMA foreign_keys = ON`
 in the application engine (the test engine already enables it) so declared `CASCADE`/`SET NULL` actions

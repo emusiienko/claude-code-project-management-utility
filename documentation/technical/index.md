@@ -14,7 +14,7 @@ Document, the master/entry doc). Everything below is referenced from it.
 | Physical Data Model | [`data-models/physical-data-model.md`](data-models/physical-data-model.md) | As-built schema — tables, relations/cascade, indexes, portability, seed (single DB-agnostic store) |
 | API Contracts | [`api-contracts/coordination-service.md`](api-contracts/coordination-service.md) | The one backend service (REST + path-mounted MCP), LOCKED |
 | Deployment / Infrastructure View | [`deployment/deployment-infrastructure-view.md`](deployment/deployment-infrastructure-view.md) | System-level topology (not IaC) |
-| ADR Log | [`adr-log/`](adr-log/) | 33 architecture decision records ([`ADR-001`](adr-log/ADR-001-backend-stack-python-fastapi.md)…[`ADR-033`](adr-log/ADR-033-prod-external-access-network.md)); next id ADR-034 |
+| ADR Log | [`adr-log/`](adr-log/) | 34 architecture decision records ([`ADR-001`](adr-log/ADR-001-backend-stack-python-fastapi.md)…[`ADR-034`](adr-log/ADR-034-attachment-comment-container-fks-orphan-file-sweep.md)); next id ADR-035 |
 
 Migrated from an earlier single-file architecture document, API contract, decision folder, and
 technical roadmap, all since deleted — this folder is the only technical documentation there is, and

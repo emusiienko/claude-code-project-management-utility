@@ -152,7 +152,7 @@ Full records in [`adr-log/`](adr-log/). Next id: **ADR-034**.
 | [ADR-017](adr-log/ADR-017-two-separate-link-domains.md) | Two separate link domains instead of one polymorphic link table | Accepted |
 | [ADR-018](adr-log/ADR-018-application-level-link-cascade-cleanup.md) | Application-level link cleanup on parent delete | Accepted |
 | [ADR-019](adr-log/ADR-019-structured-link-types-dictionary.md) | Heterogeneous dictionary value shapes — structured `link_types` | Accepted |
-| [ADR-020](adr-log/ADR-020-polymorphic-fkless-attachment-container.md) | Polymorphic FK-less attachment/comment container | Accepted |
+| [ADR-020](adr-log/ADR-020-polymorphic-fkless-attachment-container.md) | Polymorphic FK-less attachment/comment container | Superseded by ADR-034 |
 | [ADR-021](adr-log/ADR-021-attachment-immutability-no-versioning.md) | Attachments are immutable — no version history, no archive | Accepted |
 | [ADR-022](adr-log/ADR-022-scalar-setting-in-shared-store.md) | Scalar (single-value) settings live in the shared dictionary store | Accepted |
 | [ADR-023](adr-log/ADR-023-persisted-materialized-ancestor-path-for-replies.md) | Comment replies use a persisted, immutable materialized ancestor path | Accepted |
@@ -166,6 +166,7 @@ Full records in [`adr-log/`](adr-log/). Next id: **ADR-034**.
 | [ADR-031](adr-log/ADR-031-postgres-deployment-default-two-file-env-split.md) | PostgreSQL as the deployment default + two-file env templates | Accepted |
 | [ADR-032](adr-log/ADR-032-mcp-path-versioned-mount.md) | MCP surface path-versioned under `/mcp/<version>` (served at `/mcp/v1`) | Accepted |
 | [ADR-033](adr-log/ADR-033-prod-external-access-network.md) | Prod stack exposed to other local projects over a fixed-name Docker network | Accepted |
+| [ADR-034](adr-log/ADR-034-attachment-comment-container-fks-orphan-file-sweep.md) | Real container FKs for attachments/comments + orphan file sweep | Accepted |
 
 ## Risks & Technical Debt
 
