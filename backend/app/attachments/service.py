@@ -56,6 +56,12 @@ class MilestoneReaderProtocol(Protocol):
     def get_by_id(self, milestone_id: str | uuid.UUID) -> "MilestoneModel | None": ...
 
 
+class FileCleanupProtocol(Protocol):
+    def request_sweep(self) -> None: ...
+
+    def request_delete(self, relative_path: str) -> None: ...
+
+
 @runtime_checkable
 class AttachmentReaderProtocol(Protocol):
     """Satisfied structurally by AttachmentService; injected into the story,
@@ -84,12 +90,14 @@ class AttachmentService:
         story_reader: StoryReaderProtocol,
         task_reader: TaskReaderProtocol,
         milestone_reader: MilestoneReaderProtocol,
+        file_cleanup: FileCleanupProtocol,
     ) -> None:
         self._repo = repo
         self._storage = storage
         self._story_reader = story_reader
         self._task_reader = task_reader
         self._milestone_reader = milestone_reader
+        self._file_cleanup = file_cleanup
 
     # ------------------------------------------------------------------
     # Create
@@ -207,9 +215,10 @@ class AttachmentService:
 
     def delete(self, attachment_id: str) -> None:
         attachment = self.get_by_id(attachment_id)
-        if attachment.file_path is not None:
-            self._storage.delete(attachment.file_path)
         self._repo.delete(attachment)
+        if attachment.file_path is not None:
+            self._file_cleanup.request_delete(attachment.file_path)
+        self._file_cleanup.request_sweep()
 
     # ------------------------------------------------------------------
     # AttachmentReaderProtocol — consumed by story/task/milestone services

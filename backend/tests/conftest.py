@@ -15,7 +15,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -97,14 +97,10 @@ def apply_migrations(engine):
 
 @pytest.fixture(scope="session")
 def session_factory(engine, apply_migrations):
-    """Return a sessionmaker bound to the test engine."""
-    factory = sessionmaker(
-        bind=engine,
-        autocommit=False,
-        autoflush=False,
-        expire_on_commit=False,
-    )
-    return factory
+    """Return the application's session factory bound to the test engine."""
+    from app.core.database import build_session_factory
+
+    return build_session_factory(engine)
 
 
 # ---------------------------------------------------------------------------

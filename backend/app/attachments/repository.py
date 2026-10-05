@@ -14,6 +14,10 @@ class AttachmentRepository(BaseRepository[Attachment]):
         # without UUID parsing outside the data layer (ADR-011).
         return self._coerce_uuid(container_id, "Container")
 
+    def list_file_paths(self) -> set[str]:
+        stmt = select(Attachment.file_path).where(Attachment.file_path.is_not(None))
+        return set(self._session.scalars(stmt).all())
+
     def list_paginated(
         self,
         container_type: str,

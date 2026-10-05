@@ -1514,7 +1514,7 @@ async def test_delete_attachment_not_found_returns_404(client: AsyncClient) -> N
 
 
 async def test_mcp_delete_attachment_matches_rest(
-    client: AsyncClient, create_project
+    client: AsyncClient, create_project, attachments_dir: Path
 ) -> None:
     project_id = create_project("MCP Delete Parity")
     story = await _create_story(client, project_id)
@@ -1522,6 +1522,10 @@ async def test_mcp_delete_attachment_matches_rest(
         client, _attachments_url("story", story["id"])
     )
     attachment_id = create_resp.json()["data"]["id"]
+    file_path = _attachment_file_path(
+        attachments_dir, "story", story["id"], attachment_id
+    )
+    assert file_path.exists(), "Precondition: stored file should exist after create"
 
     result = await _mcp_call("delete_attachment", {"id": attachment_id})
     assert result.data == {"success": True}
@@ -1530,6 +1534,7 @@ async def test_mcp_delete_attachment_matches_rest(
     assert (
         get_resp.status_code == 404
     ), "Attachment deleted over MCP should be gone via REST too"
+    assert not file_path.exists(), "Stored file should be removed after the MCP delete"
 
 
 # ===========================================================================

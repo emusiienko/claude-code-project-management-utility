@@ -1,12 +1,13 @@
 from dependency_injector import containers, providers
 
+from app.attachments.referenced_paths import ReferencedFilePathsReader
 from app.attachments.repository import AttachmentRepository
 from app.attachments.service import AttachmentService
 from app.comments.repository import CommentRepository
 from app.comments.service import CommentService
 from app.config import settings
 from app.core.database import build_engine, build_session_factory, init_db_session
-from app.core.storage import FilesystemStorage
+from app.core.storage import FileCleanupRequester, FilesystemStorage, OrphanFileSweeper
 from app.milestones.repository import MilestoneRepository
 from app.milestones.service import MilestoneService
 from app.projects.repository import ProjectRepository
@@ -164,6 +165,27 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
+    # Resolves the session factory when called, not when built, so a test
+    # override of session_factory is honored. It opens its own session: the
+    # request session has just committed when a sweep runs.
+    referenced_file_paths_reader = providers.Factory(
+        ReferencedFilePathsReader,
+        session_factory_provider=session_factory.provider,
+    )
+
+    orphan_file_sweeper = providers.Singleton(
+        OrphanFileSweeper,
+        storage=storage,
+        referenced_paths=referenced_file_paths_reader,
+    )
+
+    file_cleanup_requester = providers.Factory(
+        FileCleanupRequester,
+        session=db_session,
+        sweeper=orphan_file_sweeper,
+        storage=storage,
+    )
+
     attachment_service = providers.Factory(
         AttachmentService,
         repo=attachment_repository,
@@ -171,6 +193,7 @@ class AppContainer(containers.DeclarativeContainer):
         story_reader=story_repository,
         task_reader=task_repository,
         milestone_reader=milestone_repository,
+        file_cleanup=file_cleanup_requester,
     )
 
     # --------------------------------------------------------------------------

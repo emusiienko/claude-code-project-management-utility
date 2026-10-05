@@ -84,6 +84,7 @@ def _attachment_service(session: Session, storage: RecordingStorage):
         story_reader=none,  # type: ignore[arg-type]
         task_reader=none,  # type: ignore[arg-type]
         milestone_reader=none,  # type: ignore[arg-type]
+        file_cleanup=none,  # type: ignore[arg-type]
     )
 
 
