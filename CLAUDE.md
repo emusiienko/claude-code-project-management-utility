@@ -44,15 +44,13 @@ rather than from memory — the pointers below are entry points, not the full in
   Deployment/Infrastructure View, ADR Log. [`index.md`](documentation/technical/index.md) maps the
   whole folder.
 - **API Contract**: [`documentation/technical/api-contracts/coordination-service.md`](documentation/technical/api-contracts/coordination-service.md)
-  — **LOCKED**, as-built
-  head **v1.12**. One backend service (REST + path-mounted MCP over a shared service layer); every REST
+  — **LOCKED**, as-built; its current version is stated in the file's own revision history. One backend service (REST + path-mounted MCP over a shared service layer); every REST
   route lives under the `/v1` base path, and MCP is served at `/mcp/v1`. Shapes change only via an architect-approved revision. It
   documents what the running backend actually serves — read it as the definitive API surface, never as a
   superset.
-- **ADR Log**: [`documentation/technical/adr-log/`](documentation/technical/adr-log/) —
-  `ADR-001`…`ADR-032`, **next id ADR-033**, referenced by
-  ID from the SAD. ADR-009 superseded by ADR-010; ADR-005 by ADR-021. An ADR body is never edited — only
-  its `Status`.
+- **ADR Log**: [`documentation/technical/adr-log/`](documentation/technical/adr-log/) — one file per
+  ADR, referenced by ID from the SAD; the next id is the highest number in that folder plus one, and
+  supersession is recorded in each ADR's `Status`. An ADR body is never edited — only its `Status`.
 - **Data models — three layers, two owners**: Conceptual + Logical at
   [`documentation/business/conceptual-data-model/`](documentation/business/conceptual-data-model/) and
   [`logical-data-model/`](documentation/business/logical-data-model/) (business-analyst; YAML, one
