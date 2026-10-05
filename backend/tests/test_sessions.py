@@ -42,9 +42,10 @@ Coverage zones (per TASK-007, revised by TASK-010 for the status-enum rework):
                                 process restart by construction — no in-memory state
                                 involved); a session with no linked story/task is valid
 - Edge cases                    deleting a linked story/task nulls the session reference
-                                (application-level, holds on SQLite); deleting a project
-                                deletes its sessions (relies on the FK CASCADE, enforced
-                                on the SQLite test engine via PRAGMA foreign_keys)
+                                (FK ON DELETE SET NULL); deleting a project deletes its
+                                sessions (FK ON DELETE CASCADE) — both enforced by the
+                                application engine on SQLite (see test_fk_action_matrix.py
+                                for the direct database-state checks)
 - REST/MCP parity                REST and MCP produce equivalent results and equivalent
                                 error codes for the same operation (a representative
                                 subset, per this project's MCP-is-a-thin-wrapper
@@ -1562,8 +1563,8 @@ class TestReferenceClearingOnDelete:
                 f"got {get_resp.status_code}"
             )
             assert get_resp.json()["data"]["linked_story_id"] is None, (
-                "linked_story_id should be nulled (application-level) after the "
-                "linked story is deleted, holding on SQLite despite the inert FK"
+                "linked_story_id should be nulled (FK SET NULL) after the "
+                "linked story is deleted"
             )
         finally:
             await _delete_project(client, proj["id"])
@@ -1590,8 +1591,8 @@ class TestReferenceClearingOnDelete:
                 f"got {get_resp.status_code}"
             )
             assert get_resp.json()["data"]["linked_task_id"] is None, (
-                "linked_task_id should be nulled (application-level) after the "
-                "linked task is deleted, holding on SQLite despite the inert FK"
+                "linked_task_id should be nulled (FK SET NULL) after the "
+                "linked task is deleted"
             )
         finally:
             await _delete_task(client, task["id"])
@@ -1615,10 +1616,6 @@ class TestProjectCascadeDelete:
             f"Session should 404 after parent project is deleted, "
             f"got {session_resp.status_code}"
         )
-
-        # Cleanup guard for when the pragma is eventually enabled.
-        if session_resp.status_code == 200:
-            await client.delete(f"{PROJECTS_ID_URL}/{proj['id']}")
 
 
 # ===========================================================================
