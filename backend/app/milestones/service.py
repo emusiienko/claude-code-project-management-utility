@@ -132,10 +132,8 @@ class MilestoneService:
     def delete(self, milestone_id: str) -> None:
         milestone = self.get(milestone_id)
         mid = milestone.id
-        # Clear story links before deletion; stories are never deleted.
-        self._repo.clear_story_links(mid)
-        # Application-level cascade (ADR-018 precedent, extended to the
-        # no-FK polymorphic attachment container): remove the milestone's
+        # Application-level cascade (ADR-020: the polymorphic container has no
+        # FK, so the database cannot cascade it): remove the milestone's
         # attachments — rows and files — before the milestone itself is removed.
         if self._attachment_reader is not None:
             self._attachment_reader.delete_all_for_container(CONTAINER_MILESTONE, mid)

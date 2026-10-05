@@ -135,10 +135,7 @@ class AppContainer(containers.DeclarativeContainer):
     # Declared right after tasks (STORY-009): the sessions service only needs
     # project_repository, settings_service (effective_dict), story_repository,
     # and task_repository as its StoryReaderProtocol/TaskReaderProtocol
-    # dependencies — all already declared above this point. The reverse
-    # direction — session_service injected as the reference-cleaner Protocol
-    # into story_service/task_service — is wired below at their declarations
-    # (STORY-009 TASK-004).
+    # dependencies — all already declared above this point.
 
     session_repository = providers.Factory(
         SessionRepository,
@@ -283,7 +280,7 @@ class AppContainer(containers.DeclarativeContainer):
         milestone_repo=milestone_repository,
         # Cross-domain: stories service computes on-demand task aggregate via Protocol.
         task_counter=task_repository,
-        # Cross-domain: stories service reads and clears story links via Protocol (STORY-006).
+        # Cross-domain: stories service reads story links via Protocol (STORY-006).
         story_link_reader=story_link_service,
         # Cross-domain: stories service cascades and composes attachments via
         # Protocol (STORY-007, TASK-003).
@@ -291,9 +288,6 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: stories service cascades and composes comments via
         # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
-        # Cross-domain, reverse direction: stories service nulls session
-        # references to a deleted story via Protocol (STORY-009, TASK-004).
-        session_reference_cleaner=session_service,
         # Cross-domain: stories service lists its tasks' ids ahead of delete so
         # their FK-less attachments and comments can be removed (STORY-016).
         task_reader=task_repository,
@@ -304,7 +298,7 @@ class AppContainer(containers.DeclarativeContainer):
         repo=task_repository,
         story_repo=story_repository,
         effective_dict=settings_service,
-        # Cross-domain: tasks service reads and clears task links via Protocol (STORY-006).
+        # Cross-domain: tasks service reads task links via Protocol (STORY-006).
         task_link_reader=task_link_service,
         # Cross-domain: tasks service cascades and composes attachments via
         # Protocol (STORY-007, TASK-003).
@@ -312,7 +306,4 @@ class AppContainer(containers.DeclarativeContainer):
         # Cross-domain: tasks service cascades and composes comments via
         # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
-        # Cross-domain, reverse direction: tasks service nulls session
-        # references to a deleted task via Protocol (STORY-009, TASK-004).
-        session_reference_cleaner=session_service,
     )

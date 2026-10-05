@@ -49,19 +49,6 @@ class TaskReaderProtocol(Protocol):
     def get_by_id(self, task_id: str | uuid.UUID) -> "TaskModel | None": ...
 
 
-@runtime_checkable
-class SessionReferenceCleanerProtocol(Protocol):
-    """Satisfied structurally by SessionService; injected into the story and
-    task services (never the concrete class) so those domains can null out
-    session references on container delete without depending on the
-    sessions package. Mirrors the attachments/comments AttachmentReader /
-    CommentReader inbound-reader arrangement, in the reverse direction."""
-
-    def clear_references_to_story(self, story_id: uuid.UUID) -> None: ...
-
-    def clear_references_to_task(self, task_id: uuid.UUID) -> None: ...
-
-
 class SessionService:
     def __init__(
         self,
@@ -231,16 +218,6 @@ class SessionService:
     def delete(self, session_id: str) -> None:
         session = self.get_by_id(session_id)
         self._repo.delete(session)
-
-    # ------------------------------------------------------------------
-    # SessionReferenceCleanerProtocol — consumed by story/task services
-    # ------------------------------------------------------------------
-
-    def clear_references_to_story(self, story_id: uuid.UUID) -> None:
-        self._repo.clear_linked_story(story_id)
-
-    def clear_references_to_task(self, task_id: uuid.UUID) -> None:
-        self._repo.clear_linked_task(task_id)
 
     # ------------------------------------------------------------------
     # Private helpers

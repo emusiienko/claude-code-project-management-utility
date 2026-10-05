@@ -71,22 +71,6 @@ class StoryLinkRepository(BaseRepository[StoryLink]):
         rows = self._session.scalars(stmt).all()
         return {row.id: row for row in rows}
 
-    def delete_all_for_story(self, story_id: uuid.UUID) -> None:
-        # Remove every link that references this story (source or target side).
-        # Called explicitly on story-delete because SQLite's ON DELETE CASCADE is
-        # inert without PRAGMA foreign_keys = ON (Known Divergences).
-        stmt = select(StoryLink).where(
-            or_(
-                StoryLink.source_story_id == story_id,
-                StoryLink.target_story_id == story_id,
-            )
-        )
-        links = list(self._session.scalars(stmt).all())
-        for link in links:
-            self._session.delete(link)
-        if links:
-            self._session.flush()
-
     def list_all_for_story(self, story_id: uuid.UUID) -> list[StoryLink]:
         stmt = select(StoryLink).where(
             or_(
