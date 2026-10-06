@@ -31,7 +31,10 @@ Web UI (the human orchestrator) and AI agents (via MCP) — both with full read/
 - Attachments are immutable: exactly one stored file per attachment (for document/image/file kinds),
   written once and never overwritten.
 - `author_role` is optional, free-form, and — once set — never changes.
-- Deleting a story, task, or milestone permanently removes every attachment on it.
+- Deleting a story, task, milestone, or project permanently removes every attachment on it. Its stored
+  files are cleaned up right after, except files less than one hour old, which stay on disk until a
+  later delete's cleanup or a service restart removes them; the attachment itself is gone at once.
+  Deleting a single attachment removes its own file immediately.
 - A stored file (document/image/file) may not exceed 10 MB.
 
 ## Known Limitations
