@@ -142,8 +142,7 @@ REST client, and contract types. The repository is a monorepo (`backend/`, `fron
    (metadata only), and comments (newest-first) in one service call.
 3. The adapter returns `{ "data": { ...task, links, attachments, comments } }`.
 
-Cross-domain composition (detail views, project work-state, aggregates) and application-level cascade
-delete are wired through one-way, runtime-checkable reader Protocols injected via the DI container —
+Cross-domain composition (detail views, project work-state, aggregates) is wired through one-way, runtime-checkable reader Protocols injected via the DI container —
 a service reads another app's *data layer*, never another app's service, avoiding circular imports.
 
 **File path, e.g. "attachment file":**
@@ -229,7 +228,7 @@ system-level shape — services, exposure, networks, concurrent stacks, and volu
 - **[ADR-015](../adr-log/ADR-015-milestone-single-project-lifecycle-model.md)** — Single-project milestone ownership (supersedes the M:N milestone↔project design).
 - **[ADR-016](../adr-log/ADR-016-single-active-milestone-service-transaction.md)** — Atomic milestone lifecycle; single-active-per-project enforced by the service in one transaction.
 - **[ADR-017](../adr-log/ADR-017-two-separate-link-domains.md)** — Separate `task_links` / `story_links` packages (not one polymorphic table); task-link scope narrowed to same-story.
-- **[ADR-018](../adr-log/ADR-018-application-level-link-cascade-cleanup.md)** — Application-level cascade delete for links (SQLite FK actions are inert as built).
+- **[ADR-018](../adr-log/ADR-018-application-level-link-cascade-cleanup.md)** — Application-level cascade delete for links (superseded by ADR-035).
 - **[ADR-019](../adr-log/ADR-019-structured-link-types-dictionary.md)** — Structured `link_types` dictionary (`{value, outbound, inbound}`); other dictionaries stay plain-string arrays.
 - **[ADR-020](../adr-log/ADR-020-polymorphic-fkless-attachment-container.md)** — Polymorphic, FK-less `container_id` for attachments and comments (superseded by ADR-034).
 - **[ADR-021](../adr-log/ADR-021-attachment-immutability-no-versioning.md)** — Attachment immutability: one file per attachment, create + delete only, no versioning (supersedes ADR-005).
@@ -246,8 +245,7 @@ system-level shape — services, exposure, networks, concurrent stacks, and volu
 - **[ADR-032](../adr-log/ADR-032-mcp-path-versioned-mount.md)** — MCP surface path-versioned under `/mcp/<version>`, one server instance per version, served at `/mcp/v1` (refines, not supersedes, ADR-007).
 - **[ADR-033](../adr-log/ADR-033-prod-external-access-network.md)** — Prod stack exposes the backend and an in-network Web UI instance to other local projects over a fixed-name Docker network (refines, not supersedes, ADR-030).
 - **[ADR-034](../adr-log/ADR-034-attachment-comment-container-fks-orphan-file-sweep.md)** — Attachments and comments reference story/task/milestone through real FKs with an exactly-one CHECK; stored files removed by an orphan file sweep (supersedes ADR-020).
+- **[ADR-035](../adr-log/ADR-035-sqlite-fk-enforcement-database-sole-cascade.md)** — SQLite FK enforcement on every application connection; the database is the sole cascade mechanism, no service-level row cleanup (supersedes ADR-018).
 
-Open items carried in the reconcile log (not yet ADR-backed): enabling SQLite `PRAGMA foreign_keys = ON`
-in the application engine (the test engine already enables it) so declared `CASCADE`/`SET NULL` actions
-become enforced on a SQLite deployment, and adding an end-to-end clear-project-override
+Open item carried in the reconcile log (not yet ADR-backed): adding an end-to-end clear-project-override
 operation (service method exists; no REST route/MCP tool exposes it, and the contract has no clear operation).
