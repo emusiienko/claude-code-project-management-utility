@@ -1,10 +1,11 @@
 import uuid
+from collections.abc import Callable
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute, Session, sessionmaker
 
 from app.attachments.model import Attachment
-from app.attachments.schema import CONTAINER_MILESTONE, CONTAINER_STORY, CONTAINER_TASK
+from app.attachments.schema import CONTAINER_KEY_FIELDS
 from app.core.database.repository import BaseRepository
 
 
@@ -15,11 +16,7 @@ class AttachmentRepository(BaseRepository[Attachment]):
     def container_column(
         container_type: str,
     ) -> InstrumentedAttribute[uuid.UUID | None]:
-        return {
-            CONTAINER_STORY: Attachment.story_id,
-            CONTAINER_TASK: Attachment.task_id,
-            CONTAINER_MILESTONE: Attachment.milestone_id,
-        }[container_type]
+        return getattr(Attachment, CONTAINER_KEY_FIELDS[container_type])
 
     def coerce_container_id(self, container_id: str | uuid.UUID) -> uuid.UUID:
         # Exposed so the service can get a validated UUID for model construction
@@ -61,3 +58,19 @@ class AttachmentRepository(BaseRepository[Attachment]):
             self.container_column(container_type) == container_id
         )
         return list(self._session.scalars(stmt).all())
+
+
+def list_referenced_file_paths(
+    session_factory_provider: Callable[[], sessionmaker[Session]],
+) -> set[str]:
+    """Stored-file paths still referenced by an attachment row.
+
+    Opens its own session: the sweeper calls it right after the request session
+    has committed. The provider is resolved per call so a test override of the
+    session factory is honored.
+    """
+    session = session_factory_provider()()
+    try:
+        return AttachmentRepository(session).list_file_paths()
+    finally:
+        session.close()

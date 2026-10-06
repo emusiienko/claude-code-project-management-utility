@@ -1,8 +1,15 @@
 import datetime
 import uuid
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
 
 # ---------------------------------------------------------------------------
 # Domain constants — single source of truth for kinds, containers, and the
@@ -23,6 +30,24 @@ CONTAINER_MILESTONE = "milestone"
 ALL_CONTAINER_TYPES: frozenset[str] = frozenset(
     {CONTAINER_STORY, CONTAINER_TASK, CONTAINER_MILESTONE}
 )
+
+# Container type -> the model's foreign-key field. The one mapping behind both
+# the write side (repository column lookup) and the read side (container_of).
+CONTAINER_KEY_FIELDS: dict[str, str] = {
+    CONTAINER_STORY: "story_id",
+    CONTAINER_TASK: "task_id",
+    CONTAINER_MILESTONE: "milestone_id",
+}
+
+
+def container_of(row: Any) -> tuple[str, uuid.UUID]:
+    """The (container_type, container_id) wire pair of a row, from its set key."""
+    for container_type, field in CONTAINER_KEY_FIELDS.items():
+        value = getattr(row, field)
+        if value is not None:
+            return container_type, value
+    raise ValueError("Row has no container key set.")
+
 
 MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -331,6 +356,23 @@ class Attachment(BaseModel):
     author_role: str | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_container(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+        container_type, container_id = container_of(data)
+        values = {
+            name: getattr(data, name)
+            for name in cls.model_fields
+            if name not in ("container_type", "container_id")
+        }
+        return {
+            **values,
+            "container_type": container_type,
+            "container_id": container_id,
+        }
 
 
 class PaginationMeta(BaseModel):

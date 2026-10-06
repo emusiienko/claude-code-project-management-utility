@@ -1,7 +1,8 @@
+from functools import partial
+
 from dependency_injector import containers, providers
 
-from app.attachments.referenced_paths import ReferencedFilePathsReader
-from app.attachments.repository import AttachmentRepository
+from app.attachments.repository import AttachmentRepository, list_referenced_file_paths
 from app.attachments.service import AttachmentService
 from app.comments.repository import CommentRepository
 from app.comments.service import CommentService
@@ -164,12 +165,10 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    # Resolves the session factory when called, not when built, so a test
-    # override of session_factory is honored. It opens its own session: the
-    # request session has just committed when a sweep runs.
-    referenced_file_paths_reader = providers.Factory(
-        ReferencedFilePathsReader,
-        session_factory_provider=session_factory.provider,
+    # A no-argument callable the sweeper invokes per sweep; the session factory
+    # is resolved at call time so a test override of it is honored.
+    referenced_file_paths_reader = providers.Callable(
+        partial, list_referenced_file_paths, session_factory.provider
     )
 
     orphan_file_sweeper = providers.Singleton(

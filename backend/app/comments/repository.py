@@ -4,7 +4,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.comments.model import Comment
-from app.comments.schema import CONTAINER_MILESTONE, CONTAINER_STORY, CONTAINER_TASK
+from app.comments.schema import CONTAINER_KEY_FIELDS
 from app.core.database.json_utils import (
     apply_json_array_filter,
     apply_json_scalar_array_contains_filter,
@@ -22,11 +22,7 @@ class CommentRepository(BaseRepository[Comment]):
     def container_column(
         container_type: str,
     ) -> InstrumentedAttribute[uuid.UUID | None]:
-        return {
-            CONTAINER_STORY: Comment.story_id,
-            CONTAINER_TASK: Comment.task_id,
-            CONTAINER_MILESTONE: Comment.milestone_id,
-        }[container_type]
+        return getattr(Comment, CONTAINER_KEY_FIELDS[container_type])
 
     def coerce_container_id(self, container_id: str | uuid.UUID) -> uuid.UUID:
         # Exposed so the service can get a validated UUID for model construction

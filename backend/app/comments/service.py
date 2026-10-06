@@ -15,6 +15,7 @@ from app.comments.schema import Comment as CommentSchema
 from app.comments.schema import (
     CreateComment,
     UpdateComment,
+    container_of,
 )
 from app.core.errors import NotFoundError, UnprocessableError
 
@@ -100,10 +101,7 @@ class CommentService:
         ancestors: list[str] = []
         if data.in_reply_to is not None:
             parent = self.get_by_id(data.in_reply_to)
-            if (
-                parent.container_type != container_type
-                or parent.container_id != container_uuid
-            ):
+            if container_of(parent) != (container_type, container_uuid):
                 raise UnprocessableError(_REPLY_SAME_CONTAINER_MSG)
             # Materialized ancestor path: computed once at create, immutable
             # thereafter. The direct parent is simply ancestors[-1].

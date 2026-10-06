@@ -4,7 +4,6 @@ import uuid
 from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.comments.schema import CONTAINER_MILESTONE, CONTAINER_STORY, CONTAINER_TASK
 from app.core.database.base import Base
 from app.core.database.types import UTCDateTime, UUIDType
 
@@ -58,18 +57,3 @@ class Comment(Base):
         Index("ix_comment_task_created", "task_id", "created_at"),
         Index("ix_comment_milestone_created", "milestone_id", "created_at"),
     )
-
-    # Derived so the response schema keeps its container_type / container_id shape.
-    @property
-    def container_type(self) -> str:
-        if self.story_id is not None:
-            return CONTAINER_STORY
-        if self.task_id is not None:
-            return CONTAINER_TASK
-        return CONTAINER_MILESTONE
-
-    @property
-    def container_id(self) -> uuid.UUID:
-        container_id = self.story_id or self.task_id or self.milestone_id
-        assert container_id is not None
-        return container_id
