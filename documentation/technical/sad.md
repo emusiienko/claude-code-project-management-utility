@@ -122,7 +122,7 @@ Summary only — full detail, Source, and Notes live in [`nfr.md`](nfr.md).
 
 ## Architecture Decisions
 
-Full records in [`adr-log/`](adr-log/). Next id: **ADR-034**.
+Full records in [`adr-log/`](adr-log/). Next id: **ADR-036**.
 
 > **Reading note.** Some ADR bodies cite document paths that no longer exist (in ADR-001, ADR-007,
 > ADR-011, ADR-015, ADR-026). Those references are **deliberately not corrected**: an ADR body is
@@ -150,7 +150,7 @@ Full records in [`adr-log/`](adr-log/). Next id: **ADR-034**.
 | [ADR-015](adr-log/ADR-015-milestone-single-project-lifecycle-model.md) | Milestone single-project ownership + lifecycle status | Accepted |
 | [ADR-016](adr-log/ADR-016-single-active-milestone-service-transaction.md) | Single-active-milestone invariant enforced in a service transaction | Accepted |
 | [ADR-017](adr-log/ADR-017-two-separate-link-domains.md) | Two separate link domains instead of one polymorphic link table | Accepted |
-| [ADR-018](adr-log/ADR-018-application-level-link-cascade-cleanup.md) | Application-level link cleanup on parent delete | Accepted |
+| [ADR-018](adr-log/ADR-018-application-level-link-cascade-cleanup.md) | Application-level link cleanup on parent delete | Superseded by ADR-035 |
 | [ADR-019](adr-log/ADR-019-structured-link-types-dictionary.md) | Heterogeneous dictionary value shapes — structured `link_types` | Accepted |
 | [ADR-020](adr-log/ADR-020-polymorphic-fkless-attachment-container.md) | Polymorphic FK-less attachment/comment container | Superseded by ADR-034 |
 | [ADR-021](adr-log/ADR-021-attachment-immutability-no-versioning.md) | Attachments are immutable — no version history, no archive | Accepted |
@@ -167,6 +167,7 @@ Full records in [`adr-log/`](adr-log/). Next id: **ADR-034**.
 | [ADR-032](adr-log/ADR-032-mcp-path-versioned-mount.md) | MCP surface path-versioned under `/mcp/<version>` (served at `/mcp/v1`) | Accepted |
 | [ADR-033](adr-log/ADR-033-prod-external-access-network.md) | Prod stack exposed to other local projects over a fixed-name Docker network | Accepted |
 | [ADR-034](adr-log/ADR-034-attachment-comment-container-fks-orphan-file-sweep.md) | Real container FKs for attachments/comments + orphan file sweep | Accepted |
+| [ADR-035](adr-log/ADR-035-sqlite-fk-enforcement-database-sole-cascade.md) | SQLite FK enforcement in the application engine; database is the sole cascade mechanism | Accepted |
 
 ## Risks & Technical Debt
 
@@ -177,13 +178,6 @@ documentation migration):
   REST route or MCP tool exposes it (only the MCP `clear_project_setting` path works end to end; the
   SPA calls a non-existent `DELETE /projects/:id/settings/:key`). Needs a contract revision off LOCKED
   plus a backend route.
-- **SQLite FK actions are inert in the application engine.** The application's SQLite connection
-  enables only WAL, not `PRAGMA foreign_keys = ON`, so `ON DELETE CASCADE` / `SET NULL` are inert on a
-  SQLite deployment (enforced on PostgreSQL). Most cases are covered by application-level cleanups
-  (ADR-018); deleting a project is not, and leaves its child rows in place on SQLite. The test engine
-  does enable the PRAGMA, so the backend suite exercises enforced FK actions: it no longer surfaces
-  this gap, and it no longer proves the application-level cleanups work on their own. Resolution is to
-  enable the PRAGMA in the application engine, then remove the cleanups that become redundant.
 - **`link_types` duplicate-value returns 400, not the story-specified 422.** Status-code-only
   divergence — the rejection behavior and message are correct; the check lives in the service
   (domain `ValidationError` → 400) rather than the schema.

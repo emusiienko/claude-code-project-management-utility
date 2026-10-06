@@ -325,7 +325,7 @@ name uniqueness within a project).
 | session → story (link) | `session.linked_story_id` | SET NULL | FK |
 | session → task (link) | `session.linked_task_id` | SET NULL | FK |
 
-**The database is the only cascade mechanism.** FK enforcement is on for every application connection
+**The database is the only cascade mechanism (ADR-035).** FK enforcement is on for every application connection
 on both dialects (on SQLite, per connection), so every declared action above fires; the application
 performs no row cleanup of its own on delete. Migrations on SQLite run with enforcement off, so a table
 rebuild never cascades. The one cleanup outside the database is stored attachment files: the storage

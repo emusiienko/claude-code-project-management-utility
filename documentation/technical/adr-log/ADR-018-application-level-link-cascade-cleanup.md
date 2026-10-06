@@ -1,7 +1,7 @@
 # ADR-018: Application-level link cleanup on parent delete (under the SQLite FK gap)
 
 **Date**: 2026-07-13
-**Status**: Accepted
+**Status**: Superseded by ADR-035
 
 **Decision**: When a task or a story is deleted, all links referencing it (as source **or** target)
 are removed **explicitly in the work-item service's delete method**, before the parent row is
