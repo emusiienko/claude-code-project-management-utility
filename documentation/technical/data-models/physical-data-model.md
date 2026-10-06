@@ -203,9 +203,8 @@ Both tables realize the Logical Data Model's three `story_id` / `task_id` / `mil
 directly (ADR-034, superseding ADR-020's polymorphic pair). The exactly-one CHECK is written as the three
 explicit combinations — (`story_id IS NOT NULL AND task_id IS NULL AND milestone_id IS NULL`) OR the
 same with `task_id` set OR with `milestone_id` set — so it is identical DDL on SQLite and PostgreSQL. The
-API keeps `container_type` / `container_id`, derived from whichever key is set. The revision that
-introduces this shape is schema-only (no backfill, no orphan cleanup) and assumes empty attachment and
-comment tables; on SQLite it rebuilds both tables.
+API keeps `container_type` / `container_id`, derived from whichever key is set. The original attachment
+and comment migrations create this shape directly; a database created before it is recreated, not upgraded.
 
 ---
 

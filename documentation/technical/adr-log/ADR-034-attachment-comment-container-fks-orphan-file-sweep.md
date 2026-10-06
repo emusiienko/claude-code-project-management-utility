@@ -10,7 +10,7 @@
 - A file is always removed after the commit, never before, so a rolled-back delete loses no bytes. A sweep failure never fails the delete; the next sweep catches up.
 - The sweep never removes a file whose creating request may still be in flight (a file younger than a grace window longer than any create request). The startup sweep has no such window to respect.
 - The wire shape does not change: `container_type` / `container_id` stay in the API, derived from whichever key is set.
-- The schema revision is schema-only: no backfill from the old pair and no orphan cleanup. It assumes empty attachment and comment tables, because the user wipes the database before upgrading.
+- The original attachment and comment migrations are edited in place to create this shape; there is no separate upgrade revision. Existing databases are wiped, since none holds real data yet.
 
 This supersedes ADR-020. It relies on SQLite FK enforcement in the application engine, delivered in the same story.
 
@@ -22,4 +22,4 @@ This supersedes ADR-020. It relies on SQLite FK enforcement in the application e
 
 **Rationale**: ADR-020 rejected nullable FKs because SQLite did not enforce FKs and a portable exactly-one check seemed awkward. Enforcement now exists, and the explicit-combination CHECK is portable. The physical model now matches the Logical Data Model, which already defines these three keys.
 
-**Trade-offs**: Two of the three key columns are always null on each row. Every delete that can cascade to an attachment triggers a full scan of the attachments store against the referenced paths, which is acceptable at this utility's scale. Between a commit and the next sweep, orphaned files may sit on disk. The schema revision does not upgrade a database that still holds attachments or comments.
+**Trade-offs**: Two of the three key columns are always null on each row. Every delete that can cascade to an attachment triggers a full scan of the attachments store against the referenced paths, which is acceptable at this utility's scale. Between a commit and the next sweep, orphaned files may sit on disk. A database created before this change cannot be upgraded and must be recreated.
