@@ -1,4 +1,4 @@
-"""Migration tests for 0015_attachment_comment_container_fks — STORY-016 / TASK-017.
+"""Migration tests for 0015_container_fks — STORY-016 / TASK-017.
 
 Each test runs the real Alembic upgrade()/downgrade() against a private, disposable
 SQLite file, not the shared session-scoped tests/test.db, so it can stop at
@@ -28,7 +28,7 @@ from sqlalchemy.exc import IntegrityError
 ALEMBIC_INI = Path(__file__).parent.parent / "alembic.ini"
 
 PREVIOUS_REVISION = "0014_session_status_backfill"
-REVISION = "0015_attachment_comment_container_fks"
+REVISION = "0015_container_fks"
 
 TABLES = ("attachment", "comment")
 NEW_INDEXES = {

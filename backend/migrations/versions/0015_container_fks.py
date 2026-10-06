@@ -1,6 +1,6 @@
 """Replace the attachment/comment container pair with real container FKs.
 
-Revision ID: 0015_attachment_comment_container_fks
+Revision ID: 0015_container_fks
 Revises: 0014_session_status_backfill
 Create Date: 2026-10-05
 
@@ -29,7 +29,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0015_attachment_comment_container_fks"
+revision: str = "0015_container_fks"
 down_revision: Union[str, None] = "0014_session_status_backfill"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
