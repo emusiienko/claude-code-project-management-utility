@@ -15,19 +15,21 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 | Module/File | Purpose | Key exports/functions | Notes |
 |---|---|---|---|
 | `core/database/base.py` | Shared ORM base | `Base` | Every model inherits this declarative base. |
-| `core/database/engine.py` | Dialect-agnostic engine factory | `build_engine`, `_enable_wal_mode` | `_enable_wal_mode` is a SQLite-only `connect` listener; no-op on PostgreSQL. |
-| `core/database/session.py` | Request-scoped DB session | `build_session_factory`, `init_db_session` | `init_db_session` is wired into the DI container as `db_session`. |
+| `core/database/engine.py` | Dialect-agnostic engine factory | `build_engine`, `_configure_sqlite_connection`, `disable_sqlite_foreign_keys` (+ `_disable_foreign_keys`) | `_configure_sqlite_connection` is a SQLite-only `connect` listener setting `journal_mode=WAL` and `foreign_keys=ON` on every connection (STORY-016); no-op on PostgreSQL. `disable_sqlite_foreign_keys(engine)` registers the OFF listener; used only by `migrations/env.py`. |
+| `core/database/session.py` | Request-scoped DB session | `build_session_factory`, `init_db_session`, `run_after_commit` | `init_db_session` is wired into the DI container as `db_session`. `run_after_commit(session, action)` (STORY-016) records an action run once after that session commits; `_run_recorded_actions`/`_discard_recorded_actions` are the commit/rollback listeners; a failing action is logged, never raised. |
 | `core/database/types.py` | DB-agnostic column types | `UUIDType`, `UTCDateTime` | `UUIDType`: native `UUID` on PostgreSQL, `CHAR(32)` hex on SQLite. `UTCDateTime` (STORY-013): wraps `DateTime(timezone=True)` (no DDL change); bind rejects naive input and normalizes to UTC, result reattaches UTC to naive values (SQLite drops the offset). Every `created_at`/`updated_at`/`archived_at` column in every domain `model.py` uses it. |
 | `core/database/json_utils.py` | Dialect-branching JSON-array filters | `apply_json_array_filter`, `apply_json_scalar_array_contains_filter` | Private `_apply_sqlite*`/`_apply_postgresql*` halves; the one place JSON-query dialect differences live. |
 | `core/database/repository.py` | Generic CRUD base | `BaseRepository[ModelT]` (`get_all`, `get_by_id`, `exists`, `count`, `save`, `delete`, `_coerce_uuid`) | Every domain repository subclasses this; `_coerce_uuid` backs every domain's own `coerce_*_id`. |
-| `core/storage/filesystem.py` | Attachment byte storage | `FilesystemStorage` (`write`/`read`/`delete`/`snapshot`) | Rooted at `settings.attachments_dir`; the `file_path` it manages is server-internal, never returned in an API response. |
+| `core/storage/filesystem.py` | Attachment byte storage | `FilesystemStorage` (`write`/`read`/`delete`/`list_files`/`snapshot`), `StoredFile` | Rooted at `settings.attachments_dir`; the `file_path` it manages is server-internal, never returned in an API response. |
+| `core/storage/orphan_sweeper.py` | Orphan stored-file sweep (STORY-016) | `OrphanFileSweeper` (`sweep(honor_grace_window=True)`, `_delete_quietly`), `DEFAULT_GRACE_WINDOW_SECONDS` | Deletes stored files no attachment row references; files younger than the grace window are kept. Failures are logged and swallowed. |
+| `core/storage/file_cleanup.py` | Post-commit file cleanup seam (STORY-016) | `FileCleanupProtocol`, `FileCleanupRequester` (`request_sweep`, `request_delete`) | Queues the sweep/delete through `run_after_commit`; injected as `file_cleanup` into attachment/story/task/milestone/project services. |
 | `core/errors.py` | Shared error vocabulary | `ErrorCode`, `DomainError` + subclasses (`ValidationError`, `NotFoundError`, `ConflictError`, `UnprocessableError`, `InternalError`) | `DomainError.to_tool_error()` is the REST/MCP error-shape bridge. |
 
 ## app/container/ — dependency injection wiring
 
 | Module/File | Purpose | Key exports/functions | Notes |
 |---|---|---|---|
-| `container/container.py` | Single DI container for the app | `AppContainer` | Domain packages own no providers of their own; declaration order encodes cross-domain dependencies (e.g. `session_service` takes `story_repository`/`task_repository`; `story_service`/`task_service` take `session_service` back for the reverse reference-cleanup direction). |
+| `container/container.py` | Single DI container for the app | `AppContainer` | Domain packages own no providers of their own; declaration order encodes cross-domain dependencies (e.g. `session_service` takes `story_repository`/`task_repository`). Storage providers (STORY-016): `referenced_file_paths_reader`, `orphan_file_sweeper`, `file_cleanup_requester`, declared before the services that take `file_cleanup`. |
 | `container/mcp_dependencies.py` | MCP-side dependency providers | One `provide_<domain>_service` async context manager per domain | The MCP equivalent of FastAPI's `Depends`/`Provide`; each opens and closes its own `db_session`. |
 
 ## app/mcp/ — MCP server instance
@@ -48,7 +50,7 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 | Module/File | Purpose | Key exports/functions | Notes |
 |---|---|---|---|
 | `config.py` | App configuration | `Settings`, `settings` | `database_url`, `attachments_dir`, `cors_allowed_origins` (space-separated or JSON-array env string via `parse_cors_origins`), `app_title`, `app_version`. |
-| `main.py` | FastAPI app assembly | `application` / `app`, `mcp_app_v1` | Wires the DI container across every domain package (also triggers `@mcp_server_v1.tool()` registration via import), configures CORS, registers `domain_error_handler`, mounts `app_router` and the MCP sub-app at `/mcp/v1`. `mcp_app_v1 = mcp_server_v1.http_app(path="/", ...)` — `path="/"` is required or FastMCP's own default internal path (`/mcp`) stacks on the mount prefix, serving at `/mcp/v1/mcp` instead (STORY-011). `FastAPI(lifespan=mcp_app_v1.lifespan, ...)` is required too, or the MCP sub-app's session manager task group never starts and every MCP HTTP request fails (STORY-011). |
+| `main.py` | FastAPI app assembly | `application` / `app`, `mcp_app_v1` | Wires the DI container across every domain package; `_lifespan` runs the startup orphan sweep (`orphan_file_sweeper().sweep(False)`, no grace window) before the MCP lifespan (STORY-016) (also triggers `@mcp_server_v1.tool()` registration via import), configures CORS, registers `domain_error_handler`, mounts `app_router` and the MCP sub-app at `/mcp/v1`. `mcp_app_v1 = mcp_server_v1.http_app(path="/", ...)` — `path="/"` is required or FastMCP's own default internal path (`/mcp`) stacks on the mount prefix, serving at `/mcp/v1/mcp` instead (STORY-011). `FastAPI(lifespan=mcp_app_v1.lifespan, ...)` is required too, or the MCP sub-app's session manager task group never starts and every MCP HTTP request fails (STORY-011). |
 | `exc_handlers.py` | Domain error → HTTP mapping | `domain_error_handler` | Maps every `DomainError` to `{error, code, details}`; `INTERNAL_ERROR` is logged server-side but never leaks its message to the client. |
 
 ---
@@ -71,7 +73,7 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 | `model.py` | ORM model | `Story` | Belongs to a project, optional milestone; `status`/`labels`. |
 | `schema.py` | Request/response shapes | `Label`, `CreateStory`, `UpdateStory`, `Story`, `StoryDetail`, `PaginationMeta`, `StoryAggregate` | `StoryDetail` adds links/attachments/comments; `StoryAggregate` is story + its tasks for the Task Manager board. |
 | `repository.py` | Data access | `StoryRepository` (`coerce_project_id`, `get_by_id_and_project`, `list_paginated`, `list_all_for_project`, `list_paginated_by_milestone`) | |
-| `service.py` | Business logic | `StoryService` (`create`, `get`, `get_by_id`, `list_paginated`, `update`, `get_detail`, `delete`, `get_aggregate`) | Cross-domain via `MilestoneRepositoryProtocol`, `TaskCounterProtocol`, `StoryLinkReaderProtocol`, plus injected `attachment_reader`/`comment_reader`/`session_reference_cleaner` (cascades delete, nulls session `linked_story_id`). |
+| `service.py` | Business logic | `StoryService` (`create`, `get`, `get_by_id`, `list_paginated`, `update`, `get_detail`, `delete`, `get_aggregate`) | Cross-domain via `MilestoneRepositoryProtocol`, `TaskCounterProtocol`, `StoryLinkReaderProtocol`, plus injected `attachment_reader`/`comment_reader` (detail composition) and `file_cleanup`. `delete` is a single row delete; the DB FKs cascade children and null session `linked_story_id` (STORY-016), then `file_cleanup.request_sweep()` runs after commit. |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `create_story`, `list_stories`, `get_story`, `update_story`, `delete_story`, `get_story_detail`, `get_story_aggregate` | |
 | `tests/test_stories.py` | Integration tests | — | Covers both surfaces. |
 
@@ -82,7 +84,7 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 | `model.py` | ORM model | `Task` | Belongs to a story; `type`/`status`/`assignee_role`/`creator_role`/`labels`. |
 | `schema.py` | Request/response shapes | `Label`, `CreateTask`, `UpdateTask`, `Task`, `TaskDetail`, `PaginationMeta` | |
 | `repository.py` | Data access | `TaskRepository` (`coerce_story_id`, `get_by_id_and_story`, `list_paginated`, `list_all_for_stories`, `get_status_counts_for_stories`, `get_status_counts`, `get_total_count`) | |
-| `service.py` | Business logic | `TaskService` (+ `TaskLinkReaderProtocol`) (`create`, `get_by_id`, `get_detail`, `list_paginated`, `update`, `delete`) | `_assert_type_valid`/`_assert_status_valid`/`_assert_role_valid` check effective per-project dictionaries; cascades attachments/comments/task-links, nulls session `linked_task_id` on delete. |
+| `service.py` | Business logic | `TaskService` (+ `TaskLinkReaderProtocol`) (`create`, `get_by_id`, `get_detail`, `list_paginated`, `update`, `delete`) | `_assert_type_valid`/`_assert_status_valid`/`_assert_role_valid` check effective per-project dictionaries; `delete` is a row delete; DB FKs cascade attachments/comments/task-links and null session `linked_task_id`, then `file_cleanup.request_sweep()` (STORY-016). |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `create_task`, `list_tasks`, `get_task`, `get_task_detail`, `update_task`, `delete_task` | |
 | `tests/test_tasks.py` | Integration tests | — | Covers both surfaces. |
 
@@ -92,8 +94,8 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 |---|---|---|---|
 | `model.py` | ORM model | `Milestone` | Belongs to a project; `status` (Planned/Active/Finished); name unique per project. |
 | `schema.py` | Request/response shapes | `CreateMilestone`, `UpdateMilestone`, `Milestone`, `MilestoneDetail`, `PaginationMeta` | |
-| `repository.py` | Data access | `MilestoneRepository` (`coerce_project_id`/`coerce_milestone_id`, `get_name_conflict`, `get_active_for_project`, `list_paginated`, `get_story_counts`/`get_story_count`, `clear_story_links`) | At most one Active milestone per project, atomically demoted on a new activation; `clear_story_links` nulls `milestone_id` on assigned stories when deleted. |
-| `service.py` | Business logic | `MilestoneService` (`create`, `get`, `get_with_story_count`, `list_paginated`, `update`, `get_detail`, `delete`, `activate`, `finish`, `list_stories`) | Takes `attachment_reader`/`comment_reader` Protocols for cascade delete + detail composition. |
+| `repository.py` | Data access | `MilestoneRepository` (`coerce_project_id`/`coerce_milestone_id`, `get_name_conflict`, `get_active_for_project`, `list_paginated`, `get_story_counts`/`get_story_count`) | At most one Active milestone per project, atomically demoted on a new activation. |
+| `service.py` | Business logic | `MilestoneService` (`create`, `get`, `get_with_story_count`, `list_paginated`, `update`, `get_detail`, `delete`, `activate`, `finish`, `list_stories`) | Takes `attachment_reader`/`comment_reader` Protocols for detail composition and `file_cleanup`; `delete` relies on DB FKs (stories' `milestone_id` SET NULL, attachments/comments CASCADE), then requests a sweep. |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `create_milestone`, `list_milestones`, `get_milestone`, `update_milestone`, `delete_milestone`, `activate_milestone`, `finish_milestone`, `get_milestone_detail`, `list_milestone_stories` | |
 | `tests/test_milestones.py` | Integration tests | — | Covers both surfaces. |
 
@@ -103,8 +105,8 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 |---|---|---|---|
 | `model.py` | ORM model | `StoryLink` | Directed link between two stories, typed by `link_type` (project's `link_types` dictionary). |
 | `schema.py` | Request/response shapes | `LinkedStorySummary`, `CreateStoryLink`, `StoryLink`, `EnrichedStoryLink`, `PaginationMeta` | `EnrichedStoryLink` adds the resolved linked-story summary. |
-| `repository.py` | Data access | `StoryLinkRepository` (`coerce_story_id`, `find_duplicate`, `list_for_story`, `get_linked_story_summaries`, `delete_all_for_story`, `list_all_for_story`) | |
-| `service.py` | Business logic | `StoryLinkService` (`create`, `get_by_id`, `list_for_story`, `delete`, `list_all_enriched_for_story`, `delete_all_for_story`, `_enrich_links`, `_assert_link_type_valid`) | `list_all_enriched_for_story`/`delete_all_for_story` are the `StoryLinkReaderProtocol` `StoryService` depends on. |
+| `repository.py` | Data access | `StoryLinkRepository` (`coerce_story_id`, `find_duplicate`, `list_for_story`, `get_linked_story_summaries`, `list_all_for_story`) | |
+| `service.py` | Business logic | `StoryLinkService` (`create`, `get_by_id`, `list_for_story`, `delete`, `list_all_enriched_for_story`, `_enrich_links`, `_assert_link_type_valid`) | `list_all_enriched_for_story` is the `StoryLinkReaderProtocol` `StoryService` depends on. |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `create_story_link`, `list_story_links`, `delete_story_link` | Two routers: `story_links_router` (nested `/stories/:storyId/links`) and `story_links_top_router` (`/story-links/:id`). |
 | `tests/test_story_links.py` | Integration tests | — | Covers both surfaces. |
 
@@ -114,8 +116,8 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 |---|---|---|---|
 | `model.py` | ORM model | `TaskLink` | Directed link between two tasks, typed by `link_type`. |
 | `schema.py` | Request/response shapes | `LinkedTaskSummary`, `CreateTaskLink`, `TaskLink`, `EnrichedTaskLink`, `PaginationMeta` | |
-| `repository.py` | Data access | `TaskLinkRepository` (`coerce_task_id`, `find_duplicate`, `list_for_task`, `get_linked_task_summaries`, `delete_all_for_task`, `list_all_for_task`) | |
-| `service.py` | Business logic | `TaskLinkService` (`create`, `get_by_id`, `list_for_task`, `delete`, `list_all_enriched_for_task`, `delete_all_for_task`, `_enrich_links`, `_resolve_project_id_for_story`, `_assert_link_type_valid`) | `list_all_enriched_for_task`/`delete_all_for_task` are the `TaskLinkReaderProtocol` `TaskService` depends on. |
+| `repository.py` | Data access | `TaskLinkRepository` (`coerce_task_id`, `find_duplicate`, `list_for_task`, `get_linked_task_summaries`, `list_all_for_task`) | |
+| `service.py` | Business logic | `TaskLinkService` (`create`, `get_by_id`, `list_for_task`, `delete`, `list_all_enriched_for_task`, `_enrich_links`, `_resolve_project_id_for_story`, `_assert_link_type_valid`) | `list_all_enriched_for_task` is the `TaskLinkReaderProtocol` `TaskService` depends on. |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `create_task_link`, `list_task_links`, `delete_task_link` | Two routers: `task_links_router` (nested `/tasks/:taskId/links`) and `task_links_top_router` (`/task-links/:id`). |
 | `tests/test_task_links.py` | Integration tests | — | Covers both surfaces. |
 
@@ -123,10 +125,10 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 
 | Module/File | Purpose | Key exports/functions | Notes |
 |---|---|---|---|
-| `model.py` | ORM model | `Attachment` | Polymorphic container (`story`/`task`/`milestone`) x kind (`document`/`external_ref`/`stored_file`); `file_path` server-internal only. Create/delete only — no update, no archive. |
+| `model.py` | ORM model | `Attachment` | Polymorphic container (`story`/`task`/`milestone`; three nullable FK columns, ON DELETE CASCADE, STORY-016) x kind (`document`/`external_ref`/`stored_file`); `file_path` server-internal only. Create/delete only — no update, no archive. |
 | `schema.py` | Request/response shapes | `CreateDocumentAttachmentText`/`Json`, `CreateExternalRefAttachment`/`Json`, `CreateStoredFileAttachmentForm`, `CreateBase64FileAttachment`, `AttachmentCreateInput`, `Attachment`, `PaginationMeta` | `AttachmentCreateInput` is the discriminated union across all create shapes. |
-| `repository.py` | Data access | `AttachmentRepository` (`coerce_container_id`, `list_paginated`, `list_all_for_container`, `delete_all_for_container`) | |
-| `service.py` | Business logic | `AttachmentService` (+ `StoryReaderProtocol`/`TaskReaderProtocol`/`MilestoneReaderProtocol`) (`create`, `get_by_id`, `get_file`, `get_file_base64`, `list_paginated`, `delete`, `list_all_for_container`, `delete_all_for_container`, `_assert_size_allowed`/`_assert_mime_allowed`/`_assert_url_valid`/`_build_relative_path`) | `list_all_for_container`/`delete_all_for_container` are the `AttachmentReaderProtocol` the three container services depend on. |
+| `repository.py` | Data access | `AttachmentRepository` (`coerce_container_id`, `list_file_paths`, `list_paginated`, `list_all_for_container`) | Module-level `list_referenced_file_paths(session_factory_provider)` opens its own session for the sweeper. |
+| `service.py` | Business logic | `AttachmentService` (+ `StoryReaderProtocol`/`TaskReaderProtocol`/`MilestoneReaderProtocol`) (`create`, `get_by_id`, `get_file`, `get_file_base64`, `list_paginated`, `delete`, `list_all_for_container`, `_assert_size_allowed`/`_assert_mime_allowed`/`_assert_url_valid`/`_build_relative_path`) | `list_all_for_container` is the `AttachmentReaderProtocol` the three container services depend on for detail composition. `delete` requests post-commit file removal via `file_cleanup` (STORY-016). |
 | `controller.py` | REST surface | `_build_create_input*` (JSON vs multipart parsing), `create_*_attachment`/`list_*_attachments` per container type, `get_attachment`, `get_attachment_file`, `delete_attachment` | |
 | `mcp_tools.py` | MCP surface | `create_document_attachment`, `create_external_ref_attachment`, `create_file_attachment` (base64), `list_attachments`, `get_attachment`, `get_attachment_file`, `delete_attachment` | MCP has no REST equivalent for base64 create/read. |
 | `tests/test_attachments.py`, `tests/test_attachment_title_migration.py` | Integration tests | — | Second file covers the title-length migration specifically. |
@@ -135,10 +137,10 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 
 | Module/File | Purpose | Key exports/functions | Notes |
 |---|---|---|---|
-| `model.py` | ORM model | `Comment` | Polymorphic container (`story`/`task`/`milestone`); `author_role`, `content`, `labels`, threaded via a parent reference. |
+| `model.py` | ORM model | `Comment` | Polymorphic container (`story`/`task`/`milestone`; three nullable FK columns, ON DELETE CASCADE, STORY-016); `author_role`, `content`, `labels`, threaded via a parent reference. |
 | `schema.py` | Request/response shapes | `Label`, `CreateComment`, `UpdateComment`, `Comment`, `PaginationMeta` | |
-| `repository.py` | Data access | `CommentRepository` (`coerce_container_id`/`coerce_comment_id`, `list_paginated`, `list_by_ids`, `list_all_for_container`, `delete_all_for_container`) | `list_by_ids` backs ancestor resolution for permalinks. |
-| `service.py` | Business logic | `CommentService` (`get_by_id`, `update`, `delete`, `list_all_for_container`, `delete_all_for_container`, `_assert_container_type_valid`/`_resolve_container`/`_assert_content_valid`/`_assert_author_role_not_empty`) | `list_all_for_container`/`delete_all_for_container` are the `CommentReaderProtocol` the three container services depend on. |
+| `repository.py` | Data access | `CommentRepository` (`coerce_container_id`/`coerce_comment_id`, `list_paginated`, `list_by_ids`, `list_all_for_container`) | `list_by_ids` backs ancestor resolution for permalinks. |
+| `service.py` | Business logic | `CommentService` (`get_by_id`, `update`, `delete`, `list_all_for_container`, `_assert_container_type_valid`/`_resolve_container`/`_assert_content_valid`/`_assert_author_role_not_empty`) | `list_all_for_container` is the `CommentReaderProtocol` the three container services depend on. |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `_create_comment`/`_list_comments` shared helpers, `create_*_comment`/`list_*_comments` per container type, `get_comment`, `get_comment_ancestors`, `update_comment`, `delete_comment` | `get_comment_ancestors` backs permalink navigation. |
 | `tests/test_comments.py` | Integration tests | — | Covers both surfaces. |
 
@@ -148,8 +150,8 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 |---|---|---|---|
 | `model.py` | ORM model | `Session` | Belongs to a project; `topic`/`goal`/`participant_role`, three-way `status` (`pending`/`in-progress`/`finished`), independent optional `linked_story_id`/`linked_task_id`, `archived_at` (reversible archive toggle, independent of delete). |
 | `schema.py` | Request/response shapes | `CreateSession`, `UpdateSession`, `Session`, `PaginationMeta`, `ALL_SESSION_STATUSES` | |
-| `repository.py` | Data access | `SessionRepository` (`coerce_project_id`/`coerce_story_id`/`coerce_task_id`, `list_paginated`, `clear_linked_story`/`clear_linked_task`) | `clear_linked_story`/`clear_linked_task` back the reverse-direction reference cleanup called from `StoryService`/`TaskService` delete. |
-| `service.py` | Business logic | `SessionService` (+ `StoryReaderProtocol`/`TaskReaderProtocol`/`SessionReferenceCleanerProtocol`) (`create`, `get_by_id`, `list_paginated`, `update`, `archive`, `delete`, `clear_references_to_story`/`clear_references_to_task`) | `delete` (STORY-008/TASK-009) is hard row removal via `BaseRepository.delete` with no `archived_at`/`status` guard — REST/MCP deletion is unrestricted; the archived-only restriction is Web-UI-only, enforced by the frontend stack, not here. |
+| `repository.py` | Data access | `SessionRepository` (`coerce_project_id`/`coerce_story_id`/`coerce_task_id`, `list_paginated`) | Story/task delete nulls the session link columns through DB FKs (STORY-016); no repository cleanup. |
+| `service.py` | Business logic | `SessionService` (+ `StoryReaderProtocol`/`TaskReaderProtocol`) (`create`, `get_by_id`, `list_paginated`, `update`, `archive`, `delete`) | `delete` (STORY-008/TASK-009) is hard row removal via `BaseRepository.delete` with no `archived_at`/`status` guard — REST/MCP deletion is unrestricted; the archived-only restriction is Web-UI-only, enforced by the frontend stack, not here. |
 | `controller.py` / `mcp_tools.py` | REST/MCP surfaces | `create_session`, `list_sessions`, `get_session`, `update_session`, `archive_session`, `delete_session` | `delete_session`: REST `DELETE /{session_id}` → `204`; MCP → `{"success": true}`. |
 | `tests/test_sessions.py`, `tests/test_session_status_backfill_migration.py` | Integration tests | `TestDeleteSession` class | `TestDeleteSession` (STORY-008/TASK-009) covers both surfaces across archived/non-archived, all three statuses, linked story/task survival, repeat delete, unknown/malformed id. |
 
@@ -180,8 +182,8 @@ Business logic lives in each domain's `service.py` only — `controller.py` (RES
 
 | Module/File | Purpose | Notes |
 |---|---|---|
-| `migrations/versions/` | One file per revision, `NNNN_<description>.py` | Latest: `0014_session_status_backfill.py`. Never edited in place once applied — a stale shape is corrected by a new revision that detects it structurally. |
-| `migrations/env.py` | Alembic runtime config | Dialect-agnostic; same scripts run on SQLite and PostgreSQL. |
+| `migrations/versions/` | One file per revision, `NNNN_<description>.py` | Latest: `0014_session_status_backfill.py`. `0009_attachment.py` and `0011_comment.py` carry the real container FKs (story/task/milestone, ON DELETE CASCADE) from creation (STORY-016); no separate FK revision. Never edited in place once applied — a stale shape is corrected by a new revision that detects it structurally. |
+| `migrations/env.py` | Alembic runtime config | Dialect-agnostic; same scripts run on SQLite and PostgreSQL. Calls `disable_sqlite_foreign_keys(connectable)` so SQLite batch table rebuilds do not cascade (STORY-016). |
 
 ## tests/ — integration test modules
 
@@ -191,6 +193,10 @@ helper. `tests/unit/` (STORY-013) holds isolated, non-HTTP tests; everything els
 
 | Module/File | Purpose | Notes |
 |---|---|---|
-| `conftest.py` | Shared fixtures: `engine`, `client`, `_mcp_call` | The `engine` fixture's `connect` listener `_enable_foreign_keys` issues `PRAGMA foreign_keys=ON` on every test-engine connection (STORY-015), so declared FK actions (cascade/SET NULL) are enforced in tests. Test engine only — the application engine (`core/database/engine.py`) does not set it. |
+| `conftest.py` | Shared fixtures: `engine`, `client`, `_mcp_call` | The `engine` fixture's `connect` listener `_enable_foreign_keys` issues `PRAGMA foreign_keys=ON` on every test-engine connection (STORY-015), so declared FK actions (cascade/SET NULL) are enforced in tests. As of STORY-016 the application engine (`build_engine`) sets it too; the `engine` fixture now builds through `build_engine` rather than its own listener. |
 | `unit/test_types.py` | Unit tests for `UTCDateTime` (STORY-013) | `TestUTCDateTimeResultValue`, `TestUTCDateTimeBindParam`; first file in the `tests/unit/` package. The create-vs-read offset regression lives in `test_stories.py` (`TestGetStory::test_read_keeps_utc_offset_on_created_and_updated_at`; `TestCreateStoryMcpParity` compares `created_at`/`updated_at`). |
 | `test_mcp_mount.py` | Verifies the MCP server's actual HTTP mount (STORY-011) | The only MCP test that goes over the wire: boots a real Uvicorn server + real `fastmcp.Client` (streamable-HTTP) against `app.main.application`, so it exercises `application.mount(...)` and the ASGI lifespan protocol. Every other MCP test uses `_mcp_call`/`fastmcp.Client(mcp_server_v1)` in-process and never touches the mount or lifespan. |
+| `unit/test_engine.py`, `unit/test_after_commit.py`, `unit/test_orphan_sweeper.py`, `unit/test_migration_revision_ids.py` | STORY-016 unit tests | App-engine FK pragma, `run_after_commit` semantics, sweeper grace window/failure handling, revision ids fit `alembic_version` (<= 32 chars). |
+| `test_fk_action_matrix.py` | Every declared FK action exercised against real rows | Covers cascade/SET NULL incl. attachment/comment container FKs (STORY-016). |
+| `test_container_fk_migration.py` | Container FKs present in the migrated schema | Replaced the original 0015 backfill test when 0015 was folded into 0009/0011. |
+| `test_attachment_file_cleanup.py` | Post-commit file removal, rollback safety, startup sweep | STORY-016. |
