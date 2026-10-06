@@ -205,3 +205,9 @@
 | [TC-201](test-cases/TC-201-delete-session-cancelled.md) | Delete an archived session — cancel from the confirmation dialog leaves it intact | @regression | STORY-008 | Active |
 | [TC-202](test-cases/TC-202-delete-session-with-linked-story-task.md) | Deleting a session with a linked story and/or task leaves the linked story/task unaffected | @regression | STORY-008 | Active |
 | [TC-203](test-cases/TC-203-delete-session-already-deleted.md) | Deleting a session that was already deleted elsewhere (stale list) is reported, not silently accepted | @regression | STORY-008 | Active |
+| [TC-204](test-cases/TC-204-delete-project-removes-all-children.md) | Delete a project — all its stories, tasks, sessions, attachments are removed; other projects intact | @smoke @regression | STORY-016 (FK enforcement) | Active |
+| [TC-205](test-cases/TC-205-delete-story-removes-tasks-attachments-comments.md) | Delete a story — tasks, attachments, comments removed (multi-level); session survives unlinked | @regression | STORY-016 (FK enforcement) | Active |
+| [TC-206](test-cases/TC-206-delete-task-removes-attachments-comments.md) | Delete a task — its attachments and comments removed, siblings untouched | @regression | STORY-016 (FK enforcement) | Active |
+| [TC-207](test-cases/TC-207-delete-milestone-removes-attachments-comments.md) | Delete a milestone — attachments and comments removed, stories stay unassigned | @regression | STORY-016 (FK enforcement) | Active |
+| [TC-208](test-cases/TC-208-delete-single-attachment.md) | Delete a single attachment — removed at once regardless of age, others still download | @smoke @regression | STORY-016 (FK enforcement) | Active |
+| [TC-209](test-cases/TC-209-data-state-after-service-restart.md) | After a service restart — deleted data stays gone, surviving attachments download | @regression | STORY-016 (FK enforcement) | Active |
