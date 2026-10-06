@@ -10,8 +10,8 @@ against a populated database (0009_attachment is already deployed), not a
 rewrite: it adds `title` nullable, backfills every existing row's `title`
 from its former `type` value, tightens `title` to NOT NULL, then drops `type`.
 
-The container-list index moves from keying on `type` to keying on `kind`,
-since `type` is gone and `kind` is now the list's filter column.
+The three per-container list indexes move from keying on `type` to keying on
+`kind`, since `type` is gone and `kind` is now the list's filter column.
 
 The now-unused `attachment_types` dictionary rows are deleted from both
 system_settings and project_settings — `type` was their only reader.
@@ -53,10 +53,18 @@ _ATTACHMENT_TYPES_SEED_VALUES = [
 ]
 _DOWNGRADE_SEED_TIMESTAMP = datetime(2026, 7, 15, 0, 0, 0, tzinfo=timezone.utc)
 
+# Container key columns (see 0009_attachment); each has one list index.
+_CONTAINER_COLUMNS = ("story_id", "task_id", "milestone_id")
+
+
+def _index_name(column: str, second: str) -> str:
+    return f"ix_attachment_{column.removesuffix('_id')}_{second}"
+
 
 def upgrade() -> None:
-    # Index references the soon-to-be-dropped `type` column — drop it first.
-    op.drop_index("ix_attachment_container_type", table_name="attachment")
+    # Indexes reference the soon-to-be-dropped `type` column — drop them first.
+    for column in _CONTAINER_COLUMNS:
+        op.drop_index(_index_name(column, "type"), table_name="attachment")
 
     with op.batch_alter_table("attachment", schema=None) as batch_op:
         batch_op.add_column(sa.Column("title", sa.String(500), nullable=True))
@@ -68,18 +76,16 @@ def upgrade() -> None:
         batch_op.alter_column("title", nullable=False)
         batch_op.drop_column("type")
 
-    op.create_index(
-        "ix_attachment_container_kind",
-        "attachment",
-        ["container_type", "container_id", "kind"],
-    )
+    for column in _CONTAINER_COLUMNS:
+        op.create_index(_index_name(column, "kind"), "attachment", [column, "kind"])
 
     bind.execute(sa.text("DELETE FROM system_settings WHERE key = 'attachment_types'"))
     bind.execute(sa.text("DELETE FROM project_settings WHERE key = 'attachment_types'"))
 
 
 def downgrade() -> None:
-    op.drop_index("ix_attachment_container_kind", table_name="attachment")
+    for column in _CONTAINER_COLUMNS:
+        op.drop_index(_index_name(column, "kind"), table_name="attachment")
 
     with op.batch_alter_table("attachment", schema=None) as batch_op:
         batch_op.add_column(sa.Column("type", sa.String(100), nullable=True))
@@ -92,11 +98,8 @@ def downgrade() -> None:
         batch_op.alter_column("type", nullable=False)
         batch_op.drop_column("title")
 
-    op.create_index(
-        "ix_attachment_container_type",
-        "attachment",
-        ["container_type", "container_id", "type"],
-    )
+    for column in _CONTAINER_COLUMNS:
+        op.create_index(_index_name(column, "type"), "attachment", [column, "type"])
 
     system_settings_table = sa.table(
         "system_settings",

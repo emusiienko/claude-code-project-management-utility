@@ -25,7 +25,7 @@ def _revisions() -> list[str]:
 
 
 def test_migrations_are_discovered() -> None:
-    assert len(_revisions()) >= 15
+    assert len(_revisions()) >= 14
 
 
 @pytest.mark.parametrize("revision", _revisions())

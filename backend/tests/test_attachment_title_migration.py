@@ -37,10 +37,6 @@ from sqlalchemy import create_engine, text
 
 ALEMBIC_INI = Path(__file__).parent.parent / "alembic.ini"
 
-# The last revision before attachment moved to container FKs (0015): these tests
-# insert rows in the container_type/container_id shape, so they stop there.
-_PRE_CONTAINER_FK_REVISION = "0014_session_status_backfill"
-
 _ATTACHMENT_TYPES_SEED_VALUES = [
     "plan",
     "document",
@@ -66,36 +62,34 @@ def migration_db_url(tmp_path: Path) -> str:
 def _insert_legacy_attachment(
     engine: sa.Engine,
     *,
-    container_type: str = "story",
-    container_id: str | None = None,
+    story_id: str | None = None,
     type_value: str = "document",
     kind: str = "document",
 ) -> str:
     """Insert a row shaped like a pre-0010 attachment (has `type`, no `title`)."""
     attachment_id = str(uuid.uuid4())
-    container_id = container_id or str(uuid.uuid4())
+    story_id = story_id or str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
             text("""
                 INSERT INTO attachment (
-                    id, container_type, container_id, type, kind, mime_type,
+                    id, story_id, type, kind, mime_type,
                     file_size_bytes, file_path, external_url, external_status,
                     author_role, created_at, updated_at
                 ) VALUES (
-                    :id, :container_type, :container_id, :type, :kind, :mime_type,
+                    :id, :story_id, :type, :kind, :mime_type,
                     :file_size_bytes, :file_path, :external_url, :external_status,
                     :author_role, :created_at, :updated_at
                 )
                 """),
             {
                 "id": attachment_id,
-                "container_type": container_type,
-                "container_id": container_id,
+                "story_id": story_id,
                 "type": type_value,
                 "kind": kind,
                 "mime_type": "text/markdown",
                 "file_size_bytes": 42,
-                "file_path": f"{container_type}/{container_id}/{attachment_id}",
+                "file_path": f"story/{story_id}/{attachment_id}",
                 "external_url": None,
                 "external_status": None,
                 "author_role": None,
@@ -209,7 +203,7 @@ class TestUpgradeBackfillsExistingRows:
         assert title_row[3] == 1, "title column should be NOT NULL after upgrade"
         engine.dispose()
 
-    def test_container_kind_index_created_container_type_index_dropped(
+    def test_container_kind_indexes_created_type_indexes_dropped(
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
@@ -226,12 +220,20 @@ class TestUpgradeBackfillsExistingRows:
                     text("PRAGMA index_list(attachment)")
                 ).fetchall()
             }
+        kind_indexes = {
+            f"ix_attachment_{container}_kind"
+            for container in ("story", "task", "milestone")
+        }
+        type_indexes = {
+            f"ix_attachment_{container}_type"
+            for container in ("story", "task", "milestone")
+        }
         assert (
-            "ix_attachment_container_kind" in index_names
-        ), f"New kind-keyed index should exist, got: {index_names}"
-        assert (
-            "ix_attachment_container_type" not in index_names
-        ), f"Old type-keyed index should be dropped, got: {index_names}"
+            kind_indexes <= index_names
+        ), f"New kind-keyed indexes should exist, got: {index_names}"
+        assert not (
+            type_indexes & index_names
+        ), f"Old type-keyed indexes should be dropped, got: {index_names}"
         engine.dispose()
 
 
@@ -240,7 +242,7 @@ class TestUpgradeFreshDatabase:
         cfg = _alembic_config(migration_db_url)
         # Straight to head on a brand-new DB — 0010 runs immediately after
         # 0009_attachment creates an empty table.
-        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
+        alembic_command.upgrade(cfg, "head")
 
         engine = create_engine(migration_db_url)
         with engine.connect() as conn:
@@ -330,7 +332,7 @@ class TestDowngrade:
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
-        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
+        alembic_command.upgrade(cfg, "head")
 
         engine = create_engine(migration_db_url)
         attachment_id = str(uuid.uuid4())
@@ -338,19 +340,18 @@ class TestDowngrade:
             conn.execute(
                 text("""
                     INSERT INTO attachment (
-                        id, container_type, container_id, title, kind, mime_type,
+                        id, story_id, title, kind, mime_type,
                         file_size_bytes, file_path, external_url, external_status,
                         author_role, created_at, updated_at
                     ) VALUES (
-                        :id, :container_type, :container_id, :title, :kind, :mime_type,
+                        :id, :story_id, :title, :kind, :mime_type,
                         :file_size_bytes, :file_path, :external_url, :external_status,
                         :author_role, :created_at, :updated_at
                     )
                     """),
                 {
                     "id": attachment_id,
-                    "container_type": "story",
-                    "container_id": str(uuid.uuid4()),
+                    "story_id": str(uuid.uuid4()),
                     "title": "My Report",
                     "kind": "document",
                     "mime_type": "text/markdown",
@@ -389,7 +390,7 @@ class TestDowngrade:
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
-        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
+        alembic_command.upgrade(cfg, "head")
 
         engine = create_engine(migration_db_url)
         attachment_id = str(uuid.uuid4())
@@ -398,19 +399,18 @@ class TestDowngrade:
             conn.execute(
                 text("""
                     INSERT INTO attachment (
-                        id, container_type, container_id, title, kind, mime_type,
+                        id, story_id, title, kind, mime_type,
                         file_size_bytes, file_path, external_url, external_status,
                         author_role, created_at, updated_at
                     ) VALUES (
-                        :id, :container_type, :container_id, :title, :kind, :mime_type,
+                        :id, :story_id, :title, :kind, :mime_type,
                         :file_size_bytes, :file_path, :external_url, :external_status,
                         :author_role, :created_at, :updated_at
                     )
                     """),
                 {
                     "id": attachment_id,
-                    "container_type": "story",
-                    "container_id": str(uuid.uuid4()),
+                    "story_id": str(uuid.uuid4()),
                     "title": long_title,
                     "kind": "document",
                     "mime_type": "text/markdown",
@@ -441,7 +441,7 @@ class TestDowngrade:
         self, migration_db_url: str
     ) -> None:
         cfg = _alembic_config(migration_db_url)
-        alembic_command.upgrade(cfg, _PRE_CONTAINER_FK_REVISION)
+        alembic_command.upgrade(cfg, "head")
 
         engine = create_engine(migration_db_url)
         keys_before = _dictionary_keys(engine, "system_settings")
