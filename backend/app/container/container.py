@@ -1,12 +1,14 @@
+from functools import partial
+
 from dependency_injector import containers, providers
 
-from app.attachments.repository import AttachmentRepository
+from app.attachments.repository import AttachmentRepository, list_referenced_file_paths
 from app.attachments.service import AttachmentService
 from app.comments.repository import CommentRepository
 from app.comments.service import CommentService
 from app.config import settings
 from app.core.database import build_engine, build_session_factory, init_db_session
-from app.core.storage import FilesystemStorage
+from app.core.storage import FileCleanupRequester, FilesystemStorage, OrphanFileSweeper
 from app.milestones.repository import MilestoneRepository
 from app.milestones.service import MilestoneService
 from app.projects.repository import ProjectRepository
@@ -77,10 +79,8 @@ class AppContainer(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    # project_service itself is declared further below, after story_repository
-    # and task_repository (STORY-010 TASK-002: it takes both as the
-    # StoryReaderProtocol/TaskReaderProtocol dependencies for the work-state
-    # aggregate read).
+    # project_service itself is declared further below, after
+    # file_cleanup_requester.
 
     # --------------------------------------------------------------------------
     # Settings domain — Factories (resolved per injection)
@@ -132,29 +132,12 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
-    # Projects domain — service (declared here, after story_repository and
-    # task_repository, so it can receive them as its cross-domain
-    # StoryReaderProtocol/TaskReaderProtocol dependencies for the work-state
-    # aggregate read — STORY-010 TASK-002).
-    # --------------------------------------------------------------------------
-
-    project_service = providers.Factory(
-        ProjectService,
-        repo=project_repository,
-        story_reader=story_repository,
-        task_reader=task_repository,
-    )
-
-    # --------------------------------------------------------------------------
     # Sessions domain — Factories (resolved per injection)
     # --------------------------------------------------------------------------
     # Declared right after tasks (STORY-009): the sessions service only needs
     # project_repository, settings_service (effective_dict), story_repository,
     # and task_repository as its StoryReaderProtocol/TaskReaderProtocol
-    # dependencies — all already declared above this point. The reverse
-    # direction — session_service injected as the reference-cleaner Protocol
-    # into story_service/task_service — is wired below at their declarations
-    # (STORY-009 TASK-004).
+    # dependencies — all already declared above this point.
 
     session_repository = providers.Factory(
         SessionRepository,
@@ -173,14 +156,32 @@ class AppContainer(containers.DeclarativeContainer):
     # --------------------------------------------------------------------------
     # Attachments domain — Factories
     # --------------------------------------------------------------------------
-    # Declared before milestone_service/story_service/task_service (STORY-007
-    # TASK-003 injects attachment_service into all three as the AttachmentReader
-    # Protocol for cascade delete + detail composition); needs story/task/
-    # milestone repositories, which are all declared above this point.
+    # Declared before milestone_service/story_service/task_service, which take
+    # attachment_service as the AttachmentReader Protocol for detail composition;
+    # needs story/task/milestone repositories, all declared above this point.
 
     attachment_repository = providers.Factory(
         AttachmentRepository,
         session=db_session,
+    )
+
+    # A no-argument callable the sweeper invokes per sweep; the session factory
+    # is resolved at call time so a test override of it is honored.
+    referenced_file_paths_reader = providers.Callable(
+        partial, list_referenced_file_paths, session_factory.provider
+    )
+
+    orphan_file_sweeper = providers.Singleton(
+        OrphanFileSweeper,
+        storage=storage,
+        referenced_paths=referenced_file_paths_reader,
+    )
+
+    file_cleanup_requester = providers.Factory(
+        FileCleanupRequester,
+        session=db_session,
+        sweeper=orphan_file_sweeper,
+        storage=storage,
     )
 
     attachment_service = providers.Factory(
@@ -190,6 +191,7 @@ class AppContainer(containers.DeclarativeContainer):
         story_reader=story_repository,
         task_reader=task_repository,
         milestone_reader=milestone_repository,
+        file_cleanup=file_cleanup_requester,
     )
 
     # --------------------------------------------------------------------------
@@ -197,8 +199,7 @@ class AppContainer(containers.DeclarativeContainer):
     # --------------------------------------------------------------------------
     # Declared before milestone_service/story_service/task_service, mirroring the
     # attachments domain above: comment_service is wired into all three as the
-    # CommentReaderProtocol dependency for cascade delete + detail composition
-    # (STORY-008 TASK-004).
+    # CommentReaderProtocol dependency for detail composition.
 
     comment_repository = providers.Factory(
         CommentRepository,
@@ -214,6 +215,21 @@ class AppContainer(containers.DeclarativeContainer):
     )
 
     # --------------------------------------------------------------------------
+    # Projects domain — service (declared after file_cleanup_requester: project
+    # delete requests the orphan sweep; the database cascade removes every
+    # attachment and comment row beneath it). Story and task repositories are
+    # the readers for the work-state aggregate read (STORY-010 TASK-002).
+    # --------------------------------------------------------------------------
+
+    project_service = providers.Factory(
+        ProjectService,
+        repo=project_repository,
+        story_reader=story_repository,
+        task_reader=task_repository,
+        file_cleanup=file_cleanup_requester,
+    )
+
+    # --------------------------------------------------------------------------
     # Milestones domain — service (after attachment_service, see note above)
     # --------------------------------------------------------------------------
 
@@ -222,12 +238,11 @@ class AppContainer(containers.DeclarativeContainer):
         repo=milestone_repository,
         project_repo=project_repository,
         story_repo=story_repository,
-        # Cross-domain: milestones service cascades and composes attachments
-        # via Protocol (STORY-007, TASK-003).
+        # Cross-domain: milestones service composes attachments and comments
+        # into its detail view via Protocol.
         attachment_reader=attachment_service,
-        # Cross-domain: milestones service cascades and composes comments
-        # via Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
+        file_cleanup=file_cleanup_requester,
     )
 
     # --------------------------------------------------------------------------
@@ -280,17 +295,13 @@ class AppContainer(containers.DeclarativeContainer):
         milestone_repo=milestone_repository,
         # Cross-domain: stories service computes on-demand task aggregate via Protocol.
         task_counter=task_repository,
-        # Cross-domain: stories service reads and clears story links via Protocol (STORY-006).
+        # Cross-domain: stories service reads story links via Protocol (STORY-006).
         story_link_reader=story_link_service,
-        # Cross-domain: stories service cascades and composes attachments via
-        # Protocol (STORY-007, TASK-003).
+        # Cross-domain: stories service composes attachments and comments into
+        # its detail view via Protocol.
         attachment_reader=attachment_service,
-        # Cross-domain: stories service cascades and composes comments via
-        # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
-        # Cross-domain, reverse direction: stories service nulls session
-        # references to a deleted story via Protocol (STORY-009, TASK-004).
-        session_reference_cleaner=session_service,
+        file_cleanup=file_cleanup_requester,
     )
 
     task_service = providers.Factory(
@@ -298,15 +309,11 @@ class AppContainer(containers.DeclarativeContainer):
         repo=task_repository,
         story_repo=story_repository,
         effective_dict=settings_service,
-        # Cross-domain: tasks service reads and clears task links via Protocol (STORY-006).
+        # Cross-domain: tasks service reads task links via Protocol (STORY-006).
         task_link_reader=task_link_service,
-        # Cross-domain: tasks service cascades and composes attachments via
-        # Protocol (STORY-007, TASK-003).
+        # Cross-domain: tasks service composes attachments and comments into
+        # its detail view via Protocol.
         attachment_reader=attachment_service,
-        # Cross-domain: tasks service cascades and composes comments via
-        # Protocol (STORY-008, TASK-004).
         comment_reader=comment_service,
-        # Cross-domain, reverse direction: tasks service nulls session
-        # references to a deleted task via Protocol (STORY-009, TASK-004).
-        session_reference_cleaner=session_service,
+        file_cleanup=file_cleanup_requester,
     )

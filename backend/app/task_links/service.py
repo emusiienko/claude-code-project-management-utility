@@ -119,9 +119,6 @@ class TaskLinkService:
         links = self._repo.list_all_for_task(task_id)
         return self._enrich_links(task_id, links)
 
-    def delete_all_for_task(self, task_id: uuid.UUID) -> None:
-        self._repo.delete_all_for_task(task_id)
-
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------

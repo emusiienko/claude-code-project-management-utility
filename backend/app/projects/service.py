@@ -3,6 +3,7 @@ import uuid
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from app.core.errors import ConflictError, NotFoundError
+from app.core.storage import FileCleanupProtocol
 from app.projects.model import Project
 from app.projects.repository import ProjectRepository
 from app.projects.schema import ProjectWorkState, WorkStateStory, WorkStateTask
@@ -24,10 +25,12 @@ class ProjectService:
         repo: ProjectRepository,
         story_reader: "StoryReaderProtocol | None" = None,
         task_reader: "TaskReaderProtocol | None" = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._story_reader = story_reader
         self._task_reader = task_reader
+        self._file_cleanup = file_cleanup
 
     def create(
         self,
@@ -86,6 +89,8 @@ class ProjectService:
     def delete(self, project_id: str) -> None:
         project = self.get(project_id)
         self._repo.delete(project)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     def get_work_state(self, project_id: str) -> ProjectWorkState:
         project = self.get(project_id)

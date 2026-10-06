@@ -11,10 +11,10 @@ from app.comments.schema import CONTAINER_STORY as COMMENT_CONTAINER_STORY
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
+from app.core.storage import FileCleanupProtocol
 from app.projects.repository import ProjectRepository
 
 # Import only the Protocol, never the concrete SessionService.
-from app.sessions.service import SessionReferenceCleanerProtocol
 from app.settings.schema import DICT_KEY_STORY_STATUSES
 
 # Import only the Protocol, never the concrete SettingsService.
@@ -25,6 +25,7 @@ from app.stories.schema import CreateStory, StoryAggregate, StoryDetail, UpdateS
 
 if TYPE_CHECKING:
     from app.milestones.model import Milestone as MilestoneModel
+    from app.tasks.model import Task as TaskModel
 
 _STATUS_VIOLATION_MSG = "Status value '{v}' is not allowed. Allowed: {allowed}."
 _MILESTONE_WRONG_PROJECT_MSG = "This milestone does not belong to the story's project."
@@ -45,7 +46,7 @@ class StoryService:
         story_link_reader: "StoryLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
-        session_reference_cleaner: SessionReferenceCleanerProtocol | None = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._project_repo = project_repo
@@ -55,7 +56,7 @@ class StoryService:
         self._story_link_reader = story_link_reader
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
-        self._session_reference_cleaner = session_reference_cleaner
+        self._file_cleanup = file_cleanup
 
     def create(self, data: CreateStory) -> Story:
         project_id = data.project_id
@@ -195,27 +196,9 @@ class StoryService:
 
     def delete(self, story_id: str, project_id: str) -> None:
         story = self.get(story_id, project_id)
-        # Application-level cascade: remove all story links referencing this story
-        # before deleting it. SQLite's ON DELETE CASCADE is inert without
-        # PRAGMA foreign_keys = ON (Known Divergences — architecture.md).
-        if self._story_link_reader is not None:
-            self._story_link_reader.delete_all_for_story(story.id)
-        # Application-level cascade (ADR-018 precedent, extended to the
-        # no-FK polymorphic attachment container): remove the story's
-        # attachments — rows and files — before the story itself is removed.
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(CONTAINER_STORY, story.id)
-        # Same cascade contract, extended to comments (STORY-008 TASK-004).
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_container(
-                COMMENT_CONTAINER_STORY, story.id
-            )
-        # Same cascade contract, reverse direction (STORY-009 TASK-004): null
-        # linked_story_id on every session referencing this story. Holds on
-        # both dialects since SQLite's SET NULL FK action is inert.
-        if self._session_reference_cleaner is not None:
-            self._session_reference_cleaner.clear_references_to_story(story.id)
         self._repo.delete(story)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     def get_aggregate(self, story_id: str) -> StoryAggregate:
         story = self.get_by_id(story_id)
@@ -280,5 +263,3 @@ class TaskCounterProtocol(Protocol):
 @runtime_checkable
 class StoryLinkReaderProtocol(Protocol):
     def list_all_enriched_for_story(self, story_id: uuid.UUID) -> list: ...
-
-    def delete_all_for_story(self, story_id: uuid.UUID) -> None: ...

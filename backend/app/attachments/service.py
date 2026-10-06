@@ -21,7 +21,7 @@ from app.attachments.schema import (
     AttachmentCreateInput,
 )
 from app.core.errors import NotFoundError, UnprocessableError, ValidationError
-from app.core.storage import FilesystemStorage
+from app.core.storage import FileCleanupProtocol, FilesystemStorage
 
 if TYPE_CHECKING:
     from app.milestones.model import Milestone as MilestoneModel
@@ -60,16 +60,12 @@ class MilestoneReaderProtocol(Protocol):
 class AttachmentReaderProtocol(Protocol):
     """Satisfied structurally by AttachmentService; injected into the story,
     task, and milestone services (never the concrete class) so those domains
-    can compose attachments into their detail responses and cascade-remove
-    them on container delete without depending on the attachments package."""
+    can compose attachments into their detail responses without depending on
+    the attachments package."""
 
     def list_all_for_container(
         self, container_type: str, container_id: uuid.UUID
     ) -> list[AttachmentSchema]: ...
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None: ...
 
 
 class AttachmentService:
@@ -80,12 +76,14 @@ class AttachmentService:
         story_reader: StoryReaderProtocol,
         task_reader: TaskReaderProtocol,
         milestone_reader: MilestoneReaderProtocol,
+        file_cleanup: FileCleanupProtocol,
     ) -> None:
         self._repo = repo
         self._storage = storage
         self._story_reader = story_reader
         self._task_reader = task_reader
         self._milestone_reader = milestone_reader
+        self._file_cleanup = file_cleanup
 
     # ------------------------------------------------------------------
     # Create
@@ -101,6 +99,9 @@ class AttachmentService:
         container_uuid = self._resolve_container(container_type, container_id)
         self._assert_title_not_empty(data.title)
 
+        container_key = {
+            self._repo.container_column(container_type).key: container_uuid
+        }
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         attachment_id = uuid.uuid4()
 
@@ -108,8 +109,7 @@ class AttachmentService:
             self._assert_url_valid(data.external_url)
             attachment = Attachment(
                 id=attachment_id,
-                container_type=container_type,
-                container_id=container_uuid,
+                **container_key,
                 title=data.title,
                 kind=data.kind,
                 mime_type=None,
@@ -135,8 +135,7 @@ class AttachmentService:
             self._storage.write(content_bytes, relative_path)
             attachment = Attachment(
                 id=attachment_id,
-                container_type=container_type,
-                container_id=container_uuid,
+                **container_key,
                 title=data.title,
                 kind=data.kind,
                 mime_type=data.mime_type,
@@ -203,9 +202,10 @@ class AttachmentService:
 
     def delete(self, attachment_id: str) -> None:
         attachment = self.get_by_id(attachment_id)
-        if attachment.file_path is not None:
-            self._storage.delete(attachment.file_path)
         self._repo.delete(attachment)
+        if attachment.file_path is not None:
+            self._file_cleanup.request_delete(attachment.file_path)
+        self._file_cleanup.request_sweep()
 
     # ------------------------------------------------------------------
     # AttachmentReaderProtocol — consumed by story/task/milestone services
@@ -216,17 +216,6 @@ class AttachmentService:
     ) -> list[AttachmentSchema]:
         rows = self._repo.list_all_for_container(container_type, container_id)
         return [AttachmentSchema.model_validate(row) for row in rows]
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None:
-        # Files are removed before the rows: file_path only exists on the row,
-        # so it must be read before delete_all_for_container drops it.
-        rows = self._repo.list_all_for_container(container_type, container_id)
-        for row in rows:
-            if row.file_path is not None:
-                self._storage.delete(row.file_path)
-        self._repo.delete_all_for_container(container_type, container_id)
 
     # ------------------------------------------------------------------
     # Private helpers

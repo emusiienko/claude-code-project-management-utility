@@ -11,9 +11,9 @@ from app.comments.schema import CONTAINER_TASK as COMMENT_CONTAINER_TASK
 # Import only the Protocol, never the concrete CommentService.
 from app.comments.service import CommentReaderProtocol
 from app.core.errors import NotFoundError, UnprocessableError
+from app.core.storage import FileCleanupProtocol
 
 # Import only the Protocol, never the concrete SessionService.
-from app.sessions.service import SessionReferenceCleanerProtocol
 from app.settings.schema import (
     DICT_KEY_PARTICIPANT_ROLES,
     DICT_KEY_TASK_STATUSES,
@@ -47,8 +47,6 @@ _LIST_DEFAULT_PAGE = 1
 class TaskLinkReaderProtocol(Protocol):
     def list_all_enriched_for_task(self, task_id: uuid.UUID) -> list: ...
 
-    def delete_all_for_task(self, task_id: uuid.UUID) -> None: ...
-
 
 class TaskService:
     def __init__(
@@ -59,7 +57,7 @@ class TaskService:
         task_link_reader: "TaskLinkReaderProtocol | None" = None,
         attachment_reader: AttachmentReaderProtocol | None = None,
         comment_reader: CommentReaderProtocol | None = None,
-        session_reference_cleaner: SessionReferenceCleanerProtocol | None = None,
+        file_cleanup: FileCleanupProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._story_repo = story_repo
@@ -67,7 +65,7 @@ class TaskService:
         self._task_link_reader = task_link_reader
         self._attachment_reader = attachment_reader
         self._comment_reader = comment_reader
-        self._session_reference_cleaner = session_reference_cleaner
+        self._file_cleanup = file_cleanup
 
     def create(self, story_id: str, data: CreateTask) -> Task:
         story = self._assert_story_exists(story_id)
@@ -199,27 +197,9 @@ class TaskService:
 
     def delete(self, task_id: str) -> None:
         task = self.get_by_id(task_id)
-        # Application-level cascade: remove all task links referencing this task
-        # before deleting it. SQLite's ON DELETE CASCADE is inert without
-        # PRAGMA foreign_keys = ON (Known Divergences — architecture.md).
-        if self._task_link_reader is not None:
-            self._task_link_reader.delete_all_for_task(task.id)
-        # Application-level cascade (ADR-018 precedent, extended to the
-        # no-FK polymorphic attachment container): remove the task's
-        # attachments — rows and files — before the task itself is removed.
-        if self._attachment_reader is not None:
-            self._attachment_reader.delete_all_for_container(CONTAINER_TASK, task.id)
-        # Same cascade contract, extended to comments (STORY-008 TASK-004).
-        if self._comment_reader is not None:
-            self._comment_reader.delete_all_for_container(
-                COMMENT_CONTAINER_TASK, task.id
-            )
-        # Same cascade contract, reverse direction (STORY-009 TASK-004): null
-        # linked_task_id on every session referencing this task. Holds on
-        # both dialects since SQLite's SET NULL FK action is inert.
-        if self._session_reference_cleaner is not None:
-            self._session_reference_cleaner.clear_references_to_task(task.id)
         self._repo.delete(task)
+        if self._file_cleanup is not None:
+            self._file_cleanup.request_sweep()
 
     # ------------------------------------------------------------------
     # Private helpers

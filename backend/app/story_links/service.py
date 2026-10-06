@@ -122,9 +122,6 @@ class StoryLinkService:
         links = self._repo.list_all_for_story(story_id)
         return self._enrich_links(story_id, links)
 
-    def delete_all_for_story(self, story_id: uuid.UUID) -> None:
-        self._repo.delete_all_for_story(story_id)
-
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------

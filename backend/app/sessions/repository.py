@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 
 from app.core.database.repository import BaseRepository
 from app.sessions.model import Session
@@ -49,24 +49,3 @@ class SessionRepository(BaseRepository[Session]):
         )
         rows = list(self._session.scalars(rows_stmt).all())
         return rows, total
-
-    def clear_linked_story(self, story_id: uuid.UUID) -> None:
-        # Nulls linked_story_id on every session referencing this story. Called
-        # from the stories service delete cascade — SQLite's SET NULL FK action
-        # is inert, so this holds the acceptance criterion on both dialects.
-        stmt = (
-            update(Session)
-            .where(Session.linked_story_id == story_id)
-            .values(linked_story_id=None)
-        )
-        self._session.execute(stmt)
-
-    def clear_linked_task(self, task_id: uuid.UUID) -> None:
-        # Nulls linked_task_id on every session referencing this task. Called
-        # from the tasks service delete cascade, mirroring clear_linked_story.
-        stmt = (
-            update(Session)
-            .where(Session.linked_task_id == task_id)
-            .values(linked_task_id=None)
-        )
-        self._session.execute(stmt)

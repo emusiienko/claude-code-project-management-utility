@@ -494,7 +494,7 @@ The ordered ancestor bodies for a comment (oldest ancestor → direct parent); `
 - **Errors**: `422`, `404`.
 
 ### DELETE /comments/:id
-Hard delete (no archive/tombstone). Deleting a story/task/milestone cascades to its comments (application-level — `container_id` has no FK). A deleted comment's id may still linger in a descendant's `ancestors`; readers degrade gracefully (the id is simply unresolvable).
+Hard delete (no archive/tombstone). Deleting a story/task/milestone cascades to its comments. A deleted comment's id may still linger in a descendant's `ancestors`; readers degrade gracefully (the id is simply unresolvable).
 - **Response**: `204`
 - **Errors**: `404`.
 

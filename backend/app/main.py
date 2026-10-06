@@ -1,3 +1,7 @@
+import asyncio
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -37,6 +41,16 @@ container.wire(
     ]
 )
 
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Startup sweep, before any request is served: nothing is mid-create, so no
+    # grace window. The sweeper logs and swallows its own failures.
+    await asyncio.to_thread(container.orphan_file_sweeper().sweep, False)
+    async with mcp_app_v1.lifespan(app):
+        yield
+
+
 # Named `application` to avoid shadowing the `app` package in Pyright analysis.
 # Uvicorn convention: `app = application` alias at module level so callers can
 # reference `app.main:app` without changing the uvicorn start command.
@@ -46,10 +60,10 @@ application = FastAPI(
     docs_url=f"/{ApiVersion.V1}/docs",
     redoc_url=f"/{ApiVersion.V1}/redoc",
     openapi_url=f"/{ApiVersion.V1}/openapi.json",
-    # Required so the MCP sub-app's session manager task group actually starts —
-    # without it, FastAPI never runs mcp_app_v1's own ASGI lifespan and every MCP
-    # request over HTTP fails with "Session terminated".
-    lifespan=mcp_app_v1.lifespan,
+    # Must enter mcp_app_v1.lifespan: otherwise the MCP sub-app's session manager
+    # task group never starts and every MCP request over HTTP fails with
+    # "Session terminated".
+    lifespan=_lifespan,
 )
 
 # CORS — configured once here; origins driven by CORS_ALLOWED_ORIGINS env var.

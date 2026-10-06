@@ -2,9 +2,17 @@
 
 > Owned by **lead-developer** (backend stack). Update only at the user's explicit request.
 > Stack: Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · fastmcp
-> Last updated: 2026-09-30 (rev 12 — § MCP Tools Layer: MCP mount requires `path="/"` on
+> Last updated: 2026-10-05 (rev 14 — § SQLAlchemy 2.0: database owns every row removal, attachments
+> and comments included; stored files removed only after commit, via `core/storage/` and
+> `core/database/`. STORY-016/TASK-019)
+>
+> rev 13 (2026-10-05) — § DB Portability: SQLite FK enforcement on every application
+> connection; § SQLAlchemy 2.0: database owns FK cascades; § Alembic: SQLite migrations run with
+> enforcement off, no orphans. STORY-016/TASK-007
+>
+> rev 12 (2026-09-30) — § MCP Tools Layer: MCP mount requires `path="/"` on
 > `http_app()` and `lifespan=mcp_app_v1.lifespan` on `FastAPI()`; § Testing: MCP mount/lifespan
-> wiring needs an over-the-wire test. STORY-011/TASK-006)
+> wiring needs an over-the-wire test. STORY-011/TASK-006
 >
 > rev 11 (2026-09-09) — new § Technical Decisions — Escalation vs. Repo-level ADR:
 > criteria for when a decision is architect's cross-repo territory versus a backend-local
@@ -169,6 +177,14 @@
   on SQLite — abstracted via a custom `UUIDType` in `core/database/`
 - JSON columns (`labels`): use `JSON` type; dialect-aware filtering (SQLite `json_each` /
   `json_extract`, PostgreSQL `jsonb` operators) stays inside the data layer
+- The database owns every row removal on a delete (`ON DELETE CASCADE` / `SET NULL`), attachments
+  and comments included. Never write a service-level cleanup that duplicates a declared FK action;
+  every FK in the database is declared on the model
+- Stored files are removed only after the commit, by two paths: the orphan sweep, and a
+  single-attachment delete removing its own file. A delete never removes a file before the commit
+- File I/O and the orphan sweep live in `core/storage/`; the after-commit mechanism lives in
+  `core/database/`. Services only request file removal and a sweep — they never touch the session
+  for it
 
 ---
 
@@ -179,6 +195,9 @@
 - Every schema change has exactly one migration — no schema edits without a matching migration
 - Data migrations (e.g. seed `system_settings`) are separate Alembic revisions from schema changes
 - Never modify generated migration files to add business logic — that belongs in the service layer
+- SQLite migrations run with FK enforcement off, set explicitly via `core/database/` in `env.py`,
+  so table rebuilds never cascade. A revision that rebuilds a table or changes referential data
+  must not leave orphan rows behind
 
 ---
 
@@ -580,10 +599,11 @@ Commands: see § Local Development Environment > Running Tests.
 
 ## DB Portability (SQLite ⇄ PostgreSQL)
 
-- All dialect-specific logic (UUID type, JSON filtering, case-insensitive uniqueness, WAL mode)
-  is isolated in `core/database/` or behind abstractions in `model.py`
+- All dialect-specific logic (UUID type, JSON filtering, case-insensitive uniqueness, WAL mode,
+  FK enforcement) is isolated in `core/database/` or behind abstractions in `model.py`
 - Services and routers never contain dialect-specific SQL or conditions
-- SQLite runs in WAL mode — enable via `PRAGMA journal_mode=WAL` on connection in `core/database/`
+- SQLite runs in WAL mode with FK enforcement on — `PRAGMA journal_mode=WAL` and
+  `PRAGMA foreign_keys=ON` on every application connection, set in `core/database/`
 - Timestamp columns use `UTCDateTime` from `core/database/types.py`, never a bare
   `DateTime(timezone=True)` — SQLite drops the UTC offset on read, `UTCDateTime` restores it.
   Writers pass timezone-aware datetimes only; a naive value is rejected at bind time

@@ -80,15 +80,3 @@ class MilestoneRepository(BaseRepository[Milestone]):
         # endpoint where the batch variant would be wasteful).
         stmt = select(func.count(Story.id)).where(Story.milestone_id == milestone_id)
         return self._session.execute(stmt).scalar_one()
-
-    def clear_story_links(self, milestone_id: uuid.UUID) -> None:
-        # Sets milestone_id = NULL on all stories assigned to the milestone.
-        # Called before the milestone is deleted so no orphaned FK references remain.
-        from sqlalchemy import update
-
-        stmt = (
-            update(Story)
-            .where(Story.milestone_id == milestone_id)
-            .values(milestone_id=None)
-        )
-        self._session.execute(stmt)

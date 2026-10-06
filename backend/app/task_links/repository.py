@@ -73,22 +73,6 @@ class TaskLinkRepository(BaseRepository[TaskLink]):
         rows = self._session.scalars(stmt).all()
         return {row.id: row for row in rows}
 
-    def delete_all_for_task(self, task_id: uuid.UUID) -> None:
-        # Remove every link that references this task (source or target side).
-        # Called explicitly on task-delete because SQLite's ON DELETE CASCADE is
-        # inert without PRAGMA foreign_keys = ON (Known Divergences).
-        stmt = select(TaskLink).where(
-            or_(
-                TaskLink.source_task_id == task_id,
-                TaskLink.target_task_id == task_id,
-            )
-        )
-        links = list(self._session.scalars(stmt).all())
-        for link in links:
-            self._session.delete(link)
-        if links:
-            self._session.flush()
-
     def list_all_for_task(self, task_id: uuid.UUID) -> list[TaskLink]:
         stmt = select(TaskLink).where(
             or_(

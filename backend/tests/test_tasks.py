@@ -1175,10 +1175,6 @@ class TestTaskCascadeDelete:
                 f"Task should 404 after parent story is deleted, "
                 f"got {task_resp.status_code}"
             )
-
-            # Cleanup guard for when the pragma is eventually enabled.
-            if task_resp.status_code != 404:
-                await _delete_task(client, task_id)
         finally:
             await _delete_project(client, proj["id"])
 

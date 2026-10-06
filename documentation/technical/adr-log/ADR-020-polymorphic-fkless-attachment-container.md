@@ -1,7 +1,7 @@
 # ADR-020: Polymorphic FK-less attachment container with application-level cascade
 
 **Date**: 2026-07-15
-**Status**: Accepted
+**Status**: Superseded by ADR-034
 
 **Decision**: The `attachment` table holds a single polymorphic association to its owning work item
 via a `container_type` discriminator (`story` | `task` | `milestone`) plus a `container_id`. Because

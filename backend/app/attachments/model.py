@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
@@ -12,11 +12,23 @@ class Attachment(Base):
     __tablename__ = "attachment"
 
     id: Mapped[uuid.UUID] = mapped_column(UUIDType, primary_key=True)
-    # container_id is polymorphic across story/task/milestone — it carries no
-    # foreign key. Container existence is validated in the service layer, and
-    # container-delete cascade is application-level (no DB FK to rely on).
-    container_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    container_id: Mapped[uuid.UUID] = mapped_column(UUIDType, nullable=False)
+    # Exactly one of the three container keys is set (ck_attachment_one_container);
+    # the database removes the row when its container is deleted.
+    story_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType,
+        ForeignKey("story.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType,
+        ForeignKey("task.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType,
+        ForeignKey("milestone.id", ondelete="CASCADE"),
+        nullable=True,
+    )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -36,10 +48,13 @@ class Attachment(Base):
     )
 
     __table_args__ = (
-        Index(
-            "ix_attachment_container_kind",
-            "container_type",
-            "container_id",
-            "kind",
+        CheckConstraint(
+            "(story_id IS NOT NULL AND task_id IS NULL AND milestone_id IS NULL)"
+            " OR (story_id IS NULL AND task_id IS NOT NULL AND milestone_id IS NULL)"
+            " OR (story_id IS NULL AND task_id IS NULL AND milestone_id IS NOT NULL)",
+            name="ck_attachment_one_container",
         ),
+        Index("ix_attachment_story_kind", "story_id", "kind"),
+        Index("ix_attachment_task_kind", "task_id", "kind"),
+        Index("ix_attachment_milestone_kind", "milestone_id", "kind"),
     )

@@ -1,8 +1,15 @@
 import shutil
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.core.errors import InternalError
+
+
+@dataclass(frozen=True)
+class StoredFile:
+    relative_path: str
+    modified_at: float
 
 
 class FilesystemStorage:
@@ -33,13 +40,32 @@ class FilesystemStorage:
             raise InternalError(f"Failed to read file: {exc}") from exc
 
     def delete(self, relative_path: str) -> None:
-        # Permanent removal for attachment delete / container-cascade delete.
+        # Permanent removal of one stored file, after a commit that removed its row.
         # missing_ok tolerates a file already absent (e.g. a retried delete).
         path = self._resolve(relative_path)
         try:
             path.unlink(missing_ok=True)
         except OSError as exc:
             raise InternalError(f"Failed to delete file: {exc}") from exc
+
+    def list_files(self) -> list[StoredFile]:
+        # Every stored file, as a path relative to the base directory plus its
+        # modification time (epoch seconds). A missing base directory is empty.
+        if not self._base.is_dir():
+            return []
+        files: list[StoredFile] = []
+        for path in self._base.rglob("*"):
+            try:
+                if path.is_file():
+                    files.append(
+                        StoredFile(
+                            relative_path=path.relative_to(self._base).as_posix(),
+                            modified_at=path.stat().st_mtime,
+                        )
+                    )
+            except FileNotFoundError:
+                continue  # removed between the directory walk and the stat
+        return files
 
     def snapshot(self, source_relative: str) -> str:
         # Creates an immutable copy of the source file for version history.

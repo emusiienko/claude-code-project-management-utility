@@ -193,8 +193,8 @@ parts are not separately located:
   [`coordination-service.md`](documentation/technical/api-contracts/coordination-service.md))
 - [`deployment/deployment-infrastructure-view.md`](documentation/technical/deployment/deployment-infrastructure-view.md)
   — system-level topology (not IaC; devops owns IaC)
-- [`adr-log/`](documentation/technical/adr-log/) — 32 ADRs (`ADR-001`…`ADR-032`), referenced by ID
-  from the SAD; next id ADR-033
+- [`adr-log/`](documentation/technical/adr-log/) — one file per ADR, referenced by ID from the SAD;
+  next id = highest number in that folder plus one
 
 **format**: plugin defaults, copied into [`.fast-sdlc/agents/architect/`](.fast-sdlc/agents/architect/)
 and used as-is. Migrated "from scratch" during architect Setup (STORY-001/TASK-002) from the legacy
@@ -208,7 +208,7 @@ single-file `docs/architecture.md` + `docs/api-contract.md` + `docs/tech_decisio
 (one file per service). Format:
 [`.fast-sdlc/agents/architect/api-contract-format.md`](.fast-sdlc/agents/architect/api-contract-format.md).
 The contract is
-**LOCKED**, as-built head **v1.10**; changes need an architect-approved revision. Every REST route is
+**LOCKED**, as-built (current version stated in each file's own revision history); changes need an architect-approved revision. Every REST route is
 under the `/v1` base path. The contract documents only endpoints that exist on the running backend —
 read it as the definitive list of the API surface, not as a superset. Legacy `docs/api-contract.md`
 removed 2026-08-27 (STORY-001).

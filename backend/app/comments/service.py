@@ -15,6 +15,7 @@ from app.comments.schema import Comment as CommentSchema
 from app.comments.schema import (
     CreateComment,
     UpdateComment,
+    container_of,
 )
 from app.core.errors import NotFoundError, UnprocessableError
 
@@ -58,16 +59,12 @@ class MilestoneReaderProtocol(Protocol):
 class CommentReaderProtocol(Protocol):
     """Satisfied structurally by CommentService; injected into the story,
     task, and milestone services (never the concrete class) so those domains
-    can compose comments into their detail responses and cascade-remove
-    them on container delete without depending on the comments package."""
+    can compose comments into their detail responses without depending on
+    the comments package."""
 
     def list_all_for_container(
         self, container_type: str, container_id: uuid.UUID
     ) -> list[CommentSchema]: ...
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None: ...
 
 
 class CommentService:
@@ -104,10 +101,7 @@ class CommentService:
         ancestors: list[str] = []
         if data.in_reply_to is not None:
             parent = self.get_by_id(data.in_reply_to)
-            if (
-                parent.container_type != container_type
-                or parent.container_id != container_uuid
-            ):
+            if container_of(parent) != (container_type, container_uuid):
                 raise UnprocessableError(_REPLY_SAME_CONTAINER_MSG)
             # Materialized ancestor path: computed once at create, immutable
             # thereafter. The direct parent is simply ancestors[-1].
@@ -116,8 +110,7 @@ class CommentService:
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         comment = Comment(
             id=uuid.uuid4(),
-            container_type=container_type,
-            container_id=container_uuid,
+            **{self._repo.container_column(container_type).key: container_uuid},
             content=data.content,
             author_role=data.author_role,
             labels=[label.model_dump() for label in data.labels],
@@ -223,11 +216,6 @@ class CommentService:
     ) -> list[CommentSchema]:
         rows = self._repo.list_all_for_container(container_type, container_id)
         return [CommentSchema.model_validate(row) for row in rows]
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None:
-        self._repo.delete_all_for_container(container_type, container_id)
 
     # ------------------------------------------------------------------
     # Private helpers

@@ -141,8 +141,9 @@ create + delete only.
 | Column | Type | Constraints / Notes |
 |--------|------|---------------------|
 | `id` | UUID | PK (technical) |
-| `container_type` | text | `story` \| `task` \| `milestone` |
-| `container_id` | UUID | **polymorphic, no FK** (one column cannot reference three tables) — ADR-020 |
+| `story_id` | UUID | nullable, FK → `story`, `ON DELETE CASCADE` |
+| `task_id` | UUID | nullable, FK → `task`, `ON DELETE CASCADE` |
+| `milestone_id` | UUID | nullable, FK → `milestone`, `ON DELETE CASCADE` |
 | `title` | text (max 500) | mandatory, free-form, **not** dictionary-validated; set once at create |
 | `kind` | text | `document` \| `image` \| `file` \| `external-ref` |
 | `mime_type` | text | conditional — `document`/`image`/`file` |
@@ -154,11 +155,13 @@ create + delete only.
 | `created_at` | datetime | technical |
 | `updated_at` | datetime | technical |
 
-Container existence and cascade delete are **application-level** because `container_id` carries no FK
-(ADR-020). `file` kind is opaque binary against a curated MIME allow-list. There is no
+**Constraint:** `ck_attachment_one_container` — exactly one of `story_id`, `task_id`, `milestone_id` is
+set (see Container keys below). The database removes the row when its container is deleted; the
+stored file is removed by the orphan file sweep (ADR-034). `file` kind is opaque binary against a curated MIME allow-list. There is no
 `attachment_version` table — attachments are immutable (ADR-021, supersedes ADR-005 versioning).
 
-**Index:** `ix_attachment_container_kind` `(container_type, container_id, kind)`.
+**Indexes:** `ix_attachment_story_kind` `(story_id, kind)`, `ix_attachment_task_kind` `(task_id, kind)`,
+`ix_attachment_milestone_kind` `(milestone_id, kind)`.
 
 ---
 
@@ -170,8 +173,9 @@ id-path (there is no thread/parent-child table; a reply is an ordinary flat comm
 | Column | Type | Constraints / Notes |
 |--------|------|---------------------|
 | `id` | UUID | PK (technical) |
-| `container_type` | text | `story` \| `task` \| `milestone` |
-| `container_id` | UUID | **polymorphic, no FK** (same convention as `attachment`) — ADR-020 |
+| `story_id` | UUID | nullable, FK → `story`, `ON DELETE CASCADE` |
+| `task_id` | UUID | nullable, FK → `task`, `ON DELETE CASCADE` |
+| `milestone_id` | UUID | nullable, FK → `milestone`, `ON DELETE CASCADE` |
 | `author_role` | text | **required, immutable**, free-form |
 | `content` | text (1–50,000) | Markdown; length validated at the schema layer |
 | `labels` | JSON array | free-form |
@@ -180,13 +184,27 @@ id-path (there is no thread/parent-child table; a reply is an ordinary flat comm
 | `updated_at` | datetime | technical |
 
 `ancestors` is derived from a request-only `in_reply_to` input (`ancestors = parent.ancestors +
-[parent.id]`); `in_reply_to` itself is never stored or returned. `container_id` and the `ancestors`
-ids are FK-less, so container existence and cascade delete are application-level. No dictionary-bound
-fields.
+[parent.id]`); `in_reply_to` itself is never stored or returned. The `ancestors` ids are FK-less (ADR-023). No
+dictionary-bound fields.
 
-**Index:** `ix_comment_container_created` `(container_type, container_id, created_at)` — serves the
+**Constraint:** `ck_comment_one_container` — exactly one of `story_id`, `task_id`, `milestone_id` is set
+(see Container keys below). The database removes the row when its container is deleted (ADR-034).
+
+**Indexes:** `ix_comment_story_created` `(story_id, created_at)`, `ix_comment_task_created`
+`(task_id, created_at)`, `ix_comment_milestone_created` `(milestone_id, created_at)` — each serves the
 container-scoped list in either direction (the list is `ORDER BY (created_at, id) DESC`, newest-first
 as built; the id tiebreaker keeps ordering stable when timestamps collide).
+
+---
+
+### Container keys (attachment, comment)
+
+Both tables realize the Logical Data Model's three `story_id` / `task_id` / `milestone_id` foreign keys
+directly (ADR-034, superseding ADR-020's polymorphic pair). The exactly-one CHECK is written as the three
+explicit combinations — (`story_id IS NOT NULL AND task_id IS NULL AND milestone_id IS NULL`) OR the
+same with `task_id` set OR with `milestone_id` set — so it is identical DDL on SQLite and PostgreSQL. The
+API keeps `container_type` / `container_id`, derived from whichever key is set. The original attachment
+and comment migrations create this shape directly; a database created before it is recreated, not upgraded.
 
 ---
 
@@ -294,38 +312,25 @@ name uniqueness within a project).
 
 | Parent → Child | FK column | On delete | Enforcement |
 |----------------|-----------|-----------|-------------|
-| project → story | `story.project_id` | CASCADE | FK (PostgreSQL); inert on SQLite |
-| project → milestone | `milestone.project_id` | CASCADE | FK (PostgreSQL); inert on SQLite |
-| project → session | `session.project_id` | CASCADE | FK-only (like every project child) |
-| story → task | `task.story_id` | CASCADE | FK (PostgreSQL); inert on SQLite |
-| story → milestone (assignment) | `story.milestone_id` | SET NULL | FK (PostgreSQL); inert on SQLite |
-| task → task_link (either side) | `task_link.source_task_id`, `task_link.target_task_id` | CASCADE | FK **plus** application-level cleanup (ADR-018) |
-| story → story_link (either side) | `story_link.source_story_id`, `story_link.target_story_id` | CASCADE | FK **plus** application-level cleanup (ADR-018) |
-| story / task / milestone → attachment | `attachment.container_id` (polymorphic, no FK) | — | **application-level only** (ADR-020) |
-| story / task / milestone → comment | `comment.container_id` (polymorphic, no FK) | — | **application-level only** (ADR-020) |
-| session → story (link) | `session.linked_story_id` | SET NULL | **application-level** in the stories delete cascade (SQLite FK inert — ADR-018 pattern) |
-| session → task (link) | `session.linked_task_id` | SET NULL | **application-level** in the tasks delete cascade |
+| project → story | `story.project_id` | CASCADE | FK |
+| project → milestone | `milestone.project_id` | CASCADE | FK |
+| project → session | `session.project_id` | CASCADE | FK |
+| project → project_settings | `project_settings.project_id` | CASCADE | FK |
+| story → task | `task.story_id` | CASCADE | FK |
+| story → milestone (assignment) | `story.milestone_id` | SET NULL | FK |
+| task → task_link (either side) | `task_link.source_task_id`, `task_link.target_task_id` | CASCADE | FK |
+| story → story_link (either side) | `story_link.source_story_id`, `story_link.target_story_id` | CASCADE | FK |
+| story / task / milestone → attachment | `attachment.story_id`, `attachment.task_id`, `attachment.milestone_id` | CASCADE | FK; stored files by the orphan file sweep (ADR-034) |
+| story / task / milestone → comment | `comment.story_id`, `comment.task_id`, `comment.milestone_id` | CASCADE | FK (ADR-034) |
+| session → story (link) | `session.linked_story_id` | SET NULL | FK |
+| session → task (link) | `session.linked_task_id` | SET NULL | FK |
 
-**Application-level vs FK-enforced.** `PRAGMA foreign_keys = ON` is **not** set on the application's
-SQLite connection, so every declared `ON DELETE CASCADE` / `ON DELETE SET NULL` is **inert on a SQLite
-deployment** (enforced on PostgreSQL). "Inert on SQLite" in the table above means the application
-engine; the backend test engine does enable the PRAGMA, so FK actions fire under test. The application therefore performs the equivalent cleanup itself where
-correctness on both dialects is required (ADR-018 pattern):
-
-- **Milestone delete** bulk-clears `story.milestone_id` in the service (an explicit `UPDATE`), so
-  "delete milestone → stories kept, link cleared" holds on both dialects.
-- **Task / story delete** explicitly clears their links (`delete_all_for_*`), attachments (rows +
-  stored files), comments (rows), and referencing session links (`linked_story_id` /
-  `linked_task_id`) **before** removing the parent, so no orphans remain on either dialect.
-- **Attachment / comment cascade is application-level by necessity** — their polymorphic
-  `container_id` has no FK at all (ADR-020), so this holds identically on both dialects rather than
-  depending on the SQLite PRAGMA gap.
-
-The residual exposure of the SQLite FK gap is where cleanup relies purely on the FK cascade (e.g.
-deleting a project to remove child rows on a SQLite deployment). Because the test engine enforces FK
-actions, the test suite does not reveal this exposure. Resolution — enabling `PRAGMA foreign_keys = ON`
-in the application engine, after which the application-level cleanups above become redundant — is
-tracked as follow-up, out of scope here.
+**The database is the only cascade mechanism.** FK enforcement is on for every application connection
+on both dialects (on SQLite, per connection), so every declared action above fires; the application
+performs no row cleanup of its own on delete. Migrations on SQLite run with enforcement off, so a table
+rebuild never cascades. The one cleanup outside the database is stored attachment files: the storage
+layer's orphan file sweep removes every stored file no attachment row points to, after an attachment,
+task, story, milestone or project delete commits, and at startup (ADR-034).
 
 `0004_milestone` also adds the deferred `story.milestone_id` FK (`ON DELETE SET NULL`) at the point
 the `milestone` table is created (ADR-013). On SQLite this uses `batch_alter_table` (table rebuild,
@@ -343,8 +348,8 @@ it emits a plain `ADD CONSTRAINT`.
 | task | `(story_id, status)`, `(story_id, type)`, `(assignee_role)`, `(creator_role)` |
 | task_link | `(source_task_id, link_type)`, `(target_task_id, link_type)`; unique `(source_task_id, target_task_id, link_type)` |
 | story_link | `(source_story_id, link_type)`, `(target_story_id, link_type)`; unique `(source_story_id, target_story_id, link_type)` |
-| attachment | `ix_attachment_container_kind` `(container_type, container_id, kind)` |
-| comment | `ix_comment_container_created` `(container_type, container_id, created_at)` (scanned descending for the newest-first list) |
+| attachment | `ix_attachment_story_kind` `(story_id, kind)`, `ix_attachment_task_kind` `(task_id, kind)`, `ix_attachment_milestone_kind` `(milestone_id, kind)` |
+| comment | `ix_comment_story_created` `(story_id, created_at)`, `ix_comment_task_created` `(task_id, created_at)`, `ix_comment_milestone_created` `(milestone_id, created_at)` (scanned descending for the newest-first list) |
 | session | `ix_session_project_created` `(project_id, created_at)`, `ix_session_project_status` `(project_id, status)`, `ix_session_linked_story` `(linked_story_id)`, `ix_session_linked_task` `(linked_task_id)` |
 | milestone | `ix_milestone_project_id` `(project_id)`, `ix_milestone_project_status` `(project_id, status)`, `ix_milestone_project_name_lower` unique `(project_id, LOWER(name))` |
 

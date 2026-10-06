@@ -37,6 +37,8 @@ Notes:
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 # ---------------------------------------------------------------------------
 # URL constants
@@ -938,45 +940,50 @@ async def test_assign_nonexistent_milestone_returns_404(client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
-async def test_delete_project_returns_204(client: AsyncClient) -> None:
-    """Deleting a project returns 204 (project-service cascade tested in test_projects.py)."""
-    # NOTE: SQLite FK cascade (`ON DELETE CASCADE` on milestone.project_id) requires
-    # `PRAGMA foreign_keys = ON`, which the current engine/conftest does not enable.
-    # As a result, milestone rows are NOT automatically removed when their project
-    # is deleted via a raw DELETE — this is a known gap. The milestone service's
-    # delete() method clears story links explicitly, but the project-delete cascade
-    # for milestones is not yet wired at the service layer.
-    # This test verifies the 204 contract and leaves the cascade gap for a future fix.
+async def test_delete_project_removes_its_milestones(
+    client: AsyncClient, db_session: Session
+) -> None:
+    """Deleting a project returns 204 and removes its milestones (FK CASCADE)."""
     project = await _create_project(client, "M-CascadeDelete-Project")
-    await _create_milestone(client, project["id"], "Cascade Sprint")
+    try:
+        milestone = await _create_milestone(client, project["id"], "Cascade Sprint")
 
-    del_resp = await client.delete(f"/v1/projects/{project['id']}")
-    assert del_resp.status_code == 204, f"Expected 204, got {del_resp.status_code}"
+        del_resp = await client.delete(f"/v1/projects/{project['id']}")
+        assert del_resp.status_code == 204, f"Expected 204, got {del_resp.status_code}"
+
+        db_session.rollback()
+        remaining = db_session.execute(
+            text("SELECT COUNT(*) FROM milestone WHERE id = :id"),
+            {"id": milestone["id"]},
+        ).scalar_one()
+        assert remaining == 0, "Milestone row should be removed with its project"
+    finally:
+        await _delete_project(client, project["id"])
 
 
 @pytest.mark.asyncio
-async def test_delete_project_removes_its_stories(client: AsyncClient) -> None:
-    """Deleting a project cascades to delete its stories (existing behavior)."""
-    # NOTE: Story deletion on project-delete is handled by the project repository's
-    # cascade (stories.project_id FK with ON DELETE CASCADE, FK enforcement verified
-    # in the project service). Milestone cascade is a separate gap (see above).
+async def test_delete_project_removes_its_stories(
+    client: AsyncClient, db_session: Session
+) -> None:
+    """Deleting a project removes its stories and milestones (FK CASCADE)."""
     project_a = await _create_project(client, "M-CascadeStory-A")
     project_b = await _create_project(client, "M-CascadeStory-B")
     try:
         milestone = await _create_milestone(client, project_a["id"], "A Sprint")
         story = await _create_story(client, project_a["id"], "A Story", milestone["id"])
+        assert (
+            story["milestone_id"] == milestone["id"]
+        ), "Precondition confirmed: story was assigned to the milestone"
 
         del_resp = await client.delete(f"/v1/projects/{project_a['id']}")
         assert del_resp.status_code == 204, f"Expected 204, got {del_resp.status_code}"
 
-        # Story belongs to project A; whether it is cascade-deleted depends on FK
-        # enforcement. This test does not assert the story is gone — the cascade
-        # behavior for stories is validated in test_projects.py.
-        # Here we only confirm the project delete itself succeeds and the story
-        # had the expected milestone_id before deletion.
-        assert (
-            story["milestone_id"] == milestone["id"]
-        ), "Precondition confirmed: story was assigned to the milestone"
+        db_session.rollback()
+        for table, row_id in (("story", story["id"]), ("milestone", milestone["id"])):
+            remaining = db_session.execute(
+                text(f"SELECT COUNT(*) FROM {table} WHERE id = :id"), {"id": row_id}
+            ).scalar_one()
+            assert remaining == 0, f"{table} row should be removed with its project"
     finally:
         # project_a already deleted; clean up project_b only.
         await _delete_project(client, project_b["id"])

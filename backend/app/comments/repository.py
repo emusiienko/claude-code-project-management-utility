@@ -1,8 +1,10 @@
 import uuid
 
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import InstrumentedAttribute
 
 from app.comments.model import Comment
+from app.comments.schema import CONTAINER_KEY_FIELDS
 from app.core.database.json_utils import (
     apply_json_array_filter,
     apply_json_scalar_array_contains_filter,
@@ -15,6 +17,12 @@ _COMMENT_TABLE_ALIAS = "comment"
 
 class CommentRepository(BaseRepository[Comment]):
     model_class = Comment
+
+    @staticmethod
+    def container_column(
+        container_type: str,
+    ) -> InstrumentedAttribute[uuid.UUID | None]:
+        return getattr(Comment, CONTAINER_KEY_FIELDS[container_type])
 
     def coerce_container_id(self, container_id: str | uuid.UUID) -> uuid.UUID:
         # Exposed so the service can get a validated UUID for model construction
@@ -38,10 +46,8 @@ class CommentRepository(BaseRepository[Comment]):
         descendant_of_filter: uuid.UUID | None = None,
         after_id_filter: uuid.UUID | None = None,
     ) -> tuple[list[Comment], int]:
-        base_stmt = select(Comment).where(
-            Comment.container_type == container_type,
-            Comment.container_id == container_id,
-        )
+        container_column = self.container_column(container_type)
+        base_stmt = select(Comment).where(container_column == container_id)
 
         if label_key_filter is not None or label_value_filter is not None:
             base_stmt = apply_json_array_filter(
@@ -66,8 +72,7 @@ class CommentRepository(BaseRepository[Comment]):
             # within this same container — a missing watermark surfaces as
             # NOT_FOUND (404), mirroring the precedent in settings/repository.py.
             anchor_stmt = select(Comment.created_at, Comment.id).where(
-                Comment.container_type == container_type,
-                Comment.container_id == container_id,
+                container_column == container_id,
                 Comment.id == after_id_filter,
             )
             anchor = self._session.execute(anchor_stmt).first()
@@ -109,31 +114,10 @@ class CommentRepository(BaseRepository[Comment]):
     def list_all_for_container(
         self, container_type: str, container_id: uuid.UUID
     ) -> list[Comment]:
-        # Enumerates every comment on a container — used both ahead of a
-        # cascade delete and to compose a detail view's newest-first
-        # `comments` list, hence the explicit chronological ordering.
+        # Composes a detail view's newest-first `comments` list.
         stmt = (
             select(Comment)
-            .where(
-                Comment.container_type == container_type,
-                Comment.container_id == container_id,
-            )
+            .where(self.container_column(container_type) == container_id)
             .order_by(Comment.created_at.desc(), Comment.id.desc())
         )
         return list(self._session.scalars(stmt).all())
-
-    def delete_all_for_container(
-        self, container_type: str, container_id: uuid.UUID
-    ) -> None:
-        # Removes every comment row on a container. Called explicitly on
-        # container delete — container_id has no FK, so there is no CASCADE
-        # to rely on for either dialect.
-        stmt = select(Comment).where(
-            Comment.container_type == container_type,
-            Comment.container_id == container_id,
-        )
-        rows = list(self._session.scalars(stmt).all())
-        for row in rows:
-            self._session.delete(row)
-        if rows:
-            self._session.flush()

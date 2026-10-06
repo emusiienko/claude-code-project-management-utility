@@ -15,6 +15,7 @@ from app.attachments.model import Attachment  # noqa: F401
 from app.comments.model import Comment  # noqa: F401
 from app.config import settings
 from app.core.database.base import Base
+from app.core.database.engine import disable_sqlite_foreign_keys
 from app.milestones.model import Milestone  # noqa: F401
 from app.projects.model import Project  # noqa: F401
 from app.sessions.model import Session  # noqa: F401
@@ -57,6 +58,8 @@ def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+    # SQLite table rebuilds must run with FK enforcement off (see ADR-001).
+    disable_sqlite_foreign_keys(connectable)
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
