@@ -145,6 +145,45 @@ CORS origin); all are documented in TASK-019's Implementation Report if they eve
 earlier ones were burned precisely because nobody checked before spawning.
 
 ## Recent changes
+- 2026-10-06: **STORY-015 and STORY-016 closed — `Done`, archived.** STORY-015 (PR #22 + Reconcile #23): test engine
+  enforces FKs, 3 cascade tests restored; its Reconcile found the application engine still ignored FKs on SQLite.
+  STORY-016 (PR #24 + Reconcile #25, `71f161f`): application engine enforces FKs, migrations run with enforcement
+  off, workaround cleanup removed, attachments/comments got real story/task/milestone FKs + exactly-one CHECK
+  (ADR-034 supersedes ADR-020, folded into original migrations 0009/0010/0011 — user's explicit override of the
+  no-edit-applied-migration rule, no real data), orphan file sweep (1h grace window, after-commit, at startup),
+  ADR-035 supersedes ADR-018, backend ADR-001. 70 black-box tests passed on the user's stack; manual-qa not
+  used (user: not testable manually). Lessons: (1) shared checkout on the user's feature branch — agents work
+  there, no worktrees unless parallel stories (memory note); (2) migration revision ids must be <=32 chars
+  (Postgres), found only when the user ran Postgres; (3) the harness "settings-json" flag on agent output was
+  a false alarm every time (checked git status/diff each time); (4) check the tasks folder before numbering
+  new Tasks. Stale ADR counters/contract version removed from CLAUDE.md and the setup file (TASK-014).
+  Unanswered/dropped by the user: the "wipe before upgrade" check (dropped), conventions line (dropped).
+  Still open: `fast-sdlc-project-setup.md` backend repo-level ADR chapter says "none yet" though backend
+  ADR-001 exists; deploy.sh one-vs-two scripts question from STORY-014; leftover local worktrees under the
+  scratchpad (wt-014-*, wt-story-014) and local branches, safe to remove.
+- 2026-10-04: **STORY-014 (prod-stack external-access Docker network) closed — `Done`, archived.** Devops-only.
+  PR #20 (`bf6a17a`): network `aiacu-external-access` (backend alias `aiacu-backend`), plus — added by user
+  during PR review — a second prod web instance `web-docker` (alias `aiacu-web`, no host port, bundle calls
+  `aiacu-backend:8000`), backend CORS allowing both origins, dev stack isolated via `!override`/`prod-only`
+  profile. 7 review comments over 4 rounds (TASK-003/005/006/007). Reconcile PR #21 merged: architect's
+  Deployment View/NFR/SAD wording, ADR-033 (compacted at user's request), BA one-line note. No
+  lead-dev/coder Reconcile (no code). **Runtime checks never confirmed by the user** (reachability,
+  `web-docker` UI load, dev isolation, plus `.env` CORS edit) — no agent can run Docker. Unanswered user
+  questions: one `deploy.sh` vs `deploy-dev/prod.sh` wrappers (suggested new story), comment rule in
+  DevOps Strategy, rename `aiacu-external-access`, `COMPOSE_FILE` in `.env.dev.example`. Stale-doc item
+  still unauthorized: `CLAUDE.md` Key Docs and `fast-sdlc-project-setup.md` > Artifacts (ADR counts, next
+  ADR now ADR-034; API Contract v1.10 vs actual v1.12). Escalation `prod-external-access-network` closed.
+  Gotcha: a TASK-NNN may appear mid-story, check the tasks folder before numbering new Tasks.
+- 2026-10-03: **STORY-013 (SQLite timestamp offset loss + backend formatting cleanup) closed — `Done`, archived.**
+  PR #17 (`UTCDateTime` fix) and PR #18 (black/isort pass, SHA in `.git-blame-ignore-revs`) merged to
+  `development`; user accepted without a QA phase (no QA Tasks created, same as STORY-012). Reconcile
+  (TASK-006..009): no deviations; lead-developer added two Coding Conventions rules, coder updated the
+  backend Code Map, architect added a Physical Data Model portability bullet, business-analyst found
+  nothing to change. Reconcile PR #19 merged (`4222915`). STORY-012's two follow-ups (timestamp bug,
+  formatting drift) are both resolved by this story; the `CLAUDE.md` Key Docs staleness item was
+  already current. Task numbering gotcha: a TASK-005 (PR #18 merge-conflict fix) appeared mid-story, so
+  check the tasks folder right before creating Tasks. Stories on the board: STORY-014, STORY-015
+  (both `Planned`, TASK-001 `ToDo`).
 - 2026-10-02: **STORY-012 (Quick Fix) — `Pending Approval`.** User reported `create_story` MCP tool
   crashing with `TypeError: StoryService.create() got an unexpected keyword argument 'project_id'`
   (full traceback pasted) and asked for a Quick Fix directly. Eligible (1 file + 1 test file, clear

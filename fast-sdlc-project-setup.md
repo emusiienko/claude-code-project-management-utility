@@ -287,7 +287,7 @@ Stack-scoped decisions only — distinct from architect's project-level ADR Log
 inside their own stack folder at the repo root.
 - **backend** (set STORY-001/TASK-003, SESSION-004; location corrected 2026-08-27): `backend/adr-log/`
   — inside the backend stack folder. Sequential within the backend stack, starting at `ADR-001`;
-  **none yet**. **format**: `.fast-sdlc/agents/lead-developer/backend/adr-format.md` (plugin default,
+  see `backend/adr-log/index.md` for the current list and next id. **format**: `.fast-sdlc/agents/lead-developer/backend/adr-format.md` (plugin default,
   as-is). ADR immutability rule applies (edit `Status` only).
 - **frontend** (set STORY-001/TASK-009, SESSION-005): `frontend/adr-log/` — inside the stack folder.
   Sequential from `ADR-001`, own series; see `frontend/adr-log/index.md` for the current list and next
