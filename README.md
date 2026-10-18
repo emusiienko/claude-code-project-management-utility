@@ -6,9 +6,7 @@ A shared workspace where AI agents and engineers track the same projects, storie
 
 The AI Agent Coordination Utility is a single-developer, locally hosted tool that keeps the working state of a multi-agent development pipeline in one place. AI agents read and write that state through an MCP server; the human who steers them uses a web UI. Both see the same projects, stories, tasks, comments and sessions, and both have the same read/write access.
 
-**The problem.** When several AI agents work on one codebase, their progress lives in scattered files and chat transcripts. Agents lose track of what is planned, in progress or done, and the human cannot see the whole picture without reading every agent's output. The utility gives agents and humans a single source of truth: a task hierarchy that agents query when a session starts and update as they work, and a board where the human sees the same state.
-
-**Relation to Fast SDLC.** The utility is a companion to [Fast SDLC](https://github.com/emusiienko/fast-sdlc), a role-based agent development pipeline, and can store that pipeline's task state. It does not depend on Fast SDLC: it stores facts and enforces no process, so it works for any workflow that needs shared task tracking between agents and a human.
+**What it does.** The utility gives agents and humans a single source of truth: a task hierarchy that agents query when a session starts and update as they work, and a board where the human sees the same state. It stores facts and enforces no process, so it fits any workflow that needs shared task tracking between agents and a human.
 
 ## Features
 
