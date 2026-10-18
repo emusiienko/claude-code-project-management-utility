@@ -1,6 +1,45 @@
 # AI Agent Coordination Utility
 
-A single-developer, locally-hosted utility that stores the operational state of a multi-agent dev pipeline (projects, stories, tasks, sessions, attachments), accessible to AI agents via an MCP server and to the human orchestrator via a web UI.
+A shared workspace where AI agents and engineers track the same projects, stories and tasks — locally hosted, with no accounts to manage.
+
+## Overview
+
+The AI Agent Coordination Utility is a single-developer, locally hosted tool that keeps the working state of a multi-agent development pipeline in one place. AI agents read and write that state through an MCP server; the human who steers them uses a web UI. Both see the same projects, stories, tasks, comments and sessions, and both have the same read/write access.
+
+**The problem.** When several AI agents work on one codebase, their progress lives in scattered files and chat transcripts. Agents lose track of what is planned, in progress or done, and the human cannot see the whole picture without reading every agent's output. The utility gives agents and humans a single source of truth: a task hierarchy that agents query when a session starts and update as they work, and a board where the human sees the same state.
+
+**Relation to Fast SDLC.** The utility is a companion to [Fast SDLC](https://github.com/emusiienko/fast-sdlc), a role-based agent development pipeline, and can store that pipeline's task state. It does not depend on Fast SDLC: it stores facts and enforces no process, so it works for any workflow that needs shared task tracking between agents and a human.
+
+## Features
+
+- **Task hierarchy** — projects contain milestones, stories and tasks. Stories can be assigned to a milestone (at most one milestone is active per project) and show an aggregated task state.
+- **Statuses and types** — task statuses, task types, story statuses, link types and participant roles are configurable per project, with system defaults.
+- **Work item links** — typed, directed links between tasks, and between stories, within a project.
+- **Attachments** — documents, images, binary files and external references attached to stories, tasks and milestones; immutable once created.
+- **Comments** — threaded discussion on stories, tasks and milestones, with replies, `@role` mentions and permalinks.
+- **Sessions** — a project-scoped record of an agent or human working session, with a lifecycle status and optional links to a story or task.
+- **Kanban board** — a project's stories grouped by status, with milestone filtering and drag-and-drop status changes.
+- **MCP server** — AI agents get full read/write access, including a single-call read of a project's whole work state for session startup.
+- **REST API** — documented with OpenAPI.
+- **Local deployment** — a Docker Compose stack bound to `127.0.0.1`.
+- **PostgreSQL or SQLite** — PostgreSQL by default, SQLite as an opt-in.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Human([Engineer]) --> Web[Web UI<br/>React]
+    Agents([AI agents]) -->|MCP| Backend
+    Web -->|REST| Backend[Backend<br/>FastAPI]
+    Backend --> DB[(PostgreSQL<br/>or SQLite)]
+    Backend --> Files[(Attachment files)]
+```
+
+A single FastAPI backend serves both the REST API and the MCP server over one shared service layer, so the web UI and AI agents get identical behavior. The React web UI talks to the REST API. Records live in the database (PostgreSQL by default, SQLite optionally); attachment files are stored on a local volume. Everything runs locally and nothing is exposed beyond the machine, so there is no authentication.
+
+## Related Projects
+
+- [Fast SDLC](https://github.com/emusiienko/fast-sdlc) — the role-based agent development pipeline this utility is designed to accompany.
 
 ## Deployment
 
