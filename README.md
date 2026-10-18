@@ -35,10 +35,6 @@ flowchart LR
 
 A single FastAPI backend serves both the REST API and the MCP server over one shared service layer, so the web UI and AI agents get identical behavior. The React web UI talks to the REST API. Records live in the database (PostgreSQL by default, SQLite optionally); attachment files are stored on a local volume. Everything runs locally and nothing is exposed beyond the machine, so there is no authentication.
 
-## Related Projects
-
-- [Fast SDLC](https://github.com/emusiienko/fast-sdlc) — the role-based agent development pipeline this utility is designed to accompany.
-
 ## Quick Start
 
 Requires Docker with the Compose v2 plugin and [Claude Code](https://docs.claude.com/en/docs/claude-code/overview).
@@ -80,6 +76,10 @@ Requires Docker with the Compose v2 plugin and [Claude Code](https://docs.claude
 5. Check the connection: `claude mcp get aiacu` reports `Connected`, and the [MCP tools](#mcp-tools) below are available to your agents.
 
 For advanced setups — SQLite, two concurrent stacks, access from other projects' devcontainers — see [Deployment](#deployment).
+
+## Related Projects
+
+- [Fast SDLC](https://github.com/emusiienko/fast-sdlc) — the role-based agent development pipeline this utility is designed to accompany.
 
 ## MCP Tools
 
