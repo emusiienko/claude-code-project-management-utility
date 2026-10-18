@@ -85,6 +85,9 @@ For advanced setups — SQLite, two concurrent stacks, access from other project
 
 The MCP server exposes 59 tools, one per REST operation, with the same request schemas and error codes. Write tools take a `body` object whose fields match the REST request body. Parameters marked `?` are optional; `page?` and `limit?` paginate every list tool. Attachment and comment tools take a `container_type` of `story`, `task` or `milestone`.
 
+<details>
+<summary>All 59 tools: purpose and main parameters</summary>
+
 | Tool | Purpose | Main parameters |
 |------|---------|-----------------|
 | `get_status` | Service liveness and running version | — |
@@ -146,6 +149,8 @@ The MCP server exposes 59 tools, one per REST operation, with the same request s
 | `get_project_effective_settings` | A project's settings, with its overrides applied over the system defaults | `project_id` |
 | `set_project_settings` | Set project overrides | `project_id`, `body{task_statuses?, task_types?, story_statuses?, link_types?, participant_roles?, default_web_ui_role?}` |
 | `clear_project_setting` | Remove one project override | `project_id`, `key` |
+
+</details>
 
 ## Deployment
 
